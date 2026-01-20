@@ -1,7 +1,7 @@
 /**
  * Appwrite Service Configuration
- * File: src/services/appwrite.js
- * 
+ * File: src/services/appwrite.ts
+ *
  * This file sets up the Appwrite client and exports
  * the services we'll use throughout the app
  */
@@ -19,13 +19,12 @@ import {
   APPWRITE_ORDER_QUEUE_COLLECTION_ID,
   APPWRITE_ORDER_MESSAGES_COLLECTION_ID,
 } from '@env';
+import type { AppwriteConfig } from '../types';
 
 // Initialize Appwrite Client
 const client = new Client();
 
-client
-  .setEndpoint(APPWRITE_ENDPOINT)
-  .setProject(APPWRITE_PROJECT_ID);
+client.setEndpoint(APPWRITE_ENDPOINT).setProject(APPWRITE_PROJECT_ID);
 
 // Initialize services
 export const account = new Account(client);
@@ -36,7 +35,7 @@ export const storage = new Storage(client);
 export default client;
 
 // Export configuration constants
-export const config = {
+export const config: AppwriteConfig = {
   databaseId: APPWRITE_DATABASE_ID,
   usersCollectionId: APPWRITE_USERS_COLLECTION_ID,
   productsCollectionId: APPWRITE_PRODUCTS_COLLECTION_ID,

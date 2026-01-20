@@ -1,6 +1,6 @@
 /**
  * Login Screen
- * File: src/screens/auth/LoginScreen.js
+ * File: src/screens/auth/LoginScreen.tsx
  */
 
 import React, { useState } from 'react';
@@ -16,16 +16,20 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import type { AuthStackParamList } from '../../types';
 
-const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [localLoading, setLocalLoading] = useState(false);
-  
+type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+
+const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [localLoading, setLocalLoading] = useState<boolean>(false);
+
   const { login } = useAuth();
 
-  const handleLogin = async () => {
+  const handleLogin = async (): Promise<void> => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -36,7 +40,7 @@ const LoginScreen = ({ navigation }) => {
     setLocalLoading(false);
 
     if (!result.success) {
-      Alert.alert('Login Failed', result.error);
+      Alert.alert('Login Failed', result.error ?? 'Unknown error occurred');
     }
     // Navigation is handled automatically by App.js based on auth state
   };

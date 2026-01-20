@@ -1,6 +1,6 @@
 /**
  * Forgot Password Screen
- * File: src/screens/auth/ForgotPasswordScreen.js
+ * File: src/screens/auth/ForgotPasswordScreen.tsx
  */
 
 import React, { useState } from 'react';
@@ -13,16 +13,25 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import type { AuthStackParamList } from '../../types';
 
-const ForgotPasswordScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [localLoading, setLocalLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
-  
+type ForgotPasswordScreenProps = NativeStackScreenProps<
+  AuthStackParamList,
+  'ForgotPassword'
+>;
+
+const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
+  navigation,
+}) => {
+  const [email, setEmail] = useState<string>('');
+  const [localLoading, setLocalLoading] = useState<boolean>(false);
+  const [emailSent, setEmailSent] = useState<boolean>(false);
+
   const { resetPassword } = useAuth();
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = async (): Promise<void> => {
     if (!email) {
       Alert.alert('Error', 'Please enter your email address');
       return;
@@ -35,7 +44,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
     if (result.success) {
       setEmailSent(true);
     } else {
-      Alert.alert('Error', result.error);
+      Alert.alert('Error', result.error ?? 'Unknown error occurred');
     }
   };
 
@@ -43,7 +52,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
     return (
       <View style={styles.container}>
         <View style={styles.successContainer}>
-          <Text style={styles.successIcon}>✓</Text>
+          <Text style={styles.successIcon}>checkmark</Text>
           <Text style={styles.successTitle}>Check Your Email</Text>
           <Text style={styles.successText}>
             We've sent password reset instructions to:
@@ -65,7 +74,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
       <View style={styles.content}>
         <Text style={styles.title}>Reset Password</Text>
         <Text style={styles.subtitle}>
-          Enter your email address and we'll send you instructions to reset your password.
+          Enter your email address and we'll send you instructions to reset your
+          password.
         </Text>
 
         <View style={styles.inputContainer}>

@@ -1,6 +1,6 @@
 /**
  * Register Screen
- * File: src/screens/auth/RegisterScreen.js
+ * File: src/screens/auth/RegisterScreen.tsx
  */
 
 import React, { useState } from 'react';
@@ -16,20 +16,27 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import type { AuthStackParamList, UserRole } from '../../types';
 
-const RegisterScreen = ({ navigation }) => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('customer'); // 'customer' or 'shopper'
-  const [localLoading, setLocalLoading] = useState(false);
-  
+type RegisterScreenProps = NativeStackScreenProps<
+  AuthStackParamList,
+  'Register'
+>;
+
+const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
+  const [firstName, setFirstName] = useState<string>('');
+  const [lastName, setLastName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [role, setRole] = useState<UserRole>('customer');
+  const [localLoading, setLocalLoading] = useState<boolean>(false);
+
   const { register } = useAuth();
 
-  const handleRegister = async () => {
+  const handleRegister = async (): Promise<void> => {
     // Validation
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -54,7 +61,10 @@ const RegisterScreen = ({ navigation }) => {
       Alert.alert('Success', 'Account created successfully!');
       // Navigation is handled automatically by App.js based on auth state
     } else {
-      Alert.alert('Registration Failed', result.error);
+      Alert.alert(
+        'Registration Failed',
+        result.error ?? 'Unknown error occurred'
+      );
     }
   };
 
@@ -87,7 +97,7 @@ const RegisterScreen = ({ navigation }) => {
                     role === 'customer' && styles.roleButtonTextActive,
                   ]}
                 >
-                  🛒 Customer
+                  Customer
                 </Text>
               </TouchableOpacity>
 
@@ -104,7 +114,7 @@ const RegisterScreen = ({ navigation }) => {
                     role === 'shopper' && styles.roleButtonTextActive,
                   ]}
                 >
-                  🛍️ Shopper
+                  Shopper
                 </Text>
               </TouchableOpacity>
             </View>
@@ -112,7 +122,7 @@ const RegisterScreen = ({ navigation }) => {
 
           {/* Name Fields */}
           <View style={styles.rowContainer}>
-            <View style={[styles.inputContainer, { flex: 1, marginRight: 10 }]}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
               <Text style={styles.label}>First Name</Text>
               <TextInput
                 style={styles.input}
@@ -123,7 +133,7 @@ const RegisterScreen = ({ navigation }) => {
               />
             </View>
 
-            <View style={[styles.inputContainer, { flex: 1 }]}>
+            <View style={[styles.inputContainer, styles.halfWidthRight]}>
               <Text style={styles.label}>Last Name</Text>
               <TextInput
                 style={styles.input}
@@ -177,7 +187,10 @@ const RegisterScreen = ({ navigation }) => {
 
           {/* Register Button */}
           <TouchableOpacity
-            style={[styles.registerButton, localLoading && styles.buttonDisabled]}
+            style={[
+              styles.registerButton,
+              localLoading && styles.buttonDisabled,
+            ]}
             onPress={handleRegister}
             disabled={localLoading}
           >
@@ -259,6 +272,13 @@ const styles = StyleSheet.create({
   },
   rowContainer: {
     flexDirection: 'row',
+  },
+  halfWidth: {
+    flex: 1,
+    marginRight: 10,
+  },
+  halfWidthRight: {
+    flex: 1,
   },
   inputContainer: {
     marginBottom: 16,

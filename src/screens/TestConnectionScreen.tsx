@@ -1,7 +1,7 @@
 /**
  * Test Connection Screen
- * File: src/screens/TestConnectionScreen.js
- * 
+ * File: src/screens/TestConnectionScreen.tsx
+ *
  * This screen tests the Appwrite connection by fetching products
  */
 
@@ -13,52 +13,69 @@ import {
   ActivityIndicator,
   FlatList,
   TouchableOpacity,
+  ListRenderItemInfo,
 } from 'react-native';
 import { databases, config } from '../services/appwrite';
+import type { Product } from '../types';
 
-const TestConnectionScreen = () => {
-  const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState([]);
-  const [error, setError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('Testing...');
+const TestConnectionScreen: React.FC = () => {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<string>('Testing...');
 
   useEffect(() => {
     testConnection();
   }, []);
 
-  const testConnection = async () => {
+  const testConnection = async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
       setConnectionStatus('Connecting to Appwrite...');
 
       // Try to fetch products from the database
-      const response = await databases.listDocuments(
+      const response = await databases.listDocuments<Product>(
         config.databaseId,
         config.productsCollectionId
       );
 
       setProducts(response.documents);
-      setConnectionStatus('✅ Connected Successfully!');
+      setConnectionStatus('Connected Successfully!');
       setLoading(false);
     } catch (err) {
       console.error('Connection error:', err);
-      setError(err.message);
-      setConnectionStatus('❌ Connection Failed');
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      setConnectionStatus('Connection Failed');
       setLoading(false);
     }
   };
 
+  const renderProductItem = ({
+    item,
+  }: ListRenderItemInfo<Product>): React.ReactElement => (
+    <View style={styles.productItem}>
+      <Text style={styles.productName}>{item.name}</Text>
+      <Text style={styles.productPrice}>${item.price}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Appwrite Connection Test</Text>
-      
+
       <View style={styles.statusCard}>
         <Text style={styles.statusText}>{connectionStatus}</Text>
       </View>
 
       {loading && (
-        <ActivityIndicator size="large" color="#0066cc" style={styles.loader} />
+        <ActivityIndicator
+          size="large"
+          color="#0066cc"
+          style={styles.loader}
+        />
       )}
 
       {error && (
@@ -76,7 +93,7 @@ const TestConnectionScreen = () => {
           <Text style={styles.resultsTitle}>
             Found {products.length} products in database
           </Text>
-          
+
           {products.length === 0 ? (
             <Text style={styles.noProducts}>
               No products yet. You can add them later!
@@ -85,12 +102,7 @@ const TestConnectionScreen = () => {
             <FlatList
               data={products}
               keyExtractor={(item) => item.$id}
-              renderItem={({ item }) => (
-                <View style={styles.productItem}>
-                  <Text style={styles.productName}>{item.name}</Text>
-                  <Text style={styles.productPrice}>${item.price}</Text>
-                </View>
-              )}
+              renderItem={renderProductItem}
               style={styles.productList}
             />
           )}
@@ -99,9 +111,9 @@ const TestConnectionScreen = () => {
 
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>Configuration Check:</Text>
-        <Text style={styles.infoText}>✓ Appwrite SDK installed</Text>
-        <Text style={styles.infoText}>✓ Environment variables loaded</Text>
-        <Text style={styles.infoText}>✓ Database connection attempted</Text>
+        <Text style={styles.infoText}>Appwrite SDK installed</Text>
+        <Text style={styles.infoText}>Environment variables loaded</Text>
+        <Text style={styles.infoText}>Database connection attempted</Text>
       </View>
     </View>
   );
