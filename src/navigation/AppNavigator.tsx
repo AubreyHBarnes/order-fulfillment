@@ -33,6 +33,9 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 
 // Customer Screens
 import CustomerHomeScreen from '../screens/customer/CustomerHomeScreen';
+import CartScreen from '../screens/customer/CartScreen';
+import CheckoutScreen from '../screens/customer/CheckoutScreen';
+import OrderConfirmationScreen from '../screens/customer/OrderConfirmationScreen';
 
 // Debug/Development Screens (kept for testing, not in main flow)
 // import TestConnectionScreen from '../screens/TestConnectionScreen';
@@ -343,14 +346,52 @@ const AppNavigator: React.FC = () => {
             }}
           />
 
+          <MainStack.Screen
+            name="Cart"
+            component={CartScreen}
+            options={{
+              title: 'Shopping Cart',
+              /**
+               * WHY "Shopping Cart"?
+               * - Clear, descriptive title
+               * - User knows exactly where they are
+               * - Standard e-commerce terminology
+               */
+            }}
+          />
+
+          <MainStack.Screen
+            name="Checkout"
+            component={CheckoutScreen}
+            options={{
+              title: 'Checkout',
+              /**
+               * WHY "Checkout"?
+               * - Clear, action-oriented title
+               * - Standard e-commerce terminology
+               * - User knows this is final step before order
+               */
+            }}
+          />
+
+          <MainStack.Screen
+            name="OrderConfirmation"
+            component={OrderConfirmationScreen}
+            options={{
+              title: 'Order Confirmation',
+              headerBackVisible: false,
+              /**
+               * WHY headerBackVisible: false?
+               * - Prevents going back to Checkout
+               * - Cart is cleared after order
+               * - Going back would show empty checkout
+               * - "Continue Shopping" is the only exit
+               */
+            }}
+          />
+
           {/**
-           * FUTURE SCREENS (Phase 3.3+):
-           *
-           * <MainStack.Screen
-           *   name="Cart"
-           *   component={CartScreen}
-           *   options={{ title: 'Shopping Cart' }}
-           * />
+           * FUTURE SCREENS:
            *
            * <MainStack.Screen
            *   name="ProductDetail"

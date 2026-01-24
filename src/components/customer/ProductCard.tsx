@@ -66,7 +66,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
         accessibilityLabel={`${product.name}, ${formatPrice(product.price)}`}
         accessibilityHint="Double tap to view product details"
       >
-        <Card.Content>
+        <Card.Content style={styles.content}>
           {/* Product Name */}
           <View style={styles.header}>
             <Text
@@ -205,18 +205,28 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
  */
 const styles = StyleSheet.create({
   card: {
-    margin: 8,
+    marginVertical: 6,
     /**
+     * WHY marginVertical only?
+     * - Horizontal spacing handled by gap in parent row
+     * - marginVertical: 6 gives breathing room between rows
+     * - Cleaner than margin on all sides
+     *
      * WHY fixed width?
      * - Allows 2-column grid on phone
      * - Consistent card sizing
      * - Better visual rhythm
-     *
-     * TRADE-OFF: Not fully responsive
-     * - Alternative: use flex: 1 with FlatList numColumns
-     * - For this app, fixed width is simpler
      */
-    width: 170,
+    width: 160,
+  },
+  content: {
+    paddingVertical: 16,
+    /**
+     * WHY paddingVertical: 16?
+     * - More breathing room for product name at top
+     * - More space above add to cart button at bottom
+     * - Improves readability and visual balance
+     */
   },
   header: {
     marginBottom: 8,

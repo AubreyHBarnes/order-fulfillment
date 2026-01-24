@@ -34,6 +34,7 @@ import {
   Chip,
   Badge,
   ActivityIndicator,
+  Icon,
 } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCart } from '../../context/CartContext';
@@ -73,7 +74,9 @@ type CustomerHomeScreenProps = NativeStackScreenProps<
   'CustomerHome'
 >;
 
-const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = () => {
+const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
+  navigation,
+}) => {
   // ============================================================
   // STATE MANAGEMENT
   // ============================================================
@@ -234,6 +237,13 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = () => {
 
     try {
       setLoading(true);
+      setProducts([]); // Clear products to trigger loading state
+      /**
+       * WHY CLEAR PRODUCTS?
+       * - Prevents stale data from previous category showing during fetch
+       * - Ensures loading spinner displays (loading && products.length === 0)
+       * - Avoids layout jump when new data arrives with different item count
+       */
 
       let result;
       if (category === 'All') {
@@ -291,6 +301,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = () => {
 
     try {
       setLoading(true);
+      setProducts([]); // Clear products to trigger loading state
       setSelectedCategory('All'); // Reset category filter
 
       const result = await searchProducts(searchQuery);
@@ -311,11 +322,54 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = () => {
    * - Uses different loading state (refreshing vs loading)
    * - Different UI feedback (spinner at top vs center)
    * - Could add analytics: "User refreshed"
+   *
+   * WHY RESPECT SELECTED CATEGORY?
+   * - User expectation: "I'm viewing Dairy, refresh should show updated Dairy products"
+   * - Calling loadInitialData() would fetch ALL products, ignoring the filter
+   * - This caused a bug: products showed all items but category chip stayed selected
+   * - State inconsistency = confusing UX and potential trust issues
+   *
+   * THE BUG EXPLAINED:
+   * Before fix: handleRefresh -> loadInitialData -> getAllProducts()
+   *   - selectedCategory state: "Dairy" (unchanged)
+   *   - products state: ALL products (reset by loadInitialData)
+   *   - Result: UI shows "Dairy" selected but displays all products (mismatch!)
+   *
+   * After fix: handleRefresh checks selectedCategory and fetches accordingly
+   *   - selectedCategory state: "Dairy" (unchanged)
+   *   - products state: Only Dairy products (respects filter)
+   *   - Result: UI is consistent - "Dairy" selected, Dairy products shown
+   *
+   * KEY PRINCIPLE: State should always be consistent across related values.
+   * When two pieces of state are conceptually linked (selectedCategory and products),
+   * any operation that changes one should consider the other.
    */
   const handleRefresh = async (): Promise<void> => {
     setRefreshing(true);
-    await loadInitialData();
-    setRefreshing(false);
+
+    try {
+      /**
+       * WHY CONDITIONAL FETCH?
+       * - Check current selectedCategory state
+       * - Fetch products that match the active filter
+       * - "All" = getAllProducts(), otherwise = getProductsByCategory()
+       * - This mirrors the logic in handleCategorySelect
+       */
+      let result;
+      if (selectedCategory === 'All') {
+        result = await getAllProducts();
+      } else {
+        result = await getProductsByCategory(selectedCategory);
+      }
+
+      if (result.success) {
+        setProducts(result.data);
+      }
+    } catch (err) {
+      console.error('Error refreshing products:', err);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   /**
@@ -336,11 +390,14 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = () => {
 
   /**
    * Navigate to cart
+   *
+   * WHY SIMPLE NAVIGATION?
+   * - Cart screen handles all cart logic
+   * - No params needed (cart data from context)
+   * - Standard navigation pattern
    */
   const handleCartPress = (): void => {
-    // Will implement in Phase 3.3
-    console.log('Cart pressed');
-    // navigation.navigate('Cart');
+    navigation.navigate('Cart');
   };
 
   // ============================================================
@@ -469,7 +526,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = () => {
           accessibilityHint="Double tap to view cart"
           accessibilityRole="button"
         >
-          <Text style={styles.cartIcon}>cart</Text>
+          <Icon source="cart" size={28} color="#007AFF" />
           {/**
            * WHY CONDITIONAL BADGE?
            * Only show if cart has items
@@ -568,6 +625,14 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = () => {
          * - Virtual scrolling (lazy loading)
          * - Recycles views (memory efficient)
          * - Standard for lists in React Native
+         */
+        style={styles.flatList}
+        /**
+         * WHY style={{ flex: 1 }}?
+         * - FlatList needs to fill remaining vertical space
+         * - Without it, FlatList only takes content height
+         * - Causes layout issues when few products (3-4 items)
+         * - flex: 1 ensures consistent layout regardless of content
          */
         data={products}
         renderItem={renderProduct}
@@ -726,10 +791,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
 
-  cartIcon: {
-    fontSize: 28,
-  },
-
   cartBadge: {
     position: 'absolute',
     /**
@@ -766,11 +827,14 @@ const styles = StyleSheet.create({
   // ===== CATEGORIES =====
   categoryContainer: {
     height: 50,
+    flexGrow: 0,
+    flexShrink: 0,
     /**
-     * WHY maxHeight?
-     * - Prevents taking too much space
-     * - Chips are ~40px tall
-     * - Fixed height for consistent layout
+     * WHY flexGrow: 0, flexShrink: 0?
+     * - Prevents ScrollView from expanding in flex container
+     * - height: 50 alone can be overridden by flex behavior
+     * - These ensure the container stays exactly 50px
+     * - Without them, container expands when FlatList has few items
      */
   },
 
@@ -797,23 +861,36 @@ const styles = StyleSheet.create({
   },
 
   // ===== PRODUCTS =====
-  productList: {
-    padding: 8,
+  flatList: {
+    flex: 1,
     /**
-     * WHY padding?
-     * - Space from screen edges
-     * - Prevents cards from touching edges
-     * - Breathing room around grid
+     * WHY flex: 1?
+     * - Makes FlatList fill remaining vertical space in container
+     * - Without this, FlatList height = content height
+     * - With few items, causes layout gaps above the list
+     * - Ensures consistent layout regardless of product count
+     */
+  },
+
+  productList: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    /**
+     * WHY paddingHorizontal: 20?
+     * - More space between device edges and product grid
+     * - Creates visual breathing room on sides
+     * - Cards appear more centered and less cramped
      */
   },
 
   row: {
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 12,
     /**
-     * WHY space-between?
-     * - Equal space between columns
-     * - Cards don't touch
-     * - Could also use paddingHorizontal on cards
+     * WHY justifyContent: center with gap?
+     * - Centers cards instead of spreading them apart
+     * - gap: 12 gives consistent, smaller spacing between cards
+     * - Cards closer together horizontally than space-between
      */
   },
 
