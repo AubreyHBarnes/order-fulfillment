@@ -100,6 +100,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await account.createEmailPasswordSession(email, password);
 
       // Create user profile in Users collection
+      // Note: Appwrite schema requires both customerID and shopperID fields
+      // We set the relevant one based on role, and empty string for the other
       const profile = await databases.createDocument<UserProfile>(
         config.databaseId,
         config.usersCollectionId,
@@ -109,6 +111,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: role,
           firstName: firstName,
           lastName: lastName,
+          // Set customerID for customers, empty for shoppers
+          customerID: role === 'customer' ? newAccount.$id : '',
+          // Set shopperID for shoppers, empty for customers
+          shopperID: role === 'shopper' ? newAccount.$id : '',
         }
       );
 

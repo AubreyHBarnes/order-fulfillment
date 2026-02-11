@@ -14,6 +14,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Button } from 'react-native-paper';
+import { useAppTheme } from '../../theme';
 import type { EmptyCartProps } from '../../types';
 
 /**
@@ -24,6 +25,14 @@ import type { EmptyCartProps } from '../../types';
  * - Better performance (no class overhead)
  */
 const EmptyCart: React.FC<EmptyCartProps> = ({ onContinueShopping }) => {
+  const theme = useAppTheme();
+
+  const dynamicStyles = {
+    message: {
+      color: theme.custom.textSecondary,
+    },
+  };
+
   return (
     <View
       style={styles.container}
@@ -60,7 +69,7 @@ const EmptyCart: React.FC<EmptyCartProps> = ({ onContinueShopping }) => {
 
       <Text
         variant="bodyMedium"
-        style={styles.message}
+        style={[styles.message, dynamicStyles.message]}
         /**
          * WHY bodyMedium for description?
          * - Secondary importance to headline
@@ -153,11 +162,9 @@ const styles = StyleSheet.create({
 
   message: {
     textAlign: 'center',
-    color: '#757575',
     marginBottom: 24,
     /**
-     * WHY #757575 color?
-     * - Secondary text color
+     * WHY secondary text color?
      * - Less prominent than title
      * - Proper visual hierarchy
      * - Matches Material Design secondary text

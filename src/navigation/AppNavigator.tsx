@@ -20,7 +20,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import type { AuthStackParamList, MainStackParamList } from '../types';
+import type { AuthStackParamList, MainStackParamList, ShopperStackParamList } from '../types';
 
 // ============================================================
 // SCREEN IMPORTS
@@ -36,6 +36,18 @@ import CustomerHomeScreen from '../screens/customer/CustomerHomeScreen';
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
 import OrderConfirmationScreen from '../screens/customer/OrderConfirmationScreen';
+import OrdersScreen from '../screens/customer/OrdersScreen';
+import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
+
+// Shopper Screens
+import {
+  ShopperDashboardScreen,
+  AvailableTasksScreen,
+  DropOffsScreen,
+  CustomerCheckInsScreen,
+  TaskDetailScreen,
+  ShopperSettingsScreen,
+} from '../screens/shopper';
 
 // Debug/Development Screens (kept for testing, not in main flow)
 // import TestConnectionScreen from '../screens/TestConnectionScreen';
@@ -54,6 +66,7 @@ import OrderConfirmationScreen from '../screens/customer/OrderConfirmationScreen
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MainStack = createNativeStackNavigator<MainStackParamList>();
+const ShopperStack = createNativeStackNavigator<ShopperStackParamList>();
 
 /**
  * WHY CREATE OUTSIDE COMPONENT?
@@ -61,11 +74,37 @@ const MainStack = createNativeStackNavigator<MainStackParamList>();
  * - If inside: recreated every render (loses navigation state)
  * - Performance: Stable references
  * - Navigation history: Maintains stack
+ *
+ * WHY SEPARATE SHOPPER STACK?
+ * - Different screens and workflows than customer
+ * - Role-based navigation (shopper vs customer)
+ * - Easier to maintain and extend each flow independently
+ * - Clear separation of concerns
  */
 
 // ============================================================
-// LOGOUT BUTTON COMPONENT
+// HEADER COMPONENTS
 // ============================================================
+
+/**
+ * Welcome Title Component
+ *
+ * WHY A COMPONENT FOR THE TITLE?
+ * - Need to access AuthContext to get user's name
+ * - Can't use hooks directly in screen options
+ * - headerTitle prop accepts a component
+ * - Keeps navigation config clean
+ */
+const WelcomeTitle: React.FC = () => {
+  const { userProfile } = useAuth();
+  const firstName = userProfile?.firstName ?? 'Customer';
+
+  return (
+    <Text style={{ fontSize: 18, fontWeight: '600', color: '#000' }}>
+      Welcome, {firstName}
+    </Text>
+  );
+};
 
 /**
  * WHY SEPARATE COMPONENT?
@@ -146,7 +185,7 @@ const LogoutButton: React.FC = () => {
 // ============================================================
 
 const AppNavigator: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   /**
    * WHY DESTRUCTURE FROM useAuth?
@@ -157,8 +196,12 @@ const AppNavigator: React.FC = () => {
    * FLOW:
    * App starts -> loading=true -> Check session -> loading=false
    *   |
-   * If user exists: Show main app
+   * If user exists: Show main app (customer or shopper based on role)
    * If no user: Show auth screens
+   *
+   * ROLE-BASED NAVIGATION:
+   * - userProfile.role === 'shopper' -> ShopperStack
+   * - userProfile.role === 'customer' (or default) -> MainStack
    */
 
   // ============================================================
@@ -199,16 +242,22 @@ const AppNavigator: React.FC = () => {
     <NavigationContainer>
       {/**
        * CONDITIONAL NAVIGATION:
-       * Two completely separate navigation stacks based on auth state
+       * Three separate navigation stacks based on auth state and role
+       *
+       * NAVIGATION FLOW:
+       * 1. !user -> AuthStack (Login, Register, ForgotPassword)
+       * 2. user + role=shopper -> ShopperStack (Dashboard, Tasks, etc.)
+       * 3. user + role=customer -> MainStack (Shop, Cart, Checkout, etc.)
        *
        * WHY CONDITIONAL?
        * - Security: Logged out users can't access app screens
+       * - Role separation: Shoppers and customers have different flows
        * - UX: No back button confusion (can't go back to login after login)
-       * - Performance: Only mount relevant screens
+       * - Performance: Only mount relevant screens for each role
        *
        * ALTERNATIVE APPROACHES:
-       * 1. Single stack with all screens (worse: security issues)
-       * 2. Check auth in every screen (worse: repetitive, error-prone)
+       * 1. Single stack with all screens (worse: security issues, role confusion)
+       * 2. Check auth/role in every screen (worse: repetitive, error-prone)
        * 3. This approach (best: enforced at navigation level)
        */}
 
@@ -285,9 +334,98 @@ const AppNavigator: React.FC = () => {
            * - Privacy Policy
            */}
         </AuthStack.Navigator>
+      ) : userProfile?.role === 'shopper' ? (
+        // ========================================================
+        // SHOPPER STACK - Logged In as Shopper
+        // ========================================================
+        /**
+         * WHY SEPARATE SHOPPER STACK?
+         *
+         * Shoppers have completely different workflows than customers:
+         * - Customers: Browse products, add to cart, checkout
+         * - Shoppers: View tasks, shop orders, deliver/hand off
+         *
+         * Benefits of separate stacks:
+         * 1. Clear separation of concerns
+         * 2. Role-specific navigation flows
+         * 3. Easier to maintain and extend
+         * 4. No confusion between customer/shopper screens
+         */
+
+        <ShopperStack.Navigator
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: '#FFFFFF',
+            },
+            headerTintColor: '#007AFF',
+            headerTitleStyle: {
+              fontWeight: '600',
+            },
+          }}
+        >
+          <ShopperStack.Screen
+            name="ShopperHome"
+            component={ShopperDashboardScreen}
+            options={{
+              headerShown: false,
+              /**
+               * WHY headerShown: false?
+               * - ShopperDashboardScreen has its own custom header
+               * - More control over design (settings icon, etc.)
+               * - Consistent with dashboard's visual design
+               */
+            }}
+          />
+
+          <ShopperStack.Screen
+            name="AvailableTasks"
+            component={AvailableTasksScreen}
+            options={{
+              title: 'Pick Tasks',
+              /**
+               * WHY "Pick Tasks"?
+               * - Matches the quick link label on dashboard
+               * - Clear action-oriented title
+               * - "Available Tasks" is longer and less actionable
+               */
+            }}
+          />
+
+          <ShopperStack.Screen
+            name="DropOffs"
+            component={DropOffsScreen}
+            options={{
+              title: 'Drop Offs',
+            }}
+          />
+
+          <ShopperStack.Screen
+            name="CustomerCheckIns"
+            component={CustomerCheckInsScreen}
+            options={{
+              title: 'Customer Check-ins',
+            }}
+          />
+
+          <ShopperStack.Screen
+            name="TaskDetail"
+            component={TaskDetailScreen}
+            options={{
+              title: 'Task Details',
+            }}
+          />
+
+          <ShopperStack.Screen
+            name="ShopperSettings"
+            component={ShopperSettingsScreen}
+            options={{
+              title: 'Settings',
+            }}
+          />
+        </ShopperStack.Navigator>
       ) : (
         // ========================================================
-        // MAIN APP STACK - Logged In
+        // MAIN APP STACK - Logged In as Customer
         // ========================================================
 
         <MainStack.Navigator
@@ -323,13 +461,12 @@ const AppNavigator: React.FC = () => {
             name="CustomerHome"
             component={CustomerHomeScreen}
             options={{
-              title: 'Shop',
+              headerTitle: () => <WelcomeTitle />,
               /**
-               * WHY "Shop" NOT "Home"?
-               * - Action-oriented (tells user what to do)
-               * - Clear purpose
-               * - Consistent across users
-               * - Short (doesn't take space)
+               * WHY CUSTOM headerTitle COMPONENT?
+               * - Shows personalized "Welcome, [Name]" greeting
+               * - Needs access to AuthContext for user's name
+               * - More welcoming than generic "Shop" title
                */
 
               headerRight: () => <LogoutButton />,
@@ -388,6 +525,22 @@ const AppNavigator: React.FC = () => {
                * - "Continue Shopping" is the only exit
                */
             }}
+          />
+
+          <MainStack.Screen
+            name="Orders"
+            component={OrdersScreen}
+            options={{
+              title: 'My Orders',
+            }}
+          />
+
+          <MainStack.Screen
+            name="OrderDetail"
+            component={OrderDetailScreen}
+            options={({ route }) => ({
+              title: `Order #${route.params.orderId.slice(-8).toUpperCase()}`,
+            })}
           />
 
           {/**

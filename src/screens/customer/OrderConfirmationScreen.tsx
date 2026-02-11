@@ -36,6 +36,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getOrderById, getPickupLocations } from '../../services/orderService';
 import { formatPrice } from '../../services/productService';
+import { useAppTheme } from '../../theme';
 import type { MainStackParamList, Order } from '../../types';
 
 /**
@@ -78,6 +79,12 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
    * - Displayed truncated in UI
    */
   const { orderId } = route.params;
+
+  // ============================================================
+  // THEME
+  // ============================================================
+
+  const theme = useAppTheme();
 
   // ============================================================
   // STATE
@@ -203,14 +210,70 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
   };
 
   // ============================================================
+  // DYNAMIC STYLES
+  // ============================================================
+
+  const dynamicStyles = {
+    container: {
+      backgroundColor: theme.colors.background,
+    },
+    centerContainer: {
+      backgroundColor: theme.colors.background,
+    },
+    title: {
+      color: theme.colors.onBackground,
+    },
+    checkmarkContainer: {
+      backgroundColor: theme.custom.success,
+    },
+    checkmark: {
+      color: theme.colors.onPrimary,
+    },
+    successIcon: {
+      color: theme.custom.success,
+    },
+    orderId: {
+      color: theme.custom.textSecondary,
+    },
+    infoCard: {
+      backgroundColor: theme.colors.surface,
+    },
+    locationText: {
+      color: theme.colors.onSurface,
+    },
+    summaryRow: {
+      borderTopColor: theme.custom.divider,
+    },
+    summaryText: {
+      color: theme.colors.onSurface,
+    },
+    loadingText: {
+      color: theme.custom.textSecondary,
+    },
+    errorText: {
+      color: theme.colors.error,
+    },
+    footer: {
+      backgroundColor: theme.colors.surface,
+      borderTopColor: theme.custom.border,
+    },
+    continueButton: {
+      backgroundColor: theme.colors.primary,
+    },
+    continueButtonText: {
+      color: theme.colors.onPrimary,
+    },
+  };
+
+  // ============================================================
   // RENDER - LOADING STATE
   // ============================================================
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading order details...</Text>
+      <View style={[styles.centerContainer, dynamicStyles.centerContainer]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, dynamicStyles.loadingText]}>Loading order details...</Text>
       </View>
     );
   }
@@ -227,27 +290,27 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
    */
   if (error || !order) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, dynamicStyles.container]}>
         <View style={styles.content}>
           {/* Still show success since order was placed */}
-          <Text style={styles.successIcon}>✓</Text>
-          <Text style={styles.title}>Order Placed!</Text>
-          <Text style={styles.orderId}>Order #{orderId.slice(0, 8)}...</Text>
-          <Text style={styles.errorText}>
+          <Text style={[styles.successIcon, dynamicStyles.successIcon]}>✓</Text>
+          <Text style={[styles.title, dynamicStyles.title]}>Order Placed!</Text>
+          <Text style={[styles.orderId, dynamicStyles.orderId]}>Order #{orderId.slice(0, 8)}...</Text>
+          <Text style={[styles.errorText, dynamicStyles.errorText]}>
             {error ?? 'Could not load order details'}
           </Text>
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, dynamicStyles.footer]}>
           <TouchableOpacity
-            style={styles.continueButton}
+            style={[styles.continueButton, dynamicStyles.continueButton]}
             onPress={handleContinueShopping}
             accessible={true}
             accessibilityLabel="Continue shopping"
             accessibilityHint="Return to the home screen to continue shopping"
             accessibilityRole="button"
           >
-            <Text style={styles.continueButtonText}>Continue Shopping</Text>
+            <Text style={[styles.continueButtonText, dynamicStyles.continueButtonText]}>Continue Shopping</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -259,18 +322,18 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
   // ============================================================
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       <View style={styles.content}>
         {/* ===== SUCCESS HEADER ===== */}
-        <Text style={styles.title}>Order Placed!</Text>
+        <Text style={[styles.title, dynamicStyles.title]}>Order Placed!</Text>
 
         {/* ===== CHECKMARK ICON ===== */}
-        <View style={styles.checkmarkContainer}>
-          <Text style={styles.checkmark}>✓</Text>
+        <View style={[styles.checkmarkContainer, dynamicStyles.checkmarkContainer]}>
+          <Text style={[styles.checkmark, dynamicStyles.checkmark]}>✓</Text>
         </View>
 
         {/* ===== ORDER ID ===== */}
-        <Text style={styles.orderId}>
+        <Text style={[styles.orderId, dynamicStyles.orderId]}>
           Order #{orderId.slice(0, 8).toUpperCase()}
         </Text>
         {/**
@@ -281,15 +344,15 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
          */}
 
         {/* ===== DELIVERY/PICKUP INFO ===== */}
-        <View style={styles.infoCard}>
-          <Text style={styles.locationText}>{getLocationText()}</Text>
+        <View style={[styles.infoCard, dynamicStyles.infoCard]}>
+          <Text style={[styles.locationText, dynamicStyles.locationText]}>{getLocationText()}</Text>
 
           {/* ===== ITEM COUNT AND TOTAL ===== */}
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryText}>
+          <View style={[styles.summaryRow, dynamicStyles.summaryRow]}>
+            <Text style={[styles.summaryText, dynamicStyles.summaryText]}>
               {getItemCount()} {getItemCount() === 1 ? 'item' : 'items'}
             </Text>
-            <Text style={styles.summaryText}>
+            <Text style={[styles.summaryText, dynamicStyles.summaryText]}>
               {formatPrice(order.totalAmount)}
             </Text>
           </View>
@@ -305,16 +368,16 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
       </View>
 
       {/* ===== CONTINUE SHOPPING BUTTON ===== */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, dynamicStyles.footer]}>
         <TouchableOpacity
-          style={styles.continueButton}
+          style={[styles.continueButton, dynamicStyles.continueButton]}
           onPress={handleContinueShopping}
           accessible={true}
           accessibilityLabel="Continue shopping"
           accessibilityHint="Return to the home screen to continue shopping"
           accessibilityRole="button"
         >
-          <Text style={styles.continueButtonText}>Continue Shopping</Text>
+          <Text style={[styles.continueButtonText, dynamicStyles.continueButtonText]}>Continue Shopping</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -328,14 +391,12 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
 
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
     padding: 20,
   },
 
@@ -355,7 +416,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 24,
     /**
      * WHY LARGE TITLE?
@@ -368,7 +428,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -382,19 +441,16 @@ const styles = StyleSheet.create({
 
   checkmark: {
     fontSize: 40,
-    color: 'white',
     fontWeight: 'bold',
   },
 
   successIcon: {
     fontSize: 48,
-    color: '#4CAF50',
     marginBottom: 16,
   },
 
   orderId: {
     fontSize: 18,
-    color: '#666',
     marginBottom: 32,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     /**
@@ -406,7 +462,6 @@ const styles = StyleSheet.create({
   },
 
   infoCard: {
-    backgroundColor: 'white',
     borderRadius: 12,
     padding: 20,
     width: '100%',
@@ -420,7 +475,6 @@ const styles = StyleSheet.create({
 
   locationText: {
     fontSize: 16,
-    color: '#333',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 16,
@@ -435,24 +489,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
     paddingTop: 16,
   },
 
   summaryText: {
     fontSize: 16,
-    color: '#333',
     fontWeight: '500',
   },
 
   loadingText: {
     marginTop: 16,
-    color: '#757575',
     fontSize: 16,
   },
 
   errorText: {
-    color: '#E53935',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
@@ -461,20 +511,16 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
 
   continueButton: {
-    backgroundColor: '#007AFF',
     borderRadius: 12,
     padding: 18,
     alignItems: 'center',
   },
 
   continueButtonText: {
-    color: 'white',
     fontSize: 18,
     fontWeight: '600',
   },

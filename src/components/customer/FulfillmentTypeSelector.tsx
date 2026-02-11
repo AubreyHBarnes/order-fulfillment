@@ -9,6 +9,11 @@
  * - Same active/inactive styling approach
  * - Same accessibility implementation
  *
+ * THEMING:
+ * - Uses useAppTheme() for all colors
+ * - Automatically adapts to light/dark mode
+ * - No hardcoded hex values in styles
+ *
  * WHY SEPARATE COMPONENT?
  * - Reusable (could use in order edit, preferences)
  * - Testable in isolation
@@ -17,6 +22,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useAppTheme } from '../../theme';
 import type { FulfillmentTypeSelectorProps } from '../../types';
 
 /**
@@ -33,6 +39,16 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
   onChange,
 }) => {
   /**
+   * ACCESS THEME
+   *
+   * WHY useAppTheme()?
+   * - Returns our typed theme with custom colors
+   * - Automatically updates when theme changes
+   * - Provides theme.colors and theme.custom
+   */
+  const theme = useAppTheme();
+
+  /**
    * WHY value AND onChange?
    * - Controlled component pattern
    * - Parent owns the state
@@ -40,10 +56,44 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
    * - Component is pure/predictable
    */
 
+  /**
+   * DYNAMIC STYLES
+   *
+   * WHY INLINE STYLES FOR COLORS?
+   * - Theme values come from hook (not static)
+   * - Can't use theme in StyleSheet.create (outside component)
+   * - Combine static layout styles with dynamic color styles
+   *
+   * PATTERN:
+   * - Static styles (layout, spacing) in StyleSheet
+   * - Dynamic styles (colors) inline using theme
+   */
+  const dynamicStyles = {
+    sectionLabel: {
+      color: theme.colors.onBackground,
+    },
+    optionButton: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.custom.border,
+    },
+    optionButtonActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    optionText: {
+      color: theme.custom.textSecondary,
+    },
+    optionTextActive: {
+      color: theme.colors.primary,
+    },
+  };
+
   return (
     <View style={styles.container}>
       {/* ========== SECTION LABEL ========== */}
-      <Text style={styles.sectionLabel}>Fulfillment Type</Text>
+      <Text style={[styles.sectionLabel, dynamicStyles.sectionLabel]}>
+        Fulfillment Type
+      </Text>
 
       {/* ========== TOGGLE BUTTONS ========== */}
       <View style={styles.buttonContainer}>
@@ -51,13 +101,14 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
         <TouchableOpacity
           style={[
             styles.optionButton,
+            dynamicStyles.optionButton,
             /**
              * WHY CONDITIONAL STYLE?
              * - Visual feedback for selected state
-             * - Blue border + light blue background when active
-             * - Matches RegisterScreen role button pattern
+             * - Primary border + container background when active
+             * - Automatically adapts to light/dark mode
              */
-            value === 'delivery' && styles.optionButtonActive,
+            value === 'delivery' && dynamicStyles.optionButtonActive,
           ]}
           onPress={() => onChange('delivery')}
           /**
@@ -81,7 +132,8 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
           <Text
             style={[
               styles.optionText,
-              value === 'delivery' && styles.optionTextActive,
+              dynamicStyles.optionText,
+              value === 'delivery' && dynamicStyles.optionTextActive,
             ]}
           >
             Delivery
@@ -92,7 +144,8 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
         <TouchableOpacity
           style={[
             styles.optionButton,
-            value === 'pickup' && styles.optionButtonActive,
+            dynamicStyles.optionButton,
+            value === 'pickup' && dynamicStyles.optionButtonActive,
           ]}
           onPress={() => onChange('pickup')}
           accessible={true}
@@ -105,7 +158,8 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
           <Text
             style={[
               styles.optionText,
-              value === 'pickup' && styles.optionTextActive,
+              dynamicStyles.optionText,
+              value === 'pickup' && dynamicStyles.optionTextActive,
             ]}
           >
             Pickup
@@ -121,12 +175,14 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
 // ============================================================
 
 /**
- * WHY StyleSheet.create?
+ * WHY StyleSheet.create FOR LAYOUT ONLY?
  * - Performance optimization (created once)
- * - Style validation in development
- * - Consistent with app pattern
+ * - Layout styles don't change with theme
+ * - Colors are applied via dynamicStyles (theme-aware)
  *
- * FOLLOWS RegisterScreen roleButton styling
+ * PATTERN:
+ * - StyleSheet: layout, spacing, sizing
+ * - dynamicStyles: colors (from theme)
  */
 const styles = StyleSheet.create({
   container: {
@@ -141,15 +197,13 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     /**
-     * WHY UPPERCASE WITH LETTER SPACING?
-     * - Looks like a form section header
-     * - Distinguishes from input labels
-     * - Professional appearance
+     * WHY NO COLOR HERE?
+     * - Color comes from dynamicStyles.sectionLabel
+     * - Adapts to light/dark mode automatically
      */
   },
 
@@ -160,79 +214,34 @@ const styles = StyleSheet.create({
      * WHY flexDirection: 'row'?
      * - Side-by-side buttons
      * - Matches plan mockup layout
-     *
-     * WHY gap: 12?
-     * - Space between buttons
-     * - Modern React Native (0.71+)
-     * - Cleaner than marginRight on first button
      */
   },
 
   optionButton: {
     flex: 1,
-    backgroundColor: 'white',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#E0E0E0',
     /**
-     * WHY flex: 1?
-     * - Equal width buttons
-     * - Responsive to screen size
-     *
-     * WHY borderRadius: 12?
-     * - Slightly rounded corners
-     * - Modern look
-     * - Matches app card style
-     *
-     * WHY borderWidth: 2?
-     * - Visible border for clarity
-     * - Becomes blue when active
-     */
-  },
-
-  optionButtonActive: {
-    borderColor: '#007AFF',
-    backgroundColor: '#E3F2FD',
-    /**
-     * WHY THESE COLORS?
-     * - Blue border matches primary app color
-     * - Light blue background indicates selection
-     * - Same colors as RegisterScreen role buttons
+     * WHY NO backgroundColor OR borderColor?
+     * - Colors come from dynamicStyles
+     * - Theme-aware (light/dark mode)
      */
   },
 
   optionIcon: {
     fontSize: 32,
     marginBottom: 8,
-    /**
-     * WHY large fontSize?
-     * - Emoji needs larger size to be clear
-     * - Visual prominence
-     * - Easy to tap target
-     */
   },
 
   optionText: {
     fontSize: 16,
-    color: '#666',
     fontWeight: '500',
     /**
-     * WHY gray text?
-     * - Unselected state is subdued
-     * - Contrast with active state
-     */
-  },
-
-  optionTextActive: {
-    color: '#007AFF',
-    fontWeight: '600',
-    /**
-     * WHY blue text when active?
-     * - Matches border color
-     * - Clear indication of selection
-     * - Consistent with app patterns
+     * WHY NO color?
+     * - Color from dynamicStyles.optionText
+     * - Changes based on theme
      */
   },
 });

@@ -79,6 +79,8 @@ export interface Order extends Models.Document {
   autoAssigned: boolean;
   priority: number;
   orderDate: string;
+  scheduledReadyTime: string; // ISO timestamp - when order should be ready
+  pickedItems: string; // Format: "productId:pickedQty,..." (empty = none picked)
 }
 
 /**
@@ -100,6 +102,8 @@ export interface CreateOrderData {
   autoAssigned: boolean;
   priority: number;
   orderDate: string;
+  scheduledReadyTime: string;
+  pickedItems: string;
 }
 
 /**
@@ -134,6 +138,88 @@ export interface OrderListResponse {
 }
 
 // ============================================================
+// CUSTOMER ARRIVAL TYPES
+// ============================================================
+
+/**
+ * CustomerArrival - Records when a customer arrives for pickup
+ *
+ * PURPOSE:
+ * When a customer has a pickup order that's ready, they drive to the store
+ * and tap "I've Arrived" in the app. This creates a CustomerArrival record
+ * that notifies store staff to bring the order out.
+ *
+ * WHY A SEPARATE COLLECTION?
+ * We could have added an "arrivalTime" field to the Order, but a separate
+ * collection is better because:
+ * 1. Separation of concerns - Orders track order data, Arrivals track arrival data
+ * 2. Multiple arrivals possible - Customer might leave and come back
+ * 3. Audit trail - Can track arrival history without cluttering Order
+ * 4. Real-time subscriptions - Easier to subscribe to new arrivals only
+ * 5. Different permissions - Staff might need arrival access but not full order access
+ *
+ * WHY THESE FIELDS?
+ * - orderID: Links to the order being picked up
+ * - customerID: Who arrived (for verification)
+ * - arrivalTime: When they arrived
+ * - status: Tracks if staff has acknowledged/completed the handoff
+ * - vehicleDescription: Optional - helps staff find the customer
+ * - parkingSpot: Optional - specific location info for curbside
+ * - notes: Optional - any special instructions
+ */
+export type ArrivalStatus = 'waiting' | 'acknowledged' | 'completed';
+
+export interface CustomerArrival extends Models.Document {
+  orderID: string;
+  customerID: string;
+  arrivalTime: string;
+  status: ArrivalStatus;
+  vehicleDescription?: string;
+  parkingSpot?: string;
+  notes?: string;
+}
+
+/**
+ * Data required to create a new arrival notification
+ *
+ * WHY SEPARATE FROM CustomerArrival?
+ * Same pattern as CreateOrderData - we don't want to accidentally
+ * include Appwrite document fields ($id, $createdAt) when creating.
+ * This type only includes the fields WE provide, not system fields.
+ */
+export interface CreateArrivalData {
+  orderID: string;
+  customerID: string;
+  arrivalTime: string;
+  status: ArrivalStatus;
+  vehicleDescription?: string;
+  parkingSpot?: string;
+  notes?: string;
+}
+
+/**
+ * Service response types for arrival operations
+ *
+ * WHY CONSISTENT RESPONSE PATTERN?
+ * All our services return { success, data, error } format. This:
+ * 1. Makes error handling predictable across the app
+ * 2. Allows UI to check success before using data
+ * 3. Provides user-friendly error messages
+ * 4. TypeScript can narrow the type based on success value
+ */
+export interface ArrivalResponse {
+  success: boolean;
+  data: CustomerArrival | null;
+  error?: string;
+}
+
+export interface ArrivalListResponse {
+  success: boolean;
+  data: CustomerArrival[];
+  error?: string;
+}
+
+// ============================================================
 // CART TYPES
 // ============================================================
 
@@ -156,6 +242,12 @@ export type UserRole = 'customer' | 'shopper';
 /**
  * User profile from the Users collection
  * Extends Appwrite's Document type for proper SDK integration
+ *
+ * WHY customerID AND shopperID?
+ * - Appwrite schema requires both fields
+ * - customerID is set for customers, empty for shoppers
+ * - shopperID is set for shoppers, empty for customers
+ * - Allows queries like "find all shoppers" or "find customer by ID"
  */
 export interface UserProfile extends Models.Document {
   userID: string;
@@ -164,6 +256,8 @@ export interface UserProfile extends Models.Document {
   lastName: string;
   phoneNumber?: string;
   profileImage?: string;
+  customerID?: string;
+  shopperID?: string;
 }
 
 // ============================================================
@@ -274,6 +368,8 @@ export type MainStackParamList = {
   OrderConfirmation: { orderId: string };
   ProductDetail: { product: Product };
   OrderTracking: { orderId: string };
+  Orders: undefined;
+  OrderDetail: { orderId: string };
   Profile: undefined;
   TestConnection: undefined;
 };
@@ -439,6 +535,238 @@ export interface PickupLocationSelectorProps {
 export interface OrderSummaryCardProps {
   cartItems: CartItem[];
   subtotal: number;
+}
+
+/**
+ * OrderCard component props
+ *
+ * WHY pass order and onPress?
+ * - Displays order summary in list
+ * - onPress navigates to order detail
+ */
+export interface OrderCardProps {
+  order: Order;
+  onPress: (order: Order) => void;
+}
+
+/**
+ * OrderStatusBadge component props
+ *
+ * WHY just status?
+ * - Simple visual indicator component
+ * - Maps status to color and label
+ */
+export interface OrderStatusBadgeProps {
+  status: OrderStatus;
+}
+
+/**
+ * OrderTimeline component props
+ *
+ * WHY pass full order?
+ * - Needs status, order date, and potentially shopper info
+ * - Timeline shows progression through statuses
+ */
+export interface OrderTimelineProps {
+  order: Order;
+}
+
+// ============================================================
+// SHOPPER TYPES
+// ============================================================
+
+/**
+ * Shopper availability status
+ *
+ * WHY ONLY TWO STATUSES?
+ * - Simple binary choice: working or not
+ * - Easy for shoppers to understand and toggle
+ * - Clear for assignment system (only assign to 'available' shoppers)
+ *
+ * ALTERNATIVE CONSIDERED:
+ * Could have 'busy', 'on_break', 'offline' etc., but:
+ * - Adds complexity without much benefit for MVP
+ * - Shoppers just need to say "I'm ready for tasks" or "I'm not"
+ * - Can extend later if needed
+ */
+export type ShopperAvailability = 'available' | 'unavailable';
+
+/**
+ * Shopper status record from the ShopperStatus collection
+ *
+ * PURPOSE:
+ * Tracks whether a shopper is available for task assignment.
+ * This is separate from the User profile because:
+ * 1. Status changes frequently (multiple times per shift)
+ * 2. Profile data is relatively static (name, phone, etc.)
+ * 3. Allows real-time subscriptions to status changes only
+ * 4. Different access patterns (status queried often for assignment)
+ *
+ * WHY THESE FIELDS?
+ * - shopperId: Links to the user's account
+ * - isAvailable: Boolean availability (true = available for tasks)
+ * - currentOrderId: If assigned to an order, which one (empty string if none)
+ * - location: Store location the shopper is working at
+ * - maxConcurrentOrders: How many orders this shopper can handle at once
+ * - lastActiveTimestamp: When the shopper was last active
+ */
+export interface ShopperStatus extends Models.Document {
+  shopperId: string;
+  isAvailable: boolean;
+  currentOrderId: string;
+  location: string;
+  maxConcurrentOrders: number;
+  lastActiveTimestamp: string;
+}
+
+/**
+ * Data for creating/updating shopper status
+ */
+export interface UpdateShopperStatusData {
+  isAvailable?: boolean;
+  currentOrderId?: string;
+  location?: string;
+  maxConcurrentOrders?: number;
+  lastActiveTimestamp?: string;
+}
+
+/**
+ * Service response for shopper status operations
+ */
+export interface ShopperStatusResponse {
+  success: boolean;
+  data: ShopperStatus | null;
+  error?: string;
+}
+
+// ============================================================
+// SHOPPER DASHBOARD TYPES
+// ============================================================
+
+/**
+ * Summary data for the shopper dashboard
+ *
+ * WHY A SEPARATE TYPE?
+ * The dashboard needs aggregated counts from multiple sources:
+ * - Available tasks count (orders needing shoppers)
+ * - Assigned deliveries count (orders ready for delivery)
+ * - Customer check-ins count (arrivals waiting)
+ *
+ * This type represents the data the dashboard displays,
+ * not the raw database records. It's a "view model" pattern.
+ */
+export interface ShopperDashboardData {
+  availableTasksCount: number;
+  assignedDeliveriesCount: number;
+  customerCheckInsCount: number;
+}
+
+/**
+ * Task card display data
+ *
+ * WHY NOT JUST USE Order?
+ * The task card shows a specific subset of order data plus
+ * some computed/derived fields. This type:
+ * 1. Documents exactly what the card needs
+ * 2. Allows transformation from Order to display format
+ * 3. Could include data from multiple sources in future
+ */
+export interface TaskCardData {
+  orderId: string;
+  shortOrderId: string;
+  itemCount: number;
+  uniqueItemCount: number;
+  pickedItemCount: number;
+  customerName: string;
+  shopperName: string;
+  fulfillmentType: 'pickup' | 'delivery';
+  dueTime?: string;
+  status: OrderStatus;
+}
+
+// ============================================================
+// SHOPPER NAVIGATION TYPES
+// ============================================================
+
+/**
+ * Shopper stack navigator param list
+ *
+ * WHY SEPARATE FROM MainStackParamList?
+ * - Shoppers and customers have different screens
+ * - Different navigation flows
+ * - Clearer separation of concerns
+ * - Easier to reason about each user type's journey
+ *
+ * SCREEN PURPOSES:
+ * - ShopperHome: Main dashboard (status, current task, quick links)
+ * - AvailableTasks: List of orders needing shoppers
+ * - DropOffs: Orders ready for delivery
+ * - CustomerCheckIns: Customers waiting for pickup
+ * - TaskDetail: Details of a specific order/task
+ * - ShopperSettings: Shopper preferences
+ */
+export type ShopperStackParamList = {
+  ShopperHome: undefined;
+  AvailableTasks: undefined;
+  DropOffs: undefined;
+  CustomerCheckIns: undefined;
+  TaskDetail: { orderId: string };
+  ShopperSettings: undefined;
+};
+
+// ============================================================
+// SHOPPER COMPONENT PROPS
+// ============================================================
+
+/**
+ * ShopperStatusDropdown component props
+ *
+ * WHY CONTROLLED COMPONENT PATTERN?
+ * - Parent owns the state (single source of truth)
+ * - Component is pure/presentational
+ * - Easy to test in isolation
+ * - Follows React best practices
+ */
+export interface ShopperStatusDropdownProps {
+  status: ShopperAvailability;
+  onStatusChange: (status: ShopperAvailability) => void;
+  loading?: boolean;
+  disabled?: boolean;
+}
+
+/**
+ * CurrentTaskCard component props
+ *
+ * WHY task CAN BE null?
+ * - Shopper might not have an assigned task
+ * - Component handles both states (has task / no task)
+ * - Single component, two visual states
+ */
+export interface CurrentTaskCardProps {
+  task: TaskCardData | null;
+  onPress?: (task: TaskCardData) => void;
+}
+
+/**
+ * QuickLinkCard component props
+ *
+ * WHY GENERIC DESIGN?
+ * Same component used for all three quick links:
+ * - Pick Tasks
+ * - Drop Offs
+ * - Customer Check-ins
+ *
+ * Benefits:
+ * - Consistent visual design
+ * - Single component to maintain
+ * - Easy to add more links later
+ */
+export interface QuickLinkCardProps {
+  title: string;
+  count: number;
+  icon: string;
+  onPress: () => void;
+  subtitle?: string;
 }
 
 // ============================================================

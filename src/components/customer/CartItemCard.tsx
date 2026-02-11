@@ -20,6 +20,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, IconButton } from 'react-native-paper';
 import { formatPrice } from '../../services/productService';
+import { useAppTheme } from '../../theme';
 import type { CartItemCardProps } from '../../types';
 
 /**
@@ -34,6 +35,17 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
   onQuantityChange,
   onRemove,
 }) => {
+  const theme = useAppTheme();
+
+  const dynamicStyles = {
+    pricePerUnit: {
+      color: theme.custom.textSecondary,
+    },
+    subtotal: {
+      color: theme.colors.primary,
+    },
+  };
+
   /**
    * WHY calculate subtotal here?
    * - Derived value (price * quantity)
@@ -99,7 +111,7 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
             {item.name}
           </Text>
 
-          <Text variant="bodySmall" style={styles.pricePerUnit}>
+          <Text variant="bodySmall" style={[styles.pricePerUnit, dynamicStyles.pricePerUnit]}>
             {formatPrice(item.price)} / {item.unit}
           </Text>
         </View>
@@ -162,7 +174,7 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
         <View style={styles.subtotalSection}>
           <Text
             variant="titleMedium"
-            style={styles.subtotal}
+            style={[styles.subtotal, dynamicStyles.subtotal]}
             accessible={true}
             accessibilityLabel={`Subtotal: ${formatPrice(subtotal)}`}
           >
@@ -174,7 +186,7 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
             mode="text"
             size={24}
             onPress={handleRemove}
-            iconColor="#F44336"
+            iconColor={theme.colors.error}
             /**
              * WHY red color for remove?
              * - Universal indicator for destructive action
@@ -254,9 +266,8 @@ const styles = StyleSheet.create({
   },
 
   pricePerUnit: {
-    color: '#757575',
     /**
-     * WHY gray color?
+     * WHY secondary color?
      * - Secondary information
      * - Less prominent than name
      * - Standard for supplementary text
@@ -319,9 +330,8 @@ const styles = StyleSheet.create({
 
   subtotal: {
     fontWeight: 'bold',
-    color: '#007AFF',
     /**
-     * WHY blue color?
+     * WHY primary color?
      * - Matches price styling from ProductCard
      * - Brand consistency
      * - Draws attention to monetary value

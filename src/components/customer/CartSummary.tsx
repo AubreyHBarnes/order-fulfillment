@@ -20,6 +20,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Surface, Text, Button, Divider } from 'react-native-paper';
 import { formatPrice } from '../../services/productService';
+import { useAppTheme } from '../../theme';
 import type { CartSummaryProps } from '../../types';
 
 /**
@@ -34,9 +35,23 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   subtotal,
   onCheckout,
 }) => {
+  const theme = useAppTheme();
+
+  const dynamicStyles = {
+    container: {
+      backgroundColor: theme.colors.surface,
+    },
+    label: {
+      color: theme.custom.textSecondary,
+    },
+    subtotalValue: {
+      color: theme.colors.primary,
+    },
+  };
+
   return (
     <Surface
-      style={styles.container}
+      style={[styles.container, dynamicStyles.container]}
       /**
        * WHY Surface component?
        * - Material Design elevated surface
@@ -59,7 +74,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
         accessibilityLabel={`Cart summary: ${itemCount} items, subtotal ${formatPrice(subtotal)}`}
       >
         <View style={styles.summaryItem}>
-          <Text variant="bodyMedium" style={styles.label}>
+          <Text variant="bodyMedium" style={[styles.label, dynamicStyles.label]}>
             Items
           </Text>
           <Text variant="titleMedium" style={styles.value}>
@@ -68,10 +83,10 @@ const CartSummary: React.FC<CartSummaryProps> = ({
         </View>
 
         <View style={styles.summaryItem}>
-          <Text variant="bodyMedium" style={styles.label}>
+          <Text variant="bodyMedium" style={[styles.label, dynamicStyles.label]}>
             Subtotal
           </Text>
-          <Text variant="titleLarge" style={styles.subtotalValue}>
+          <Text variant="titleLarge" style={[styles.subtotalValue, dynamicStyles.subtotalValue]}>
             {formatPrice(subtotal)}
           </Text>
         </View>
@@ -133,13 +148,6 @@ const styles = StyleSheet.create({
   // ===== CONTAINER =====
   container: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
-    /**
-     * WHY explicit backgroundColor?
-     * - Ensures consistent look
-     * - Surface may use theme color
-     * - White is standard for checkout footers
-     */
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     /**
@@ -174,7 +182,6 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    color: '#757575',
     marginBottom: 4,
     /**
      * WHY gray color?
@@ -195,7 +202,6 @@ const styles = StyleSheet.create({
 
   subtotalValue: {
     fontWeight: 'bold',
-    color: '#007AFF',
     /**
      * WHY larger and blue?
      * - Most important number on screen

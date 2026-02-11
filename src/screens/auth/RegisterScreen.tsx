@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../theme';
 import type { AuthStackParamList, UserRole } from '../../types';
 
 type RegisterScreenProps = NativeStackScreenProps<
@@ -35,6 +36,53 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const [localLoading, setLocalLoading] = useState<boolean>(false);
 
   const { register } = useAuth();
+  const theme = useAppTheme();
+
+  const dynamicStyles = {
+    container: {
+      backgroundColor: theme.colors.background,
+    },
+    title: {
+      color: theme.colors.onBackground,
+    },
+    subtitle: {
+      color: theme.custom.textSecondary,
+    },
+    label: {
+      color: theme.colors.onBackground,
+    },
+    roleButton: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.custom.border,
+    },
+    roleButtonActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    roleButtonText: {
+      color: theme.custom.textSecondary,
+    },
+    roleButtonTextActive: {
+      color: theme.colors.primary,
+    },
+    input: {
+      backgroundColor: theme.custom.inputBackground,
+      borderColor: theme.custom.inputBorder,
+      color: theme.colors.onSurface,
+    },
+    registerButton: {
+      backgroundColor: theme.colors.primary,
+    },
+    registerButtonText: {
+      color: theme.colors.onPrimary,
+    },
+    loginText: {
+      color: theme.custom.textSecondary,
+    },
+    loginLink: {
+      color: theme.colors.primary,
+    },
+  };
 
   const handleRegister = async (): Promise<void> => {
     // Validation
@@ -71,30 +119,32 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, dynamicStyles.container]}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to get started</Text>
+          <Text style={[styles.title, dynamicStyles.title]}>Create Account</Text>
+          <Text style={[styles.subtitle, dynamicStyles.subtitle]}>Sign up to get started</Text>
         </View>
 
         <View style={styles.form}>
           {/* Role Selection */}
           <View style={styles.roleContainer}>
-            <Text style={styles.label}>I am a:</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>I am a:</Text>
             <View style={styles.roleButtons}>
               <TouchableOpacity
                 style={[
                   styles.roleButton,
-                  role === 'customer' && styles.roleButtonActive,
+                  dynamicStyles.roleButton,
+                  role === 'customer' && dynamicStyles.roleButtonActive,
                 ]}
                 onPress={() => setRole('customer')}
               >
                 <Text
                   style={[
                     styles.roleButtonText,
-                    role === 'customer' && styles.roleButtonTextActive,
+                    dynamicStyles.roleButtonText,
+                    role === 'customer' && dynamicStyles.roleButtonTextActive,
                   ]}
                 >
                   Customer
@@ -104,14 +154,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
               <TouchableOpacity
                 style={[
                   styles.roleButton,
-                  role === 'shopper' && styles.roleButtonActive,
+                  dynamicStyles.roleButton,
+                  role === 'shopper' && dynamicStyles.roleButtonActive,
                 ]}
                 onPress={() => setRole('shopper')}
               >
                 <Text
                   style={[
                     styles.roleButtonText,
-                    role === 'shopper' && styles.roleButtonTextActive,
+                    dynamicStyles.roleButtonText,
+                    role === 'shopper' && dynamicStyles.roleButtonTextActive,
                   ]}
                 >
                   Shopper
@@ -123,10 +175,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           {/* Name Fields */}
           <View style={styles.rowContainer}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.label}>First Name</Text>
+              <Text style={[styles.label, dynamicStyles.label]}>First Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, dynamicStyles.input]}
                 placeholder="John"
+                placeholderTextColor={theme.custom.textDisabled}
                 value={firstName}
                 onChangeText={setFirstName}
                 autoCapitalize="words"
@@ -134,10 +187,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidthRight]}>
-              <Text style={styles.label}>Last Name</Text>
+              <Text style={[styles.label, dynamicStyles.label]}>Last Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, dynamicStyles.input]}
                 placeholder="Doe"
+                placeholderTextColor={theme.custom.textDisabled}
                 value={lastName}
                 onChangeText={setLastName}
                 autoCapitalize="words"
@@ -147,10 +201,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
           {/* Email */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, dynamicStyles.input]}
               placeholder="john.doe@example.com"
+              placeholderTextColor={theme.custom.textDisabled}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -161,10 +216,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
           {/* Password */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, dynamicStyles.input]}
               placeholder="At least 8 characters"
+              placeholderTextColor={theme.custom.textDisabled}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -174,10 +230,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
           {/* Confirm Password */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
+            <Text style={[styles.label, dynamicStyles.label]}>Confirm Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, dynamicStyles.input]}
               placeholder="Re-enter password"
+              placeholderTextColor={theme.custom.textDisabled}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -189,23 +246,24 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.registerButton,
+              dynamicStyles.registerButton,
               localLoading && styles.buttonDisabled,
             ]}
             onPress={handleRegister}
             disabled={localLoading}
           >
             {localLoading ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color={theme.colors.onPrimary} />
             ) : (
-              <Text style={styles.registerButtonText}>Create Account</Text>
+              <Text style={[styles.registerButtonText, dynamicStyles.registerButtonText]}>Create Account</Text>
             )}
           </TouchableOpacity>
 
           {/* Login Link */}
           <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Already have an account? </Text>
+            <Text style={[styles.loginText, dynamicStyles.loginText]}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.loginLink}>Sign In</Text>
+              <Text style={[styles.loginLink, dynamicStyles.loginLink]}>Sign In</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -217,7 +275,6 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   scrollContent: {
     flexGrow: 1,
@@ -231,12 +288,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
   },
   form: {
     width: '100%',
@@ -250,25 +305,14 @@ const styles = StyleSheet.create({
   },
   roleButton: {
     flex: 1,
-    backgroundColor: 'white',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#ddd',
-  },
-  roleButtonActive: {
-    borderColor: '#007AFF',
-    backgroundColor: '#E3F2FD',
   },
   roleButtonText: {
     fontSize: 16,
-    color: '#666',
     fontWeight: '500',
-  },
-  roleButtonTextActive: {
-    color: '#007AFF',
-    fontWeight: '600',
   },
   rowContainer: {
     flexDirection: 'row',
@@ -286,19 +330,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: 'white',
     borderRadius: 8,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
   },
   registerButton: {
-    backgroundColor: '#007AFF',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -306,7 +346,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   registerButtonText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -320,11 +359,9 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
-    color: '#666',
   },
   loginLink: {
     fontSize: 14,
-    color: '#007AFF',
     fontWeight: '600',
   },
 });

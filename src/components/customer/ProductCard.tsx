@@ -16,6 +16,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, Button, Badge } from 'react-native-paper';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../services/productService';
+import { useAppTheme } from '../../theme';
 import type { ProductCardProps } from '../../types';
 
 /**
@@ -27,8 +28,33 @@ import type { ProductCardProps } from '../../types';
  */
 const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
   const { addToCart, isInCart, getCartItem } = useCart();
+  const theme = useAppTheme();
   const inCart = isInCart(product.$id);
   const cartItem = getCartItem(product.$id);
+
+  const dynamicStyles = {
+    outOfStockBadge: {
+      backgroundColor: theme.colors.error,
+    },
+    category: {
+      color: theme.custom.textSecondary,
+    },
+    aisle: {
+      color: theme.custom.textDisabled,
+    },
+    price: {
+      color: theme.colors.primary,
+    },
+    unit: {
+      color: theme.custom.textSecondary,
+    },
+    inCartContainer: {
+      backgroundColor: theme.custom.successContainer,
+    },
+    inCartText: {
+      color: theme.custom.success,
+    },
+  };
 
   /**
    * WHY separate handleAddToCart function?
@@ -92,7 +118,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
             */}
             {!product.inStock && (
               <Badge
-                style={styles.outOfStockBadge}
+                style={[styles.outOfStockBadge, dynamicStyles.outOfStockBadge]}
                 /**
                  * WHY accessible prop?
                  * - Screen readers announce badge
@@ -113,11 +139,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
            * - Aisle info useful for in-store pickup
            */}
           <View style={styles.metadata}>
-            <Text variant="bodySmall" style={styles.category}>
+            <Text variant="bodySmall" style={[styles.category, dynamicStyles.category]}>
               {product.category}
             </Text>
             {product.aisle && (
-              <Text variant="bodySmall" style={styles.aisle}>
+              <Text variant="bodySmall" style={[styles.aisle, dynamicStyles.aisle]}>
                 • Aisle {product.aisle}
               </Text>
             )}
@@ -125,10 +151,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
 
           {/* Price and Unit */}
           <View style={styles.priceContainer}>
-            <Text variant="headlineSmall" style={styles.price}>
+            <Text variant="headlineSmall" style={[styles.price, dynamicStyles.price]}>
               {formatPrice(product.price)}
             </Text>
-            <Text variant="bodySmall" style={styles.unit}>
+            <Text variant="bodySmall" style={[styles.unit, dynamicStyles.unit]}>
               / {product.unit}
             </Text>
           </View>
@@ -142,8 +168,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
              * - Prevents accidental duplicate adds
              */}
             {inCart ? (
-              <View style={styles.inCartContainer}>
-                <Text style={styles.inCartText}>
+              <View style={[styles.inCartContainer, dynamicStyles.inCartContainer]}>
+                <Text style={[styles.inCartText, dynamicStyles.inCartText]}>
                   In Cart ({cartItem?.quantity})
                 </Text>
                 <Button
@@ -242,7 +268,6 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   outOfStockBadge: {
-    backgroundColor: '#F44336',
     alignSelf: 'flex-start',
     marginTop: 4,
   },
@@ -252,11 +277,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   category: {
-    color: '#757575',
     textTransform: 'capitalize',
   },
   aisle: {
-    color: '#9E9E9E',
     marginLeft: 4,
   },
   priceContainer: {
@@ -266,10 +289,8 @@ const styles = StyleSheet.create({
   },
   price: {
     fontWeight: 'bold',
-    color: '#007AFF',
   },
   unit: {
-    color: '#757575',
     marginLeft: 4,
   },
   actionContainer: {
@@ -287,12 +308,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
     padding: 8,
     borderRadius: 4,
   },
   inCartText: {
-    color: '#2E7D32',
     fontWeight: '600',
   },
 });

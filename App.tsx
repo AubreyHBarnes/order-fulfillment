@@ -1,53 +1,51 @@
 /**
  * App.js - Root Component
- * 
+ *
  * PURPOSE: Entry point of the application
  * Sets up all global providers (theming, auth, cart)
- * 
+ *
  * PROVIDER HIERARCHY (Order Matters!):
- * 1. PaperProvider - Material Design theming (outermost)
+ * 1. ThemeProvider - Theme + React Native Paper (outermost)
  * 2. AuthProvider - Authentication state
  * 3. CartProvider - Shopping cart state (innermost)
  * 4. AppNavigator - Navigation (uses all providers above)
- * 
+ *
  * WHY THIS ORDER?
  * - Inner providers can access outer providers
  * - CartProvider needs AuthProvider (for user info at checkout)
- * - AuthProvider needs PaperProvider (uses Paper components)
- * - All need theme (PaperProvider provides it)
+ * - AuthProvider needs ThemeProvider (uses Paper components)
+ * - All need theme (ThemeProvider provides it)
  */
 
 import React from 'react';
-import { Provider as PaperProvider } from 'react-native-paper';
+import { ThemeProvider } from './src/context/ThemeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import AppNavigator from './src/navigation/AppNavigator';
-// import { lightTheme } from './src/constants/theme';
 
 /**
  * WHY THESE IMPORTS?
- * 
+ *
  * React:
  * - Core library for JSX and components
- * 
- * PaperProvider (aliased):
- * - Provides Material Design theming
- * - "as PaperProvider" avoids naming conflicts
- * 
+ *
+ * ThemeProvider:
+ * - Manages light/dark/system theme preference
+ * - Wraps PaperProvider internally
+ * - Provides useThemeMode() hook
+ * - Persists preference to AsyncStorage
+ *
  * AuthProvider:
  * - Manages user authentication state
  * - Provides login, logout, register functions
- * 
+ *
  * CartProvider:
  * - Manages shopping cart state
  * - Provides addToCart, removeFromCart, etc.
- * 
+ *
  * AppNavigator:
  * - Root navigation component
  * - Shows auth screens or main app based on login state
- * 
- * lightTheme:
- * - Custom theme configuration (colors, spacing, typography)
  */
 
 function App() {
@@ -60,19 +58,21 @@ function App() {
    */
   
   return (
-    <PaperProvider>
+    <ThemeProvider>
       {/**
-       * WHY PaperProvider FIRST?
+       * WHY ThemeProvider FIRST?
        * - Provides theme to ALL children
+       * - Includes PaperProvider internally
+       * - Manages light/dark/system preference
        * - Auth screens need Paper components (Button, TextInput, etc.)
        * - Cart UI needs Paper components (Badge, Chip, etc.)
-       * - Must wrap everything that uses Material Design
-       * 
+       *
        * WHAT IF MISSING?
        * - Paper components crash
+       * - No theme switching capability
        * - Default theme used (might not match design)
        */}
-      
+
       <AuthProvider>
         {/**
          * WHY AuthProvider SECOND?
@@ -119,7 +119,7 @@ function App() {
           
         </CartProvider>
       </AuthProvider>
-    </PaperProvider>
+    </ThemeProvider>
   );
 }
 

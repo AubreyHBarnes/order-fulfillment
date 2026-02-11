@@ -38,6 +38,7 @@ import {
 } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCart } from '../../context/CartContext';
+import { useAppTheme } from '../../theme';
 import {
   getAllProducts,
   getProductsByCategory,
@@ -77,6 +78,12 @@ type CustomerHomeScreenProps = NativeStackScreenProps<
 const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   navigation,
 }) => {
+  // ============================================================
+  // THEME
+  // ============================================================
+
+  const theme = useAppTheme();
+
   // ============================================================
   // STATE MANAGEMENT
   // ============================================================
@@ -400,6 +407,47 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
     navigation.navigate('Cart');
   };
 
+  /**
+   * Navigate to orders list
+   */
+  const handleOrdersPress = (): void => {
+    navigation.navigate('Orders');
+  };
+
+  // ============================================================
+  // DYNAMIC STYLES
+  // ============================================================
+
+  const dynamicStyles = {
+    container: {
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      backgroundColor: theme.colors.surface,
+    },
+    cartBadge: {
+      backgroundColor: theme.colors.error,
+    },
+    emptyText: {
+      color: theme.custom.textSecondary,
+    },
+    loadingText: {
+      color: theme.custom.textSecondary,
+    },
+    errorTitle: {
+      color: theme.colors.error,
+    },
+    errorText: {
+      color: theme.custom.textSecondary,
+    },
+    retryButton: {
+      backgroundColor: theme.colors.primary,
+    },
+    retryButtonText: {
+      color: theme.colors.onPrimary,
+    },
+  };
+
   // ============================================================
   // RENDER FUNCTIONS
   // ============================================================
@@ -448,7 +496,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         <Text variant="headlineSmall" style={styles.emptyTitle}>
           No Products Found
         </Text>
-        <Text variant="bodyMedium" style={styles.emptyText}>
+        <Text variant="bodyMedium" style={[styles.emptyText, dynamicStyles.emptyText]}>
           {searchQuery
             ? `No results for "${searchQuery}"`
             : 'No products available in this category'}
@@ -473,9 +521,9 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
    */
   if (loading && products.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading products...</Text>
+      <View style={[styles.centerContainer, dynamicStyles.container]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, dynamicStyles.loadingText]}>Loading products...</Text>
       </View>
     );
   }
@@ -488,55 +536,69 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
    */
   if (error && products.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text variant="headlineSmall" style={styles.errorTitle}>
+      <View style={[styles.centerContainer, dynamicStyles.container]}>
+        <Text variant="headlineSmall" style={[styles.errorTitle, dynamicStyles.errorTitle]}>
           Oops! Something went wrong
         </Text>
-        <Text variant="bodyMedium" style={styles.errorText}>
+        <Text variant="bodyMedium" style={[styles.errorText, dynamicStyles.errorText]}>
           {error}
         </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadInitialData}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
+        <TouchableOpacity style={[styles.retryButton, dynamicStyles.retryButton]} onPress={loadInitialData}>
+          <Text style={[styles.retryButtonText, dynamicStyles.retryButtonText]}>Try Again</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       {/* ========== HEADER ========== */}
-      <View style={styles.header}>
+      <View style={[styles.header, dynamicStyles.header]}>
         <Text variant="headlineMedium" style={styles.headerTitle}>
           Grocery Store
         </Text>
 
-        {/* Cart Button with Badge */}
-        <TouchableOpacity
-          onPress={handleCartPress}
-          style={styles.cartButton}
-          /**
-           * WHY ACCESSIBILITY PROPS?
-           * - Screen readers need labels
-           * - Required for WCAG compliance
-           * - Professional apps must have this
-           * - Impressive in interviews
-           */
-          accessible={true}
-          accessibilityLabel={`Shopping cart with ${getItemCount()} items`}
-          accessibilityHint="Double tap to view cart"
-          accessibilityRole="button"
-        >
-          <Icon source="cart" size={28} color="#007AFF" />
-          {/**
-           * WHY CONDITIONAL BADGE?
-           * Only show if cart has items
-           * Cleaner when empty
-           * Visual feedback for adding items
-           */}
-          {getItemCount() > 0 && (
-            <Badge style={styles.cartBadge}>{getItemCount()}</Badge>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          {/* Orders Button */}
+          <TouchableOpacity
+            onPress={handleOrdersPress}
+            style={styles.headerButton}
+            accessible={true}
+            accessibilityLabel="My Orders"
+            accessibilityHint="Double tap to view your orders"
+            accessibilityRole="button"
+          >
+            <Icon source="clipboard-text-outline" size={28} color={theme.colors.primary} />
+          </TouchableOpacity>
+
+          {/* Cart Button with Badge */}
+          <TouchableOpacity
+            onPress={handleCartPress}
+            style={styles.headerButton}
+            /**
+             * WHY ACCESSIBILITY PROPS?
+             * - Screen readers need labels
+             * - Required for WCAG compliance
+             * - Professional apps must have this
+             * - Impressive in interviews
+             */
+            accessible={true}
+            accessibilityLabel={`Shopping cart with ${getItemCount()} items`}
+            accessibilityHint="Double tap to view cart"
+            accessibilityRole="button"
+          >
+            <Icon source="cart" size={28} color={theme.colors.primary} />
+            {/**
+             * WHY CONDITIONAL BADGE?
+             * Only show if cart has items
+             * Cleaner when empty
+             * Visual feedback for adding items
+             */}
+            {getItemCount() > 0 && (
+              <Badge style={[styles.cartBadge, dynamicStyles.cartBadge]}>{getItemCount()}</Badge>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ========== SEARCH BAR ========== */}
@@ -559,7 +621,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
          * - Better visual hierarchy
          */
         icon="magnify"
-        iconColor="#007AFF"
+        iconColor={theme.colors.primary}
       />
 
       {/* ========== CATEGORY FILTERS ========== */}
@@ -603,7 +665,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
              * - Clear visual distinction
              * - Accessibility (not just color, also different appearance)
              */
-            selectedColor="#007AFF"
+            selectedColor={theme.colors.primary}
           >
             {category}
           </Chip>
@@ -678,8 +740,8 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
              */
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#007AFF']} // Android
-            tintColor="#007AFF" // iOS
+            colors={[theme.colors.primary]} // Android
+            tintColor={theme.colors.primary} // iOS
           />
         }
       />
@@ -735,7 +797,6 @@ const styles = StyleSheet.create({
      * - Allows FlatList to scroll
      * - Standard for screen containers
      */
-    backgroundColor: '#F5F5F5',
   },
 
   centerContainer: {
@@ -762,7 +823,6 @@ const styles = StyleSheet.create({
      */
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
     /**
      * WHY elevation/shadowOffset?
      * - Creates shadow (depth)
@@ -781,7 +841,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  cartButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  headerButton: {
     position: 'relative',
     /**
      * WHY position: relative?
@@ -801,13 +867,6 @@ const styles = StyleSheet.create({
      */
     top: 0,
     right: 0,
-    backgroundColor: '#FF3B30',
-    /**
-     * WHY red background?
-     * - High contrast (attention)
-     * - Standard for notification badges
-     * - iOS red (#FF3B30)
-     */
   },
 
   // ===== SEARCH =====
@@ -909,36 +968,30 @@ const styles = StyleSheet.create({
 
   emptyText: {
     textAlign: 'center',
-    color: '#757575',
   },
 
   // ===== LOADING =====
   loadingText: {
     marginTop: 16,
-    color: '#757575',
   },
 
   // ===== ERROR =====
   errorTitle: {
     marginBottom: 8,
-    color: '#F44336',
   },
 
   errorText: {
     marginBottom: 24,
     textAlign: 'center',
-    color: '#757575',
   },
 
   retryButton: {
-    backgroundColor: '#007AFF',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
 
   retryButtonText: {
-    color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 16,
   },
@@ -949,7 +1002,6 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: '#007AFF',
   },
 });
 

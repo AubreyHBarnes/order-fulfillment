@@ -24,10 +24,11 @@
  */
 
 import React from 'react';
-import { View, FlatList, StyleSheet, ListRenderItemInfo } from 'react-native';
-import { ActivityIndicator, Text } from 'react-native-paper';
+import { View, FlatList, StyleSheet, ListRenderItemInfo, Text } from 'react-native';
+import { ActivityIndicator } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCart } from '../../context/CartContext';
+import { useAppTheme } from '../../theme';
 import CartItemCard from '../../components/customer/CartItemCard';
 import CartSummary from '../../components/customer/CartSummary';
 import EmptyCart from '../../components/customer/EmptyCart';
@@ -61,7 +62,7 @@ type CartScreenProps = NativeStackScreenProps<MainStackParamList, 'Cart'>;
 
 const CartScreen: React.FC<CartScreenProps> = ({ navigation }) => {
   // ============================================================
-  // CONTEXT - ACCESS CART STATE
+  // CONTEXT AND THEME
   // ============================================================
 
   const {
@@ -72,6 +73,8 @@ const CartScreen: React.FC<CartScreenProps> = ({ navigation }) => {
     getCartTotal,
     getItemCount,
   } = useCart();
+
+  const theme = useAppTheme();
 
   /**
    * WHY DESTRUCTURE MULTIPLE VALUES?
@@ -206,6 +209,19 @@ const CartScreen: React.FC<CartScreenProps> = ({ navigation }) => {
   };
 
   // ============================================================
+  // DYNAMIC STYLES
+  // ============================================================
+
+  const dynamicStyles = {
+    container: {
+      backgroundColor: theme.colors.background,
+    },
+    loadingText: {
+      color: theme.custom.textSecondary,
+    },
+  };
+
+  // ============================================================
   // MAIN RENDER
   // ============================================================
 
@@ -219,9 +235,9 @@ const CartScreen: React.FC<CartScreenProps> = ({ navigation }) => {
    */
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading cart...</Text>
+      <View style={[styles.centerContainer, dynamicStyles.container]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, dynamicStyles.loadingText]}>Loading cart...</Text>
       </View>
     );
   }
@@ -235,7 +251,7 @@ const CartScreen: React.FC<CartScreenProps> = ({ navigation }) => {
    */
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       {/* ========== CART ITEMS LIST ========== */}
       <FlatList
         /**
@@ -310,17 +326,11 @@ const styles = StyleSheet.create({
   // ===== LAYOUT =====
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
     /**
      * WHY flex: 1?
      * - Takes all available screen space
      * - Allows FlatList to scroll
      * - CartSummary can position at bottom
-     *
-     * WHY gray background?
-     * - Creates contrast with white cards
-     * - Standard for list screens
-     * - Matches CustomerHomeScreen
      */
   },
 
@@ -362,7 +372,6 @@ const styles = StyleSheet.create({
   // ===== STATES =====
   loadingText: {
     marginTop: 16,
-    color: '#757575',
     /**
      * WHY gray text?
      * - Secondary importance to spinner

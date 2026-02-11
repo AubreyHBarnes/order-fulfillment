@@ -37,6 +37,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../theme';
 import FulfillmentTypeSelector from '../../components/customer/FulfillmentTypeSelector';
 import DeliveryAddressForm from '../../components/customer/DeliveryAddressForm';
 import PickupLocationSelector from '../../components/customer/PickupLocationSelector';
@@ -82,11 +83,12 @@ type CheckoutScreenProps = NativeStackScreenProps<MainStackParamList, 'Checkout'
 
 const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
   // ============================================================
-  // CONTEXT - CART AND AUTH DATA
+  // CONTEXT AND THEME
   // ============================================================
 
   const { cartItems, getCartTotal, clearCart } = useCart();
   const { user } = useAuth();
+  const theme = useAppTheme();
 
   /**
    * WHY THESE CONTEXT VALUES?
@@ -282,6 +284,13 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
         .map((item) => `${item.$id}:${item.quantity}`)
         .join(',');
 
+      /**
+       * Calculate scheduled ready time
+       * Default: 30 minutes from now for immediate orders
+       * Future enhancement: let customers pick a scheduled time
+       */
+      const scheduledReadyTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
       const orderData: CreateOrderData = {
         customerID: user!.$id,
         /**
@@ -338,6 +347,20 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * - Standard date format
          * - Sortable
          * - Works across timezones
+         */
+        scheduledReadyTime,
+        /**
+         * WHY scheduledReadyTime?
+         * - Tells shoppers when the order should be ready
+         * - Used for auto-assignment priority (closest due time first)
+         * - Currently set to 30 min from now (immediate orders)
+         */
+        pickedItems: '',
+        /**
+         * WHY EMPTY STRING?
+         * - No items picked yet for new orders
+         * - Will be updated as shopper picks items
+         * - Format: "productId:pickedQty,..."
          */
       };
 
@@ -402,44 +425,43 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
   };
 
   // ============================================================
+  // DYNAMIC STYLES
+  // ============================================================
+
+  const dynamicStyles = {
+    container: {
+      backgroundColor: theme.colors.background,
+    },
+    footer: {
+      backgroundColor: theme.colors.surface,
+      borderTopColor: theme.custom.border,
+    },
+    placeOrderButton: {
+      backgroundColor: theme.colors.primary,
+    },
+    placeOrderButtonText: {
+      color: theme.colors.onPrimary,
+    },
+  };
+
+  // ============================================================
   // RENDER
   // ============================================================
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      /**
-       * WHY KeyboardAvoidingView?
-       * - Prevents keyboard from covering inputs
-       * - Different behavior on iOS vs Android
-       * - Follows RegisterScreen pattern
-       */
+      style={[styles.container, dynamicStyles.container]}
     >
-      {/* ========== SCROLLABLE FORM CONTENT ========== */}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        /**
-         * WHY keyboardShouldPersistTaps?
-         * - Allows tapping buttons without dismissing keyboard
-         * - Better form UX
-         * - Standard for form screens
-         */
       >
-        {/* ===== FULFILLMENT TYPE ===== */}
         <FulfillmentTypeSelector
           value={fulfillmentType}
           onChange={setFulfillmentType}
         />
 
-        {/* ===== CONDITIONAL: DELIVERY ADDRESS OR PICKUP LOCATION ===== */}
-        {/**
-         * WHY CONDITIONAL RENDERING?
-         * - Show only relevant form for selected type
-         * - Reduces visual clutter
-         * - Clear user flow
-         */}
         {fulfillmentType === 'delivery' ? (
           <DeliveryAddressForm
             streetAddress={streetAddress}
@@ -463,21 +485,18 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
           />
         )}
 
-        {/* ===== ORDER SUMMARY ===== */}
         <OrderSummaryCard cartItems={cartItems} subtotal={getCartTotal()} />
       </ScrollView>
 
-      {/* ========== FIXED FOOTER: PLACE ORDER BUTTON ========== */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, dynamicStyles.footer]}>
         <TouchableOpacity
-          style={[styles.placeOrderButton, loading && styles.buttonDisabled]}
+          style={[
+            styles.placeOrderButton,
+            dynamicStyles.placeOrderButton,
+            loading && styles.buttonDisabled,
+          ]}
           onPress={handlePlaceOrder}
           disabled={loading}
-          /**
-           * WHY disabled={loading}?
-           * - Prevents double submission
-           * - Visual feedback via opacity
-           */
           accessible={true}
           accessibilityLabel={`Place order for ${formatPrice(getCartTotal())}`}
           accessibilityHint="Double tap to submit your order"
@@ -485,9 +504,9 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
           accessibilityState={{ disabled: loading }}
         >
           {loading ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color={theme.colors.onPrimary} />
           ) : (
-            <Text style={styles.placeOrderButtonText}>
+            <Text style={[styles.placeOrderButtonText, dynamicStyles.placeOrderButtonText]}>
               Place Order - {formatPrice(getCartTotal())}
             </Text>
           )}
@@ -498,37 +517,17 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
 };
 
 // ============================================================
-// STYLES
+// STYLES - Layout only, colors from theme
 // ============================================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-    /**
-     * WHY flex: 1?
-     * - Full screen height
-     * - Allows ScrollView to scroll
-     * - Footer at bottom
-     *
-     * WHY gray background?
-     * - Consistent with other screens
-     * - Cards stand out on gray
-     */
   },
 
   scrollContent: {
     padding: 16,
     paddingBottom: 100,
-    /**
-     * WHY padding: 16?
-     * - Consistent with other screens
-     * - Space from edges
-     *
-     * WHY paddingBottom: 100?
-     * - Space for fixed footer button
-     * - Last content visible above button
-     */
   },
 
   footer: {
@@ -536,56 +535,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
     padding: 16,
     paddingBottom: 32,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    /**
-     * WHY position: absolute?
-     * - Fixed at bottom
-     * - Doesn't scroll with content
-     * - Always visible
-     *
-     * WHY paddingBottom: 32?
-     * - Extra space for home indicator (iOS)
-     * - Safe area consideration
-     */
   },
 
   placeOrderButton: {
-    backgroundColor: '#007AFF',
     borderRadius: 12,
     padding: 18,
     alignItems: 'center',
-    /**
-     * WHY THESE VALUES?
-     * - Primary button (blue)
-     * - Large tap target (padding: 18)
-     * - Rounded corners
-     * - Center text
-     */
   },
 
   buttonDisabled: {
     opacity: 0.6,
-    /**
-     * WHY opacity?
-     * - Visual indication button is disabled
-     * - Consistent with RegisterScreen
-     */
   },
 
   placeOrderButtonText: {
-    color: 'white',
     fontSize: 18,
     fontWeight: '600',
-    /**
-     * WHY THESE VALUES?
-     * - High contrast (white on blue)
-     * - Larger text for primary action
-     * - Bold for emphasis
-     */
   },
 });
 
