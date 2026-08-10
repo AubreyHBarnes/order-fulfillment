@@ -25,6 +25,7 @@ import type {
   OrderResponse,
   OrderListResponse,
   PickupLocation,
+  PickupTimeSlot,
 } from '../types';
 
 // ============================================================
@@ -68,6 +69,76 @@ export const getPickupLocations = (): PickupLocation[] => {
       address: '789 West Blvd, Anytown, ST 12345',
     },
   ];
+};
+
+// ============================================================
+// PICKUP TIME SLOTS
+// ============================================================
+
+const STORE_OPEN_HOUR = 9; // 9:00 AM
+const STORE_CLOSE_HOUR = 21; // 9:00 PM
+const SLOT_INTERVAL_MINUTES = 30;
+const MIN_PREP_MINUTES = 30; // earliest a new order can realistically be ready
+
+const formatSlotLabel = (date: Date, dayLabel: string): string =>
+  `${dayLabel}, ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+
+/**
+ * Build every slot between `earliest` (inclusive) and store close, on `earliest`'s date,
+ * rounded up to the next SLOT_INTERVAL_MINUTES boundary.
+ */
+const buildSlotsForDay = (baseDate: Date, earliest: Date, dayLabel: string): PickupTimeSlot[] => {
+  const dayClose = new Date(baseDate);
+  dayClose.setHours(STORE_CLOSE_HOUR, 0, 0, 0);
+
+  const cursor = new Date(earliest);
+  const remainder = cursor.getMinutes() % SLOT_INTERVAL_MINUTES;
+  if (remainder !== 0 || cursor.getSeconds() > 0 || cursor.getMilliseconds() > 0) {
+    cursor.setMinutes(cursor.getMinutes() + (SLOT_INTERVAL_MINUTES - remainder));
+  }
+  cursor.setSeconds(0, 0);
+
+  const slots: PickupTimeSlot[] = [];
+  while (cursor <= dayClose) {
+    slots.push({
+      id: cursor.toISOString(),
+      label: formatSlotLabel(cursor, dayLabel),
+      startTime: cursor.toISOString(),
+    });
+    cursor.setMinutes(cursor.getMinutes() + SLOT_INTERVAL_MINUTES);
+  }
+
+  return slots;
+};
+
+/**
+ * Get available pickup time slots for the rest of today, falling back to
+ * tomorrow's full store hours if today is already closed (or about to close).
+ *
+ * WHY HARDCODED STORE HOURS?
+ * - Same MVP rationale as getPickupLocations - no store-hours collection yet
+ */
+export const getAvailableTimeSlots = (): PickupTimeSlot[] => {
+  const now = new Date();
+  const earliestToday = new Date(now.getTime() + MIN_PREP_MINUTES * 60 * 1000);
+  const todayOpen = new Date(now);
+  todayOpen.setHours(STORE_OPEN_HOUR, 0, 0, 0);
+
+  const todaySlots = buildSlotsForDay(
+    now,
+    earliestToday < todayOpen ? todayOpen : earliestToday,
+    'Today'
+  );
+  if (todaySlots.length > 0) {
+    return todaySlots;
+  }
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowOpen = new Date(tomorrow);
+  tomorrowOpen.setHours(STORE_OPEN_HOUR, 0, 0, 0);
+
+  return buildSlotsForDay(tomorrow, tomorrowOpen, 'Tomorrow');
 };
 
 // ============================================================

@@ -122,6 +122,18 @@ export interface PickupLocation {
 }
 
 /**
+ * A selectable pickup time slot
+ * id and startTime are both the slot's ISO timestamp, kept separate
+ * because id is used as a React key / selection value while startTime
+ * is what gets stored on the order.
+ */
+export interface PickupTimeSlot {
+  id: string;
+  label: string;
+  startTime: string;
+}
+
+/**
  * Order service response types
  */
 export interface OrderResponse {
@@ -522,6 +534,15 @@ export interface PickupLocationSelectorProps {
   locations: PickupLocation[];
   selectedLocationId: string;
   onLocationSelect: (locationId: string) => void;
+}
+
+/**
+ * TimeSlotSelector component props
+ */
+export interface TimeSlotSelectorProps {
+  slots: PickupTimeSlot[];
+  selectedSlotId: string;
+  onSlotSelect: (slotId: string) => void;
 }
 
 /**

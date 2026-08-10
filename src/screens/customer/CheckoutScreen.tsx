@@ -41,11 +41,13 @@ import { useAppTheme } from '../../theme';
 import FulfillmentTypeSelector from '../../components/customer/FulfillmentTypeSelector';
 import DeliveryAddressForm from '../../components/customer/DeliveryAddressForm';
 import PickupLocationSelector from '../../components/customer/PickupLocationSelector';
+import TimeSlotSelector from '../../components/customer/TimeSlotSelector';
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
 import {
   createOrder,
   formatDeliveryAddress,
   getPickupLocations,
+  getAvailableTimeSlots,
 } from '../../services/orderService';
 import { formatPrice } from '../../services/productService';
 import type { MainStackParamList, FulfillmentType, CreateOrderData } from '../../types';
@@ -138,6 +140,13 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
   const [selectedPickupLocation, setSelectedPickupLocation] = useState<string>('');
 
   /**
+   * PICKUP TIME SLOT STATE
+   * Stores the selected slot's id, which is the same ISO timestamp
+   * used as its startTime (see PickupTimeSlot).
+   */
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
+
+  /**
    * UI STATE
    *
    * WHY loading STATE?
@@ -158,6 +167,7 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
    * - Easy to make async later
    */
   const pickupLocations = getPickupLocations();
+  const timeSlots = getAvailableTimeSlots();
 
   // ============================================================
   // VALIDATION
@@ -238,6 +248,10 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
         Alert.alert('Error', 'Please select a pickup location');
         return false;
       }
+      if (!selectedTimeSlot) {
+        Alert.alert('Error', 'Please select a pickup time');
+        return false;
+      }
     }
 
     return true;
@@ -286,10 +300,13 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
 
       /**
        * Calculate scheduled ready time
-       * Default: 30 minutes from now for immediate orders
-       * Future enhancement: let customers pick a scheduled time
+       * Pickup orders use the customer-selected time slot; delivery orders
+       * still default to 30 minutes from now (no time-slot UI for delivery yet).
        */
-      const scheduledReadyTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const scheduledReadyTime =
+        fulfillmentType === 'pickup'
+          ? selectedTimeSlot
+          : new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
       const orderData: CreateOrderData = {
         customerID: user!.$id,
@@ -478,11 +495,18 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
             onDeliveryNotesChange={setDeliveryNotes}
           />
         ) : (
-          <PickupLocationSelector
-            locations={pickupLocations}
-            selectedLocationId={selectedPickupLocation}
-            onLocationSelect={setSelectedPickupLocation}
-          />
+          <>
+            <PickupLocationSelector
+              locations={pickupLocations}
+              selectedLocationId={selectedPickupLocation}
+              onLocationSelect={setSelectedPickupLocation}
+            />
+            <TimeSlotSelector
+              slots={timeSlots}
+              selectedSlotId={selectedTimeSlot}
+              onSlotSelect={setSelectedTimeSlot}
+            />
+          </>
         )}
 
         <OrderSummaryCard cartItems={cartItems} subtotal={getCartTotal()} />
