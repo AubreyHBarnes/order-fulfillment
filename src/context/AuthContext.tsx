@@ -99,49 +99,88 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Create session (log in)
       await account.createEmailPasswordSession(email, password);
 
-      // Create user profile in Users collection
-      // Note: Appwrite schema requires both customerID and shopperID fields
-      // We set the relevant one based on role, and empty string for the other
-      const profile = await databases.createDocument<UserProfile>(
-        config.databaseId,
-        config.usersCollectionId,
-        ID.unique(),
-        {
-          userID: newAccount.$id,
-          role: role,
-          firstName: firstName,
-          lastName: lastName,
-          // Set customerID for customers, empty for shoppers
-          customerID: role === 'customer' ? newAccount.$id : '',
-          // Set shopperID for shoppers, empty for customers
-          shopperID: role === 'shopper' ? newAccount.$id : '',
-        }
-      );
-
-      // If registering as shopper, create ShopperStatus record
-      if (role === 'shopper') {
-        await databases.createDocument(
+      try {
+        // Create user profile in Users collection
+        // Note: Appwrite schema requires both customerID and shopperID fields
+        // We set the relevant one based on role, and empty string for the other
+        const profile = await databases.createDocument<UserProfile>(
           config.databaseId,
-          config.shopperStatusCollectionId,
+          config.usersCollectionId,
           ID.unique(),
           {
-            shopperId: newAccount.$id,
-            isAvailable: false, // Start as unavailable
-            currentOrderId: '',
-            location: '',
-            maxConcurrentOrders: 1,
-            lastActiveTimestamp: new Date().toISOString(),
+            userID: newAccount.$id,
+            role: role,
+            firstName: firstName,
+            lastName: lastName,
+            // Set customerID for customers, empty for shoppers
+            customerID: role === 'customer' ? newAccount.$id : '',
+            // Set shopperID for shoppers, empty for customers
+            shopperID: role === 'shopper' ? newAccount.$id : '',
           }
         );
+
+        // If registering as shopper, create ShopperStatus record
+        if (role === 'shopper') {
+          try {
+            await databases.createDocument(
+              config.databaseId,
+              config.shopperStatusCollectionId,
+              ID.unique(),
+              {
+                shopperID: newAccount.$id,
+                isAvailable: false, // Start as unavailable
+                currentOrderId: '',
+                location: '',
+                maxConcurrentOrders: 1,
+                lastActiveTimeStamp: new Date().toISOString(),
+              }
+            );
+          } catch (shopperStatusErr) {
+            // Undo the profile doc too, so we don't leave a Users record
+            // with no matching ShopperStatus for a shopper account
+            await databases.deleteDocument(
+              config.databaseId,
+              config.usersCollectionId,
+              profile.$id
+            );
+            throw shopperStatusErr;
+          }
+        }
+
+        // Get the full user object after session creation
+        const currentUser = await account.get();
+        setUser(currentUser);
+        setUserProfile(profile);
+        setLoading(false);
+
+        return { success: true };
+      } catch (profileErr) {
+        // Profile setup failed after the Auth account already exists.
+        // The client SDK has no way to delete an account (only the
+        // server-side Users API can, and that needs an API key we don't
+        // have configured) so the best we can do is block it and drop the
+        // session rather than leave a live, logged-in account with no
+        // profile. updateStatus() must run before deleteSession() — it
+        // needs the active session to identify which account to block.
+        try {
+          await account.updateStatus();
+        } catch {
+          // best effort
+        }
+        try {
+          await account.deleteSession('current');
+        } catch {
+          // best effort
+        }
+
+        const baseMessage =
+          profileErr instanceof Error
+            ? profileErr.message
+            : 'Failed to create user profile';
+        throw new Error(
+          `${baseMessage} (the Auth account for ${email} was created but has been blocked since profile setup failed - delete it in the console before retrying with this email)`
+        );
       }
-
-      // Get the full user object after session creation
-      const currentUser = await account.get();
-      setUser(currentUser);
-      setUserProfile(profile);
-      setLoading(false);
-
-      return { success: true };
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Registration failed';

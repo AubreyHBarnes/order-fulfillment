@@ -27,27 +27,25 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 ## ✨ Features
 
 ### For Customers
-- 🛒 **Product Browsing** - Search, filter by category, browse 30+ grocery items
+- 🛒 **Product Browsing** - Search, filter by category, browse grocery items
 - 🔍 **Smart Search** - Find products quickly with search functionality
 - 🛍️ **Shopping Cart** - Persistent cart using AsyncStorage
-- 📦 **Order Placement** - Choose between delivery or pickup fulfillment
-- 🔔 **Real-time Tracking** - Live order status updates (in progress)
-- 📱 **Pickup Notifications** - "I've arrived" feature for curbside pickup (in progress)
+- 📦 **Checkout & Order Placement** - Choose between delivery or pickup fulfillment, place orders against the real backend
+- 📋 **Order History** - View past and in-progress orders, order detail screens
+- 🔔 **Real-time Tracking** - Live order status updates (not yet implemented)
+- 📱 **Pickup Notifications** - "I've arrived" service/UI exists (`arrivalService.ts`, `ArrivalNotificationCard`), end-to-end flow still in progress
 
-### For Shoppers (In Progress - Phase 4)
-- 📋 **Order Dashboard** - View and manage assigned orders
-- ⚡ **Auto-Assignment** - Intelligent order routing via serverless functions
-- ✅ **Item Fulfillment** - Check off items as they're found
-- 🔄 **Real-time Updates** - Notify customers of substitutions instantly
-- 🚗 **Customer Arrivals** - Receive alerts when customers arrive for pickup
+### For Shoppers
+- 📋 **Order Dashboard & Available Tasks** - View and manage assigned/available orders (implemented)
+- 🔍 **Task Detail** - View and work an individual order's items (implemented)
+- ⚡ **Auto-Assignment** - Orders can be flagged `autoAssigned` on placement; this is a simple client-side flag today, not yet a ranking/routing algorithm or serverless function
+- 🚗 **Drop-offs / Customer Check-ins / Settings** - Screens exist but are static placeholders, not yet functional
 
 ### Technical Highlights
-- ⚡ **Auto-Assignment Algorithm** - Ranks shoppers by availability and workload
-- 🔄 **Real-time Synchronization** - WebSocket subscriptions via Appwrite Realtime
 - 🔐 **Role-Based Authentication** - Separate customer and shopper access
-- ♿ **Accessibility First** - WCAG 2.1 AA compliant with screen reader support
+- 🎨 **Light/Dark Theme System** - `ThemeContext` with dedicated light/dark theme definitions
 - 📱 **Material Design 3** - Modern, responsive UI with React Native Paper
-- 🎨 **8pt Grid System** - Consistent spacing and visual hierarchy
+- 🔄 **Real-time Synchronization** - WebSocket subscriptions via Appwrite Realtime (planned, not yet implemented)
 
 ---
 
@@ -83,20 +81,18 @@ Follow these instructions to get the project running on your local machine.
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** (v18 or higher) and npm
+- **Node.js** (v20 or higher) and npm
   ```bash
-  node --version  # Should be >= 18.x.x
+  node --version  # Should be >= 20.x.x
   npm --version
   ```
 
-- **React Native CLI**
-  ```bash
-  npm install -g react-native-cli
-  ```
+  No global React Native CLI install is needed — this project uses `@react-native-community/cli` as a local devDependency, invoked via the `npm start` / `npm run android` / `npm run ios` scripts (or `npx react-native ...` directly).
 
-- **JDK 17** (for Android)
+- **JDK 21** (for Android) — install the full JDK, not just the JRE (`openjdk-21-jdk`, not `openjdk-21-jre`), since Gradle's toolchain needs `javac`.
   ```bash
-  java -version  # Should be 17.x.x
+  java -version   # Should be 21.x.x
+  javac -version  # Confirms the full JDK is installed, not just the JRE
   ```
 
 - **Android Studio** with Android SDK (for Android development)
@@ -278,13 +274,7 @@ Create these 7 collections with the specified attributes:
 
 #### 4. Configure Environment Variables
 
-Create a `.env` file in the project root:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your Appwrite credentials:
+Create a `.env` file in the project root (there's no `.env.example` template to copy — create it directly) with your Appwrite credentials:
 
 ```env
 APPWRITE_ENDPOINT=https://nyc.cloud.appwrite.io/v1
@@ -308,38 +298,23 @@ APPWRITE_ORDER_MESSAGES_COLLECTION_ID=your_order_messages_collection_id
 
 Check your Appwrite project settings for the correct endpoint.
 
-#### 5. Seed Sample Data
+#### 5. Add Sample Data
 
-Populate the Products collection with sample grocery items:
-
-```bash
-cd scripts
-npm install node-appwrite
-
-# Edit seedProducts.js and add your Project ID and API Key
-# (Create API key in Appwrite: Settings → API Keys)
-nano seedProducts.js
-
-# Run the seed script
-node seedProducts.js
-
-cd ..
-```
+There's no seed script in this repo yet — populate the Products collection manually via the Appwrite console (Databases → your database → Products → Create Document), or write your own script against `node-appwrite` using the schema above.
 
 #### 6. Run the Application
 
 **For Android:**
 
 ```bash
-# Start Metro bundler
+# Start Metro bundler in one terminal
 npm start
 
-# In a new terminal, run on Android
-npm run android
-
-# Or all in one:
+# In a second terminal, build and install on Android
 npm run android
 ```
+
+Run these in two separate terminals. `npm run android` alone can spawn Metro automatically in an interactive terminal, but in headless/non-interactive setups (e.g. SSH, some CI/VM environments) that auto-launch fails silently and the installed app just hangs on a blank screen waiting for the bundler — so start Metro explicitly first.
 
 **For iOS (macOS only):**
 
@@ -372,56 +347,52 @@ npm run ios
 3. **Filter by Category** - Tap category chips to filter
 4. **Add to Cart** - Tap "Add to Cart" on any product
 5. **View Cart** - Tap cart icon (shows item count)
-6. **Checkout** - Complete order (Phase 3.4 - in progress)
+6. **Checkout** - Choose delivery or pickup and place the order
 
-### As a Shopper (Phase 4 - In Progress)
+### As a Shopper
 
-1. **View Dashboard** - See available orders
-2. **Accept Order** - Auto-assigned or manually accept
-3. **Fulfill Items** - Check off items as found
-4. **Handle Substitutions** - Notify customers
-5. **Complete Order** - Mark as ready for delivery/pickup
+1. **View Dashboard / Available Tasks** - See assigned and available orders
+2. **Open Task Detail** - Work an individual order
+3. **Fulfill Items, Handle Substitutions, Complete Order** - Not yet implemented; only the dashboard and task-detail/available-tasks views are functional today
+4. **Drop-offs, Customer Check-ins, Settings** - Screens exist in navigation but are static placeholders
 
 ---
 
 ## 🏗️ Project Structure
 
 ```
-GroceryFulfillmentApp/
+order-fulfillment/
 ├── android/                 # Android native code
 ├── ios/                     # iOS native code
 ├── src/
 │   ├── components/
-│   │   ├── common/          # Shared components
-│   │   ├── customer/
-│   │   │   └── ProductCard.js
-│   │   └── shopper/
-│   ├── constants/
-│   │   └── theme.js         # Design system (colors, typography)
+│   │   ├── customer/         # Cart, checkout, order, and product-card components
+│   │   └── shopper/           # Task and status-dropdown components
 │   ├── context/
-│   │   ├── AuthContext.js   # Authentication state
-│   │   └── CartContext.js   # Shopping cart state
-│   ├── hooks/               # Custom React hooks
+│   │   ├── AuthContext.tsx   # Authentication state
+│   │   ├── CartContext.tsx   # Shopping cart state
+│   │   └── ThemeContext.tsx  # Light/dark theme state
 │   ├── navigation/
-│   │   └── AppNavigator.js  # Navigation structure
+│   │   └── AppNavigator.tsx  # Navigation structure
 │   ├── screens/
-│   │   ├── auth/
-│   │   │   ├── LoginScreen.js
-│   │   │   ├── RegisterScreen.js
-│   │   │   └── ForgotPasswordScreen.js
-│   │   ├── customer/
-│   │   │   └── CustomerHomeScreen.js
-│   │   └── shopper/
+│   │   ├── auth/              # Login, register, forgot-password
+│   │   ├── customer/          # Home, cart, checkout, orders, order detail/confirmation
+│   │   ├── shopper/            # Dashboard, available tasks, task detail, drop-offs, check-ins, settings
+│   │   └── TestConnectionScreen.tsx
 │   ├── services/
-│   │   ├── appwrite.js      # Appwrite client config
-│   │   └── productService.js # Product data layer
-│   └── utils/               # Helper functions
-├── scripts/
-│   └── seedProducts.js      # Database seeding script
-├── .env                     # Environment variables (not in git)
-├── .env.example             # Environment template
+│   │   ├── appwrite.ts        # Appwrite client config
+│   │   ├── productService.ts
+│   │   ├── orderService.ts
+│   │   ├── userService.ts
+│   │   ├── shopperStatusService.ts
+│   │   └── arrivalService.ts
+│   ├── theme/                 # Colors, light/dark theme definitions
+│   └── types/                 # Shared TypeScript types
+├── docs/                     # Debugging/session logs
+├── .env                      # Environment variables (not in git)
 ├── .gitignore
-├── App.js                   # Root component
+├── App.tsx                   # Root component
+├── index.ts                  # Entry point
 ├── package.json
 └── README.md
 ```
@@ -439,9 +410,6 @@ npm test -- --coverage
 
 # Lint code
 npm run lint
-
-# Format code
-npm run format
 ```
 
 ---
@@ -507,15 +475,17 @@ npm install
   - Shopping cart with persistence
   - Product card components
 
+- [x] **Phase 3.3:** Shopping Cart Screen
+- [x] **Phase 3.4:** Checkout Flow
+
 ### In Progress 🚧
-- [ ] **Phase 3.3:** Shopping Cart Screen
-- [ ] **Phase 3.4:** Checkout Flow
+- [ ] **Phase 4:** Shopper Fulfillment Interface
+  - [x] Order dashboard, available tasks, task detail
+  - [ ] Item fulfillment / pick-items workflow (no in-app way to claim or complete an order yet)
+  - [ ] Customer arrival notifications (service layer exists, UI/flow incomplete)
+  - [ ] Drop-offs, customer check-ins, and settings screens (currently static placeholders)
 
 ### Planned 📋
-- [ ] **Phase 4:** Shopper Fulfillment Interface
-  - Order dashboard
-  - Item fulfillment workflow
-  - Customer arrival notifications
 - [ ] **Phase 5:** Real-time Features
   - WebSocket subscriptions
   - Auto-assignment serverless functions

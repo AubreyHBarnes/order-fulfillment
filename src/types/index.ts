@@ -603,20 +603,20 @@ export type ShopperAvailability = 'available' | 'unavailable';
  * 4. Different access patterns (status queried often for assignment)
  *
  * WHY THESE FIELDS?
- * - shopperId: Links to the user's account
+ * - shopperID: Links to the user's account
  * - isAvailable: Boolean availability (true = available for tasks)
  * - currentOrderId: If assigned to an order, which one (empty string if none)
  * - location: Store location the shopper is working at
  * - maxConcurrentOrders: How many orders this shopper can handle at once
- * - lastActiveTimestamp: When the shopper was last active
+ * - lastActiveTimeStamp: When the shopper was last active
  */
 export interface ShopperStatus extends Models.Document {
-  shopperId: string;
+  shopperID: string;
   isAvailable: boolean;
   currentOrderId: string;
   location: string;
   maxConcurrentOrders: number;
-  lastActiveTimestamp: string;
+  lastActiveTimeStamp: string;
 }
 
 /**
@@ -627,7 +627,7 @@ export interface UpdateShopperStatusData {
   currentOrderId?: string;
   location?: string;
   maxConcurrentOrders?: number;
-  lastActiveTimestamp?: string;
+  lastActiveTimeStamp?: string;
 }
 
 /**

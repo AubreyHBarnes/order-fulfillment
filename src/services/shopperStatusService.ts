@@ -49,7 +49,7 @@ export const getShopperStatus = async (
     const response = await databases.listDocuments<ShopperStatus>(
       config.databaseId,
       config.shopperStatusCollectionId,
-      [Query.equal('shopperId', shopperId), Query.limit(1)]
+      [Query.equal('shopperID', shopperId), Query.limit(1)]
     );
 
     if (response.documents.length === 0) {
@@ -122,7 +122,7 @@ export const updateShopperAvailability = async (
     // Update the availability
     const updateData: UpdateShopperStatusData = {
       isAvailable,
-      lastActiveTimestamp: new Date().toISOString(),
+      lastActiveTimeStamp: new Date().toISOString(),
     };
 
     // If becoming available, try to auto-assign an order
@@ -205,7 +205,7 @@ export const assignOrderToShopper = async (
       statusResult.data.$id,
       {
         currentOrderId: orderId,
-        lastActiveTimestamp: new Date().toISOString(),
+        lastActiveTimeStamp: new Date().toISOString(),
       }
     );
 
@@ -255,7 +255,7 @@ export const clearCurrentOrder = async (
       statusResult.data.$id,
       {
         currentOrderId: '',
-        lastActiveTimestamp: new Date().toISOString(),
+        lastActiveTimeStamp: new Date().toISOString(),
       }
     );
 
