@@ -371,24 +371,29 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
     if (result.success) {
       setShopperStatus(newStatus);
 
-      // If an order was auto-assigned, transform it to TaskCardData
-      if (result.assignedOrder) {
-        const customerResult = await getUserProfileById(result.assignedOrder.customerID);
-        const customerName = getCustomerDisplayName(customerResult.data);
-        const shopperName = `${userProfile.firstName} ${userProfile.lastName}`;
+      if (isAvailable) {
+        // If an order was auto-assigned, transform it to TaskCardData
+        if (result.assignedOrder) {
+          const customerResult = await getUserProfileById(result.assignedOrder.customerID);
+          const customerName = getCustomerDisplayName(customerResult.data);
+          const shopperName = `${userProfile.firstName} ${userProfile.lastName}`;
 
-        const taskData = transformOrderToTaskCard(
-          result.assignedOrder,
-          customerName,
-          shopperName
-        );
-        setCurrentTask(taskData);
-
-        // Refresh available tasks count
-        const tasksResult = await getAvailableTasksCount();
-        if (tasksResult.success) {
-          setAvailableTasksCount(tasksResult.count);
+          const taskData = transformOrderToTaskCard(
+            result.assignedOrder,
+            customerName,
+            shopperName
+          );
+          setCurrentTask(taskData);
         }
+      } else {
+        // Going unavailable releases any current task back to the queue
+        setCurrentTask(null);
+      }
+
+      // Refresh available tasks count either way - the queue just changed
+      const tasksResult = await getAvailableTasksCount();
+      if (tasksResult.success) {
+        setAvailableTasksCount(tasksResult.count);
       }
     } else {
       Alert.alert('Error', result.error ?? 'Failed to update status');

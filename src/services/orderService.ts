@@ -579,6 +579,50 @@ export const assignOrderToShopper = async (
 };
 
 /**
+ * Unassign an order from its shopper, returning it to the pending queue
+ *
+ * WHY RESET TO 'pending' WITH EMPTY shopperID?
+ * - Matches the exact shape getNextOrderForAssignment/getAvailableTasks query for
+ * - No separate "queue" collection - the queue IS pending, unassigned orders,
+ *   ordered by scheduledReadyTime
+ * - autoAssigned resets to false since this is no longer an active assignment
+ *
+ * @param orderId - The order's document ID
+ * @returns OrderResponse with updated order or error
+ */
+export const unassignOrder = async (orderId: string): Promise<OrderResponse> => {
+  try {
+    const updated = await databases.updateDocument<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      orderId,
+      {
+        shopperID: '',
+        status: 'pending',
+        autoAssigned: false,
+      }
+    );
+
+    console.log(`Order ${orderId} unassigned, returned to queue`);
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error unassigning order:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to unassign order';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
  * Get the current assigned order for a shopper
  *
  * WHY CHECK 'assigned' OR 'shopping'?

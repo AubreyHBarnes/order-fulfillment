@@ -20,6 +20,7 @@ import { databases, config } from './appwrite';
 import {
   getNextOrderForAssignment,
   assignOrderToShopper as assignOrderInOrderService,
+  unassignOrder as unassignOrderInOrderService,
 } from './orderService';
 import type {
   ShopperStatus,
@@ -77,9 +78,104 @@ export const getShopperStatus = async (
   }
 };
 
+/**
+ * Find the next idle, available shopper to hand an order to
+ *
+ * WHY isAvailable + empty currentOrderId?
+ * - isAvailable alone isn't enough - a shopper can be available but already
+ *   mid-task (currentOrderId set) if they haven't finished their current order
+ * - Only truly idle shoppers should receive an immediate hand-off
+ *
+ * WHY orderAsc(lastActiveTimeStamp)?
+ * - Prefer the shopper who's been idle longest (fairest distribution)
+ *
+ * @param excludeShopperId - Shopper to exclude (e.g. the one just going unavailable)
+ * @returns ShopperStatusResponse with the next idle shopper or null if none
+ */
+export const getNextAvailableShopper = async (
+  excludeShopperId?: string
+): Promise<ShopperStatusResponse> => {
+  try {
+    const queries = [
+      Query.equal('isAvailable', true),
+      Query.equal('currentOrderId', ''),
+      Query.orderAsc('lastActiveTimeStamp'),
+      Query.limit(1),
+    ];
+    if (excludeShopperId) {
+      queries.push(Query.notEqual('shopperID', excludeShopperId));
+    }
+
+    const response = await databases.listDocuments<ShopperStatus>(
+      config.databaseId,
+      config.shopperStatusCollectionId,
+      queries
+    );
+
+    return {
+      success: true,
+      data: response.documents[0] ?? null,
+    };
+  } catch (error) {
+    console.error('Error finding next available shopper:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to find next available shopper';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
 // ============================================================
 // AVAILABILITY MANAGEMENT
 // ============================================================
+
+/**
+ * If `orderId` is now the most urgent order in the pending queue (closest
+ * scheduledReadyTime), hand it straight to the next idle available shopper
+ * instead of leaving it to sit until someone next toggles available.
+ *
+ * WHY CHECK "MOST URGENT" FIRST?
+ * - Only the single most urgent pending order gets this immediate hand-off
+ * - Less urgent orders just wait in the queue for the normal
+ *   become-available flow, same as any other pending order
+ *
+ * @param orderId - The order that was just unassigned
+ * @param excludeShopperId - The shopper who just went unavailable (don't reassign to them)
+ */
+const reassignIfMostUrgent = async (
+  orderId: string,
+  excludeShopperId: string
+): Promise<void> => {
+  const nextResult = await getNextOrderForAssignment();
+  if (!nextResult.success || nextResult.data?.$id !== orderId) {
+    // Some other pending order is more urgent (or the order is gone) - leave it queued
+    return;
+  }
+
+  const shopperResult = await getNextAvailableShopper(excludeShopperId);
+  if (!shopperResult.success || !shopperResult.data) {
+    // No other shopper free right now - it stays at the front of the queue
+    return;
+  }
+
+  const nextShopper = shopperResult.data;
+  const assignResult = await assignOrderInOrderService(orderId, nextShopper.shopperID);
+  if (assignResult.success) {
+    await databases.updateDocument<ShopperStatus>(
+      config.databaseId,
+      config.shopperStatusCollectionId,
+      nextShopper.$id,
+      {
+        currentOrderId: orderId,
+        lastActiveTimeStamp: new Date().toISOString(),
+      }
+    );
+  }
+};
 
 /**
  * Update shopper availability and optionally trigger auto-assignment
@@ -87,8 +183,11 @@ export const getShopperStatus = async (
  * FLOW:
  * 1. Fetch current shopper status to get document $id
  * 2. Update isAvailable field
- * 3. If becoming available, check for pending orders
- * 4. If order found, assign it to this shopper
+ * 3. If becoming available AND not already working an order, check for pending
+ *    orders and assign one to this shopper
+ * 4. If becoming unavailable while working an order, release that order back to
+ *    the queue, then immediately hand it to another idle shopper if it's now
+ *    the most urgent order pending
  * 5. Return updated status and any assigned order
  *
  * @param shopperId - The shopper's user ID
@@ -117,6 +216,7 @@ export const updateShopperAvailability = async (
     }
 
     const statusDocId = statusResult.data.$id;
+    const previousOrderId = statusResult.data.currentOrderId;
     let assignedOrder: Order | null = null;
 
     // Update the availability
@@ -125,21 +225,34 @@ export const updateShopperAvailability = async (
       lastActiveTimeStamp: new Date().toISOString(),
     };
 
-    // If becoming available, try to auto-assign an order
-    if (isAvailable) {
+    if (isAvailable && !previousOrderId) {
+      // Becoming available with no order already in flight - auto-assign the next pending one.
+      // WHY GUARD ON !previousOrderId?
+      // - A shopper can already have a currentOrderId while isAvailable is false
+      //   (e.g. they went on break mid-task under the old buggy flow, or a status
+      //   flip happened out of band). Auto-assigning on top of that orphans a
+      //   second order under the same shopperID, which no one is ever asked to
+      //   release since it's not tracked by currentOrderId.
+      // - If a current order is already set, we leave it alone here - the dashboard
+      //   will show it as the current task same as if the shopper never left.
       const orderResult = await getNextOrderForAssignment();
       if (orderResult.success && orderResult.data) {
-        // Found an order to assign
         const order = orderResult.data;
 
-        // Assign the order to this shopper
         const assignResult = await assignOrderInOrderService(order.$id, shopperId);
         if (assignResult.success && assignResult.data) {
           assignedOrder = assignResult.data;
-          // Update shopper's currentOrderId
           updateData.currentOrderId = order.$id;
         }
       }
+    } else if (previousOrderId && !isAvailable) {
+      // Becoming unavailable while working an order - release it back to the queue
+      await unassignOrderInOrderService(previousOrderId);
+      updateData.currentOrderId = '';
+
+      // If that order is now the most urgent one pending, hand it to the next
+      // idle shopper right away instead of letting it sit
+      await reassignIfMostUrgent(previousOrderId, shopperId);
     }
 
     // Perform the status update
