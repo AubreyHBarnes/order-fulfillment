@@ -42,12 +42,14 @@ import FulfillmentTypeSelector from '../../components/customer/FulfillmentTypeSe
 import DeliveryAddressForm from '../../components/customer/DeliveryAddressForm';
 import PickupLocationSelector from '../../components/customer/PickupLocationSelector';
 import TimeSlotSelector from '../../components/customer/TimeSlotSelector';
+import RushOrderToggle from '../../components/customer/RushOrderToggle';
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
 import {
   createOrder,
   formatDeliveryAddress,
   getPickupLocations,
   getAvailableTimeSlots,
+  getRushReadyTime,
 } from '../../services/orderService';
 import { formatPrice } from '../../services/productService';
 import type { MainStackParamList, FulfillmentType, CreateOrderData } from '../../types';
@@ -145,6 +147,16 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
    * used as its startTime (see PickupTimeSlot).
    */
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
+
+  /**
+   * RUSH ORDER STATE
+   *
+   * WHY PICKUP-ONLY?
+   * - Rush bypasses the hourly time slot picker with a fixed
+   *   RUSH_PREP_MINUTES-from-now ready time
+   * - Delivery has no slot picker yet, so there's nothing for rush to skip
+   */
+  const [isRush, setIsRush] = useState<boolean>(false);
 
   /**
    * UI STATE
@@ -248,7 +260,12 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
         Alert.alert('Error', 'Please select a pickup location');
         return false;
       }
-      if (!selectedTimeSlot) {
+      /**
+       * WHY SKIP THIS CHECK WHEN isRush?
+       * - Rush orders don't use the hourly slot picker - their ready time
+       *   is always RUSH_PREP_MINUTES from now, computed at submission
+       */
+      if (!isRush && !selectedTimeSlot) {
         Alert.alert('Error', 'Please select a pickup time');
         return false;
       }
@@ -300,13 +317,13 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
 
       /**
        * Calculate scheduled ready time
-       * Pickup orders use the customer-selected time slot; delivery orders
-       * still default to 30 minutes from now (no time-slot UI for delivery yet).
+       * - Rush pickup orders: RUSH_PREP_MINUTES from now, skipping the hourly slots
+       * - Normal pickup orders: the customer-selected hourly slot
+       * - Delivery orders: still default to RUSH_PREP_MINUTES from now
+       *   (no time-slot UI for delivery yet)
        */
       const scheduledReadyTime =
-        fulfillmentType === 'pickup'
-          ? selectedTimeSlot
-          : new Date(Date.now() + 30 * 60 * 1000).toISOString();
+        fulfillmentType === 'pickup' && !isRush ? selectedTimeSlot : getRushReadyTime();
 
       const orderData: CreateOrderData = {
         customerID: user!.$id,
@@ -352,11 +369,14 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * - Order not yet assigned to shopper
          * - Will be true when system auto-assigns
          */
-        priority: 0,
+        priority: fulfillmentType === 'pickup' && isRush ? 1 : 0,
         /**
-         * WHY priority: 0?
-         * - Default priority
-         * - Could be higher for premium customers
+         * WHY REUSE priority AS THE RUSH FLAG?
+         * - priority already exists on the Order schema and was unused -
+         *   no Appwrite schema change needed
+         * - 1 = rush, 0 = normal
+         * - Rush orders also naturally sort first in shopper auto-assignment
+         *   since scheduledReadyTime is soonest, so no assignment logic needed
          */
         orderDate: new Date().toISOString(),
         /**
@@ -501,11 +521,14 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
               selectedLocationId={selectedPickupLocation}
               onLocationSelect={setSelectedPickupLocation}
             />
-            <TimeSlotSelector
-              slots={timeSlots}
-              selectedSlotId={selectedTimeSlot}
-              onSlotSelect={setSelectedTimeSlot}
-            />
+            <RushOrderToggle isRush={isRush} onChange={setIsRush} />
+            {!isRush && (
+              <TimeSlotSelector
+                slots={timeSlots}
+                selectedSlotId={selectedTimeSlot}
+                onSlotSelect={setSelectedTimeSlot}
+              />
+            )}
           </>
         )}
 

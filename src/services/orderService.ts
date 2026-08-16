@@ -77,8 +77,26 @@ export const getPickupLocations = (): PickupLocation[] => {
 
 const STORE_OPEN_HOUR = 9; // 9:00 AM
 const STORE_CLOSE_HOUR = 21; // 9:00 PM
-const SLOT_INTERVAL_MINUTES = 30;
+const SLOT_INTERVAL_MINUTES = 60; // normal pickup slots land on the hour (12:00, 1:00, 2:00, ...)
 const MIN_PREP_MINUTES = 30; // earliest a new order can realistically be ready
+
+/**
+ * How far out a rush order is ready, measured from when it's placed
+ *
+ * WHY 30 MINUTES?
+ * - Matches the reference production app's rush window
+ * - Rush is the one exception to the on-the-hour rule: ready ASAP instead
+ *   of waiting for the next hourly slot
+ */
+export const RUSH_PREP_MINUTES = 30;
+
+/**
+ * Get the scheduledReadyTime for a rush order: RUSH_PREP_MINUTES from now
+ *
+ * @returns ISO timestamp RUSH_PREP_MINUTES minutes from the current time
+ */
+export const getRushReadyTime = (): string =>
+  new Date(Date.now() + RUSH_PREP_MINUTES * 60 * 1000).toISOString();
 
 const formatSlotLabel = (date: Date, dayLabel: string): string =>
   `${dayLabel}, ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;

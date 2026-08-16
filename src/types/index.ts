@@ -546,6 +546,18 @@ export interface TimeSlotSelectorProps {
 }
 
 /**
+ * RushOrderToggle component props
+ *
+ * WHY value/onChange PATTERN?
+ * - Matches FulfillmentTypeSelectorProps - same controlled component pattern
+ * - Parent (CheckoutScreen) owns the isRush state
+ */
+export interface RushOrderToggleProps {
+  isRush: boolean;
+  onChange: (isRush: boolean) => void;
+}
+
+/**
  * OrderSummaryCard component props
  *
  * WHY pass cartItems instead of just totals?
