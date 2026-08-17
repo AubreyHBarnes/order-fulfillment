@@ -20,6 +20,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { ShopperAssignmentProvider } from '../context/ShopperAssignmentContext';
 import type { AuthStackParamList, MainStackParamList, ShopperStackParamList } from '../types';
 
 // ============================================================
@@ -352,6 +353,14 @@ const AppNavigator: React.FC = () => {
          * 4. No confusion between customer/shopper screens
          */
 
+        // WHY WRAPPED IN ShopperAssignmentProvider HERE?
+        // This is the one place `role === 'shopper'` is already
+        // evaluated, and it's above every shopper screen - mounting the
+        // provider (and the interrupt-notification polling it runs)
+        // here means it's live no matter which shopper screen is open,
+        // and stops entirely once the shopper logs out or a customer
+        // logs in (this branch stops rendering).
+        <ShopperAssignmentProvider shopperId={userProfile?.shopperID ?? ''}>
         <ShopperStack.Navigator
           screenOptions={{
             headerStyle: {
@@ -423,6 +432,7 @@ const AppNavigator: React.FC = () => {
             }}
           />
         </ShopperStack.Navigator>
+        </ShopperAssignmentProvider>
       ) : (
         // ========================================================
         // MAIN APP STACK - Logged In as Customer

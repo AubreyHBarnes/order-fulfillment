@@ -6,7 +6,7 @@
 [![Appwrite](https://img.shields.io/badge/Appwrite-1.5-f02e65.svg)](https://appwrite.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-[🎥 Watch Demo Video](#) | [📱 Screenshots](#screenshots) | [📖 Technical Article](#)
+[🎥 Watch Demo Video](#) | [📱 Screenshots](#screenshots) | [📖 Engineering Decision Log](docs/DECISIONS.md)
 
 ---
 

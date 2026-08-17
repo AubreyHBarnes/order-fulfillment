@@ -81,6 +81,13 @@ export interface Order extends Models.Document {
   orderDate: string;
   scheduledReadyTime: string; // ISO timestamp - when order should be ready
   pickedItems: string; // Format: "productId:pickedQty,..." (empty = none picked)
+  // Reserved on the Appwrite schema since the project's early scaffolding,
+  // unused until the rush-order interrupt feature: when a busy shopper's
+  // order is bumped to make room for a rush order, interruptOrder() (see
+  // orderService.ts) stamps these on the bumped order as it's released
+  // back to pending. null/undefined on every order that was never interrupted.
+  interruptedAt?: string | null;
+  interruptReason?: string | null;
 }
 
 /**
@@ -795,6 +802,19 @@ export interface NewAssignmentModalProps {
   onAccept: () => void;
   onDecline: () => void;
   declineLoading?: boolean;
+}
+
+/**
+ * OrderInterruptedModal component props
+ *
+ * WHY order CAN BE null?
+ * - Mirrors NewAssignmentModalProps - visible and order both flip
+ *   together (see ShopperAssignmentContext), never independently.
+ */
+export interface OrderInterruptedModalProps {
+  visible: boolean;
+  order: Order | null;
+  onDismiss: () => void;
 }
 
 /**

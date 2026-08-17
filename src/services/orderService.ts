@@ -641,6 +641,61 @@ export const unassignOrder = async (orderId: string): Promise<OrderResponse> => 
 };
 
 /**
+ * Interrupt an order: release it back to the pending queue like
+ * unassignOrder does, but also stamp interruptedAt/interruptReason so
+ * there's a record of why it was taken from its shopper.
+ *
+ * WHY A SEPARATE FUNCTION FROM unassignOrder?
+ * - unassignOrder models a shopper voluntarily stepping away (going
+ *   unavailable) - there's no "reason," it's just released.
+ * - interruptOrder models the order being taken from a shopper against
+ *   their current work, to make room for something more urgent (a rush
+ *   order). Keeping them separate keeps each call site's intent clear
+ *   without an optional "was this an interrupt?" flag threaded through
+ *   unassignOrder's callers.
+ *
+ * @param orderId - The order's document ID
+ * @param reason - Human-readable reason, stored on the order
+ * @returns OrderResponse with updated order or error
+ */
+export const interruptOrder = async (
+  orderId: string,
+  reason: string
+): Promise<OrderResponse> => {
+  try {
+    const updated = await databases.updateDocument<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      orderId,
+      {
+        shopperID: '',
+        status: 'pending',
+        autoAssigned: false,
+        interruptedAt: new Date().toISOString(),
+        interruptReason: reason,
+      }
+    );
+
+    console.log(`Order ${orderId} interrupted and returned to queue: ${reason}`);
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error interrupting order:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to interrupt order';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
  * Get the current assigned order for a shopper
  *
  * WHY CHECK 'assigned' OR 'shopping'?

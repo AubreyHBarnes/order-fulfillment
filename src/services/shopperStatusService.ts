@@ -21,6 +21,7 @@ import {
   getNextOrderForAssignment,
   assignOrderToShopper as assignOrderInOrderService,
   unassignOrder as unassignOrderInOrderService,
+  interruptOrder as interruptOrderInOrderService,
 } from './orderService';
 import type {
   ShopperStatus,
@@ -126,6 +127,83 @@ export const getNextAvailableShopper = async (
       data: null,
       error: errorMessage,
     };
+  }
+};
+
+/**
+ * Find a busy shopper (available, already working an order) whose current
+ * order is the safest to interrupt - the one with the furthest-out
+ * scheduledReadyTime among all busy shoppers, i.e. the least time-urgent
+ * order in progress right now.
+ *
+ * WHY scheduledReadyTime AS THE HEURISTIC, NOT SHOPPING PROGRESS?
+ * - It's the same signal getNextOrderForAssignment/reassignIfMostUrgent
+ *   already sort by everywhere else in this file - reusing it keeps the
+ *   interrupt decision consistent with the rest of the assignment logic
+ *   instead of introducing a second, more complex signal (e.g. picked
+ *   item count vs. total) for this first version.
+ *
+ * @param excludeShopperId - Shopper to exclude, if any
+ * @returns The shopper to interrupt and their current order, or nulls if no busy shopper exists
+ */
+export const getInterruptCandidateShopper = async (
+  excludeShopperId?: string
+): Promise<{
+  success: boolean;
+  shopper: ShopperStatus | null;
+  order: Order | null;
+  error?: string;
+}> => {
+  try {
+    const queries = [
+      Query.equal('isAvailable', true),
+      Query.notEqual('currentOrderId', ''),
+      Query.limit(50),
+    ];
+    if (excludeShopperId) {
+      queries.push(Query.notEqual('shopperID', excludeShopperId));
+    }
+
+    const shoppersResponse = await databases.listDocuments<ShopperStatus>(
+      config.databaseId,
+      config.shopperStatusCollectionId,
+      queries
+    );
+
+    if (shoppersResponse.documents.length === 0) {
+      return { success: true, shopper: null, order: null };
+    }
+
+    const orderIds = shoppersResponse.documents.map((s) => s.currentOrderId);
+    const ordersResponse = await databases.listDocuments<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      [Query.equal('$id', orderIds), Query.limit(orderIds.length)]
+    );
+
+    if (ordersResponse.documents.length === 0) {
+      return { success: true, shopper: null, order: null };
+    }
+
+    // Least urgent = furthest-out scheduledReadyTime, the safest to bump
+    const leastUrgentOrder = ordersResponse.documents.reduce((latest, candidate) =>
+      candidate.scheduledReadyTime > latest.scheduledReadyTime ? candidate : latest
+    );
+
+    const shopper = shoppersResponse.documents.find(
+      (s) => s.currentOrderId === leastUrgentOrder.$id
+    );
+    if (!shopper) {
+      return { success: true, shopper: null, order: null };
+    }
+
+    return { success: true, shopper, order: leastUrgentOrder };
+  } catch (error) {
+    console.error('Error finding interrupt candidate shopper:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to find interrupt candidate';
+
+    return { success: false, shopper: null, order: null, error: errorMessage };
   }
 };
 
@@ -336,6 +414,87 @@ export const assignOrderToShopper = async (
       data: null,
       error: errorMessage,
     };
+  }
+};
+
+// ============================================================
+// RUSH ORDER PLACEMENT
+// ============================================================
+
+/**
+ * Handle a newly placed rush order: try to get it to a shopper right
+ * away instead of leaving it to sit in the pending queue until someone's
+ * availability happens to change.
+ *
+ * WHY SCOPED TO RUSH ORDERS ONLY (caller only invokes this for priority === 1)?
+ * - Normal orders keep their existing behavior - assigned only when a
+ *   shopper toggles Available via updateShopperAvailability. Proactively
+ *   pushing every new order to an idle shopper the instant it's placed
+ *   would be a broader behavior change than what was asked for here.
+ *
+ * ORDER OF PREFERENCE:
+ * 1. A truly idle shopper - same hand-off used by the become-available
+ *    and reassignIfMostUrgent paths, no interruption needed.
+ * 2. If everyone's busy, interrupt the least-urgent in-progress order
+ *    (via getInterruptCandidateShopper) and hand that shopper the rush
+ *    order instead. The bumped order goes back to the normal pending
+ *    queue - no special handling needed there, it's picked up the same
+ *    way any other pending order is.
+ * 3. If there are no shoppers at all (idle or busy), do nothing - the
+ *    rush order just sits pending, same as it would without this feature.
+ *
+ * @param order - The newly created rush order
+ */
+export const handleRushOrderPlacement = async (order: Order): Promise<void> => {
+  const idleResult = await getNextAvailableShopper();
+  if (idleResult.success && idleResult.data) {
+    const idleShopper = idleResult.data;
+    const assignResult = await assignOrderInOrderService(order.$id, idleShopper.shopperID);
+    if (assignResult.success) {
+      await databases.updateDocument<ShopperStatus>(
+        config.databaseId,
+        config.shopperStatusCollectionId,
+        idleShopper.$id,
+        {
+          currentOrderId: order.$id,
+          lastActiveTimeStamp: new Date().toISOString(),
+        }
+      );
+    }
+    return;
+  }
+
+  const candidateResult = await getInterruptCandidateShopper();
+  if (!candidateResult.success || !candidateResult.shopper || !candidateResult.order) {
+    // No idle or interruptible shopper exists right now - leave it queued
+    return;
+  }
+
+  const candidateShopper = candidateResult.shopper;
+  const victimOrder = candidateResult.order;
+
+  // WHY A FIXED, SHORT STRING?
+  // interruptReason is capped at 40 characters on the Appwrite schema -
+  // there isn't room for the rush order's own ID, so it stays generic.
+  const interruptResult = await interruptOrderInOrderService(
+    victimOrder.$id,
+    'Bumped for a rush order'
+  );
+  if (!interruptResult.success) {
+    return;
+  }
+
+  const assignResult = await assignOrderInOrderService(order.$id, candidateShopper.shopperID);
+  if (assignResult.success) {
+    await databases.updateDocument<ShopperStatus>(
+      config.databaseId,
+      config.shopperStatusCollectionId,
+      candidateShopper.$id,
+      {
+        currentOrderId: order.$id,
+        lastActiveTimeStamp: new Date().toISOString(),
+      }
+    );
   }
 };
 
