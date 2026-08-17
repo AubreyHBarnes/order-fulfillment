@@ -781,6 +781,23 @@ export interface CurrentTaskCardProps {
 }
 
 /**
+ * NewAssignmentModal component props
+ *
+ * WHY task CAN BE null?
+ * - Mirrors CurrentTaskCardProps - lets the modal's `visible` prop and
+ *   `task` prop change on separate renders without a flash of empty
+ *   content (visible flips true a tick after task is set, both flip
+ *   false together on dismiss).
+ */
+export interface NewAssignmentModalProps {
+  visible: boolean;
+  task: TaskCardData | null;
+  onAccept: () => void;
+  onDecline: () => void;
+  declineLoading?: boolean;
+}
+
+/**
  * QuickLinkCard component props
  *
  * WHY GENERIC DESIGN?

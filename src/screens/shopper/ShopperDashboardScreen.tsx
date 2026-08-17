@@ -88,6 +88,7 @@ import { getUserProfileById, getCustomerDisplayName } from '../../services/userS
 import ShopperStatusDropdown from '../../components/shopper/ShopperStatusDropdown';
 import CurrentTaskCard from '../../components/shopper/CurrentTaskCard';
 import QuickLinkCard from '../../components/shopper/QuickLinkCard';
+import NewAssignmentModal from '../../components/shopper/NewAssignmentModal';
 import type { ShopperStackParamList, ShopperAvailability, TaskCardData, Order } from '../../types';
 
 // ============================================================
@@ -223,6 +224,20 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
    * null = no assigned task.
    */
   const [currentTask, setCurrentTask] = useState<TaskCardData | null>(null);
+
+  /**
+   * PENDING ASSIGNMENT STATE
+   *
+   * Set when going Available auto-assigns a new order, before the
+   * shopper has accepted or declined it. `currentTask` is only updated
+   * once they accept - keeps the dashboard's task card from flashing a
+   * task the shopper hasn't confirmed yet.
+   */
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    order: Order;
+    taskData: TaskCardData;
+  } | null>(null);
+  const [declineLoading, setDeclineLoading] = useState(false);
 
   /**
    * AVAILABLE TASKS COUNT
@@ -372,7 +387,9 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
       setShopperStatus(newStatus);
 
       if (isAvailable) {
-        // If an order was auto-assigned, transform it to TaskCardData
+        // If an order was auto-assigned, hold it as a pending assignment
+        // instead of setting currentTask directly - the shopper confirms
+        // via NewAssignmentModal before it becomes their current task.
         if (result.assignedOrder) {
           const customerResult = await getUserProfileById(result.assignedOrder.customerID);
           const customerName = getCustomerDisplayName(customerResult.data);
@@ -383,7 +400,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
             customerName,
             shopperName
           );
-          setCurrentTask(taskData);
+          setPendingAssignment({ order: result.assignedOrder, taskData });
         }
       } else {
         // Going unavailable releases any current task back to the queue
@@ -400,6 +417,52 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
     }
 
     setStatusLoading(false);
+  };
+
+  /**
+   * Accept a pending assignment - promotes it to the current task.
+   */
+  const handleAcceptAssignment = (): void => {
+    if (pendingAssignment) {
+      setCurrentTask(pendingAssignment.taskData);
+    }
+    setPendingAssignment(null);
+  };
+
+  /**
+   * Decline a pending assignment.
+   *
+   * WHY CALL updateShopperAvailability AGAIN INSTEAD OF NEW LOGIC?
+   * By this point the shopper's status doc already has currentOrderId
+   * set to the pending order (the auto-assign call already wrote it).
+   * Calling updateShopperAvailability(shopperId, false) walks the exact
+   * same "going unavailable while working an order" branch used by the
+   * unassign-on-unavailable fix: it releases the order back to pending
+   * and immediately offers it to the next idle shopper if it's the most
+   * urgent one queued. No new backend logic needed for decline.
+   */
+  const handleDeclineAssignment = async (): Promise<void> => {
+    if (!userProfile?.shopperID) {
+      return;
+    }
+
+    setDeclineLoading(true);
+    const result = await updateShopperAvailability(userProfile.shopperID, false);
+
+    if (result.success) {
+      setShopperStatus('unavailable');
+      setCurrentTask(null);
+
+      const tasksResult = await getAvailableTasksCount();
+      if (tasksResult.success) {
+        setAvailableTasksCount(tasksResult.count);
+      }
+    } else {
+      Alert.alert('Error', result.error ?? 'Failed to decline assignment');
+    }
+
+    setPendingAssignment(null);
+    setDeclineLoading(false);
   };
 
   /**
@@ -589,6 +652,14 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
         <CurrentTaskCard
           task={currentTask}
           onPress={handleTaskPress}
+        />
+
+        <NewAssignmentModal
+          visible={!!pendingAssignment}
+          task={pendingAssignment?.taskData ?? null}
+          onAccept={handleAcceptAssignment}
+          onDecline={handleDeclineAssignment}
+          declineLoading={declineLoading}
         />
 
         {/* ============================================================
