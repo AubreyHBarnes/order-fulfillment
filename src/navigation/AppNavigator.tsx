@@ -431,14 +431,6 @@ const AppNavigator: React.FC = () => {
             component={ShoppingScreen}
             options={{
               title: 'Shopping',
-              headerBackVisible: false,
-              /**
-               * WHY headerBackVisible: false?
-               * - Matches OrderConfirmation's reasoning - navigating back
-               *   mid-shop via the header would be an easy way to
-               *   accidentally strand progress; leaving via the status
-               *   dropdown (go Unavailable) is the intentional exit path
-               */
             }}
           />
 
@@ -447,7 +439,6 @@ const AppNavigator: React.FC = () => {
             component={OrderCompletionScreen}
             options={{
               title: 'Complete Order',
-              headerBackVisible: false,
             }}
           />
 

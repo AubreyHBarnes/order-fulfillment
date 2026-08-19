@@ -82,7 +82,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../theme';
-import { getAvailableTasksCount, getCurrentAssignedOrder } from '../../services/orderService';
+import { getAvailableTasksCount, getCurrentAssignedOrder, startShopping } from '../../services/orderService';
 import { getShopperStatus, updateShopperAvailability } from '../../services/shopperStatusService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
 import ShopperStatusDropdown from '../../components/shopper/ShopperStatusDropdown';
@@ -481,10 +481,26 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
   };
 
   /**
-   * Navigate to task detail
+   * Navigate straight into the shopper's current task.
+   *
+   * WHY SKIP TaskDetail?
+   * - currentTask only ever holds an order already assigned to this
+   *   shopper (status 'assigned' or 'shopping') - TaskDetail's
+   *   claim/swap flow doesn't apply, so showing it first before letting
+   *   the shopper hit "Continue Shopping" was just an extra tap
+   * - 'assigned' orders still need the shopping-status transition
+   *   TaskDetail's "Start Shopping" action used to perform, so that
+   *   happens here before navigating
    */
-  const handleTaskPress = (task: TaskCardData): void => {
-    navigation.navigate('TaskDetail', { orderId: task.orderId });
+  const handleTaskPress = async (task: TaskCardData): Promise<void> => {
+    if (task.status === 'assigned') {
+      const startResult = await startShopping(task.orderId);
+      if (!startResult.success) {
+        Alert.alert('Error', startResult.error ?? 'Failed to start shopping');
+        return;
+      }
+    }
+    navigation.navigate('Shopping', { orderId: task.orderId });
   };
 
   /**

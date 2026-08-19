@@ -98,15 +98,27 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    * Which pending order's id the urgent-order toast was last shown for,
    * so the same order doesn't re-trigger the toast every 8s while it
    * sits unclaimed - only a genuinely different (still more urgent)
-   * candidate fires again. Reset whenever the shopper's own current
-   * order changes (new task = fresh comparison baseline).
+   * candidate fires again.
    */
   const lastNotifiedUrgentOrderIdRef = useRef<string | null>(null);
+
+  /**
+   * Which of the shopper's own orders the urgent-order baseline above
+   * was established for. Whenever currentOrderId changes (swap, claim,
+   * auto-assign after completing one, ...) this no longer matches, so
+   * the next poll re-baselines against whatever's already sitting in
+   * the queue *silently* instead of alerting - the shopper picked (or
+   * was given) this task with that queue state already visible/decided,
+   * so it isn't "new". Only a candidate that shows up *after* that is a
+   * genuine interrupt-worthy arrival.
+   */
+  const lastUrgentCheckOrderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     lastKnownOrderIdRef.current = null;
     hasBaselineRef.current = false;
     lastNotifiedUrgentOrderIdRef.current = null;
+    lastUrgentCheckOrderIdRef.current = null;
 
     const poll = async (): Promise<void> => {
       const statusResult = await getShopperStatus(shopperId);
@@ -136,9 +148,6 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         if (orderResult.success && orderResult.data?.interruptedAt) {
           setInterruptedOrder(orderResult.data);
         }
-        // New task (or no task) - previous "already notified" tracking
-        // no longer applies.
-        lastNotifiedUrgentOrderIdRef.current = null;
       }
 
       /**
@@ -153,6 +162,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
        * not know something more urgent is sitting unclaimed.
        */
       if (!currentOrderId) {
+        lastUrgentCheckOrderIdRef.current = null;
         return;
       }
 
@@ -164,14 +174,21 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
 
       const nextResult = await getNextOrderForAssignment();
       const candidate = nextResult.success ? nextResult.data : null;
+      const isMoreUrgent = !!candidate && candidate.scheduledReadyTime < currentOrder.scheduledReadyTime;
 
-      if (
-        candidate &&
-        candidate.scheduledReadyTime < currentOrder.scheduledReadyTime &&
-        candidate.$id !== lastNotifiedUrgentOrderIdRef.current
-      ) {
-        lastNotifiedUrgentOrderIdRef.current = candidate.$id;
-        setUrgentOrderDueTime(formatDueTime(candidate.scheduledReadyTime));
+      if (lastUrgentCheckOrderIdRef.current !== currentOrderId) {
+        // First check against this particular order (just swapped/claimed/
+        // reopened onto it) - whatever's already sitting in the queue was
+        // there when the shopper took this task, so record it as the
+        // baseline without alerting.
+        lastUrgentCheckOrderIdRef.current = currentOrderId;
+        lastNotifiedUrgentOrderIdRef.current = isMoreUrgent ? candidate!.$id : null;
+        return;
+      }
+
+      if (isMoreUrgent && candidate!.$id !== lastNotifiedUrgentOrderIdRef.current) {
+        lastNotifiedUrgentOrderIdRef.current = candidate!.$id;
+        setUrgentOrderDueTime(formatDueTime(candidate!.scheduledReadyTime));
       }
     };
 
