@@ -47,6 +47,8 @@ import {
   DropOffsScreen,
   CustomerCheckInsScreen,
   TaskDetailScreen,
+  ShoppingScreen,
+  OrderCompletionScreen,
   ShopperSettingsScreen,
 } from '../screens/shopper';
 
@@ -421,6 +423,31 @@ const AppNavigator: React.FC = () => {
             component={TaskDetailScreen}
             options={{
               title: 'Task Details',
+            }}
+          />
+
+          <ShopperStack.Screen
+            name="Shopping"
+            component={ShoppingScreen}
+            options={{
+              title: 'Shopping',
+              headerBackVisible: false,
+              /**
+               * WHY headerBackVisible: false?
+               * - Matches OrderConfirmation's reasoning - navigating back
+               *   mid-shop via the header would be an easy way to
+               *   accidentally strand progress; leaving via the status
+               *   dropdown (go Unavailable) is the intentional exit path
+               */
+            }}
+          />
+
+          <ShopperStack.Screen
+            name="OrderCompletion"
+            component={OrderCompletionScreen}
+            options={{
+              title: 'Complete Order',
+              headerBackVisible: false,
             }}
           />
 

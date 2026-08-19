@@ -16,4 +16,6 @@ export { default as AvailableTasksScreen } from './AvailableTasksScreen';
 export { default as DropOffsScreen } from './DropOffsScreen';
 export { default as CustomerCheckInsScreen } from './CustomerCheckInsScreen';
 export { default as TaskDetailScreen } from './TaskDetailScreen';
+export { default as ShoppingScreen } from './ShoppingScreen';
+export { default as OrderCompletionScreen } from './OrderCompletionScreen';
 export { default as ShopperSettingsScreen } from './ShopperSettingsScreen';

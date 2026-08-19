@@ -43,11 +43,19 @@ import React, {
   type ReactNode,
 } from 'react';
 import { getShopperStatus } from '../services/shopperStatusService';
-import { getOrderById } from '../services/orderService';
+import { getOrderById, getNextOrderForAssignment } from '../services/orderService';
 import OrderInterruptedModal from '../components/shopper/OrderInterruptedModal';
+import UrgentOrderToast from '../components/shopper/UrgentOrderToast';
 import type { Order } from '../types';
 
 const POLL_INTERVAL_MS = 8000;
+
+const formatDueTime = (scheduledReadyTime: string): string =>
+  new Date(scheduledReadyTime).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 
 interface ShopperAssignmentContextType {
   interruptedOrder: Order | null;
@@ -70,6 +78,13 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   const [interruptedOrder, setInterruptedOrder] = useState<Order | null>(null);
 
   /**
+   * Due time to show in the non-blocking "more urgent order arrived"
+   * toast - see poll() below. null both before anything's been found
+   * and after the toast auto-dismisses.
+   */
+  const [urgentOrderDueTime, setUrgentOrderDueTime] = useState<string | null>(null);
+
+  /**
    * WHY REFS INSTEAD OF STATE FOR THE POLL LOOP'S OWN BOOKKEEPING?
    * These are read/written inside the interval's closure on every tick.
    * Using state here would need to be a useEffect dependency, tearing
@@ -79,9 +94,19 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   const lastKnownOrderIdRef = useRef<string | null>(null);
   const hasBaselineRef = useRef(false);
 
+  /**
+   * Which pending order's id the urgent-order toast was last shown for,
+   * so the same order doesn't re-trigger the toast every 8s while it
+   * sits unclaimed - only a genuinely different (still more urgent)
+   * candidate fires again. Reset whenever the shopper's own current
+   * order changes (new task = fresh comparison baseline).
+   */
+  const lastNotifiedUrgentOrderIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     lastKnownOrderIdRef.current = null;
     hasBaselineRef.current = false;
+    lastNotifiedUrgentOrderIdRef.current = null;
 
     const poll = async (): Promise<void> => {
       const statusResult = await getShopperStatus(shopperId);
@@ -111,6 +136,42 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         if (orderResult.success && orderResult.data?.interruptedAt) {
           setInterruptedOrder(orderResult.data);
         }
+        // New task (or no task) - previous "already notified" tracking
+        // no longer applies.
+        lastNotifiedUrgentOrderIdRef.current = null;
+      }
+
+      /**
+       * URGENT ORDER CHECK
+       *
+       * Only meaningful while the shopper is actively working an order -
+       * compares the single most urgent pending order in the queue
+       * (getNextOrderForAssignment, already sorted by scheduledReadyTime
+       * ascending) against the shopper's own current order's due time.
+       * A non-blocking toast, not the OrderInterruptedModal treatment -
+       * nothing has happened to THIS shopper's order, they just might
+       * not know something more urgent is sitting unclaimed.
+       */
+      if (!currentOrderId) {
+        return;
+      }
+
+      const currentOrderResult = await getOrderById(currentOrderId);
+      const currentOrder = currentOrderResult.success ? currentOrderResult.data : null;
+      if (!currentOrder || (currentOrder.status !== 'assigned' && currentOrder.status !== 'shopping')) {
+        return;
+      }
+
+      const nextResult = await getNextOrderForAssignment();
+      const candidate = nextResult.success ? nextResult.data : null;
+
+      if (
+        candidate &&
+        candidate.scheduledReadyTime < currentOrder.scheduledReadyTime &&
+        candidate.$id !== lastNotifiedUrgentOrderIdRef.current
+      ) {
+        lastNotifiedUrgentOrderIdRef.current = candidate.$id;
+        setUrgentOrderDueTime(formatDueTime(candidate.scheduledReadyTime));
       }
     };
 
@@ -123,6 +184,10 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
     setInterruptedOrder(null);
   };
 
+  const dismissUrgentOrderToast = (): void => {
+    setUrgentOrderDueTime(null);
+  };
+
   return (
     <ShopperAssignmentContext.Provider value={{ interruptedOrder, dismissInterrupt }}>
       {children}
@@ -130,6 +195,11 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         visible={!!interruptedOrder}
         order={interruptedOrder}
         onDismiss={dismissInterrupt}
+      />
+      <UrgentOrderToast
+        visible={!!urgentOrderDueTime}
+        dueTime={urgentOrderDueTime}
+        onDismiss={dismissUrgentOrderToast}
       />
     </ShopperAssignmentContext.Provider>
   );

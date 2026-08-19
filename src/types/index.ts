@@ -6,6 +6,7 @@
  */
 
 import type { Models } from 'appwrite';
+import type { ItemIssue } from '../utils/orderItems';
 
 // ============================================================
 // PRODUCT TYPES
@@ -88,6 +89,9 @@ export interface Order extends Models.Document {
   // back to pending. null/undefined on every order that was never interrupted.
   interruptedAt?: string | null;
   interruptReason?: string | null;
+  // Format: "productId:oos,productId:sub:subProductId:pending|approved|rejected,..."
+  // (empty = no issues). See src/utils/orderItems.ts for parse/format helpers.
+  itemIssues?: string;
 }
 
 /**
@@ -111,6 +115,7 @@ export interface CreateOrderData {
   orderDate: string;
   scheduledReadyTime: string;
   pickedItems: string;
+  itemIssues?: string;
 }
 
 /**
@@ -611,6 +616,22 @@ export interface OrderTimelineProps {
   order: Order;
 }
 
+/**
+ * SubstitutionApprovalCard component props
+ *
+ * WHY PASS BOTH PRODUCTS RATHER THAN JUST IDs?
+ * - Parallels ArrivalNotificationCard's pattern of self-contained props -
+ *   OrderDetailScreen already fetches both products via getProductById
+ *   before rendering the card, same as it does for other order data
+ */
+export interface SubstitutionApprovalCardProps {
+  originalProduct: Product | null;
+  substituteProduct: Product | null;
+  onApprove: () => void;
+  onReject: () => void;
+  loading?: boolean;
+}
+
 // ============================================================
 // SHOPPER TYPES
 // ============================================================
@@ -751,6 +772,8 @@ export type ShopperStackParamList = {
   DropOffs: undefined;
   CustomerCheckIns: undefined;
   TaskDetail: { orderId: string };
+  Shopping: { orderId: string };
+  OrderCompletion: { orderId: string };
   ShopperSettings: undefined;
 };
 
@@ -818,6 +841,22 @@ export interface OrderInterruptedModalProps {
 }
 
 /**
+ * UrgentOrderToast component props
+ *
+ * WHY A SEPARATE, LIGHTER COMPONENT FROM OrderInterruptedModal?
+ * - This is a non-blocking notice ("a more urgent order just came in"),
+ *   not an event that already happened to the shopper's own order -
+ *   a modal the shopper must dismiss would overstate how urgent this is
+ * - dueTime is a pre-formatted string (not a raw Order) since the toast
+ *   only ever needs the one detail, not the full order
+ */
+export interface UrgentOrderToastProps {
+  visible: boolean;
+  dueTime: string | null;
+  onDismiss: () => void;
+}
+
+/**
  * QuickLinkCard component props
  *
  * WHY GENERIC DESIGN?
@@ -837,6 +876,49 @@ export interface QuickLinkCardProps {
   icon: string;
   onPress: () => void;
   subtitle?: string;
+}
+
+/**
+ * ItemChecklistItem component props
+ *
+ * WHY product CAN BE null?
+ * - Mirrors the existing OrderItem pattern in TaskDetailScreen - a
+ *   product lookup can fail while the item still needs to render
+ */
+export interface ItemChecklistItemProps {
+  product: Product | null;
+  productId: string;
+  orderedQty: number;
+  pickedQty: number;
+  issue: ItemIssue | null;
+  onMarkFound: () => void;
+  onQuantityChange: (qty: number) => void;
+  onMarkOutOfStock: () => void;
+  onSubstitute: () => void;
+}
+
+/**
+ * SubstitutionPickerModal component props
+ *
+ * WHY onSelect(product) INSTEAD OF onSelect(productId)?
+ * - The caller (ShoppingScreen) needs the substitute's name/price
+ *   immediately for the checklist row, not just its id
+ */
+export interface SubstitutionPickerModalProps {
+  visible: boolean;
+  originalProduct: Product | null;
+  onSelect: (product: Product) => void;
+  onCancel: () => void;
+}
+
+/**
+ * CompletionSummary component props
+ */
+export interface CompletionSummaryProps {
+  foundCount: number;
+  outOfStockCount: number;
+  substitutedCount: number;
+  totalCount: number;
 }
 
 // ============================================================

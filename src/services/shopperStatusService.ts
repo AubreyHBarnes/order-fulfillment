@@ -22,6 +22,7 @@ import {
   assignOrderToShopper as assignOrderInOrderService,
   unassignOrder as unassignOrderInOrderService,
   interruptOrder as interruptOrderInOrderService,
+  startShopping as startShoppingInOrderService,
 } from './orderService';
 import type {
   ShopperStatus,
@@ -224,7 +225,7 @@ export const getInterruptCandidateShopper = async (
  * @param orderId - The order that was just unassigned
  * @param excludeShopperId - The shopper who just went unavailable (don't reassign to them)
  */
-const reassignIfMostUrgent = async (
+export const reassignIfMostUrgent = async (
   orderId: string,
   excludeShopperId: string
 ): Promise<void> => {
@@ -253,6 +254,50 @@ const reassignIfMostUrgent = async (
       }
     );
   }
+};
+
+/**
+ * Try to hand the next pending order to an idle shopper who just became
+ * free (going Available with no current order, or just completed one).
+ *
+ * WHY A SHARED HELPER?
+ * - Both updateShopperAvailability's "becoming available" branch and
+ *   OrderCompletionScreen's post-completion flow need the exact same
+ *   "find the next pending order, assign it, stamp currentOrderId"
+ *   sequence - this was inline in updateShopperAvailability only,
+ *   duplicating it for completion would be two copies of one thing.
+ *
+ * @param shopperId - The now-free shopper's user ID
+ * @returns The newly assigned order, or null if none was available
+ */
+export const autoAssignNextOrderTo = async (shopperId: string): Promise<Order | null> => {
+  const statusResult = await getShopperStatus(shopperId);
+  if (!statusResult.success || !statusResult.data) {
+    return null;
+  }
+
+  const orderResult = await getNextOrderForAssignment();
+  if (!orderResult.success || !orderResult.data) {
+    return null;
+  }
+
+  const order = orderResult.data;
+  const assignResult = await assignOrderInOrderService(order.$id, shopperId);
+  if (!assignResult.success || !assignResult.data) {
+    return null;
+  }
+
+  await databases.updateDocument<ShopperStatus>(
+    config.databaseId,
+    config.shopperStatusCollectionId,
+    statusResult.data.$id,
+    {
+      currentOrderId: order.$id,
+      lastActiveTimeStamp: new Date().toISOString(),
+    }
+  );
+
+  return assignResult.data;
 };
 
 /**
@@ -313,15 +358,15 @@ export const updateShopperAvailability = async (
       //   release since it's not tracked by currentOrderId.
       // - If a current order is already set, we leave it alone here - the dashboard
       //   will show it as the current task same as if the shopper never left.
-      const orderResult = await getNextOrderForAssignment();
-      if (orderResult.success && orderResult.data) {
-        const order = orderResult.data;
-
-        const assignResult = await assignOrderInOrderService(order.$id, shopperId);
-        if (assignResult.success && assignResult.data) {
-          assignedOrder = assignResult.data;
-          updateData.currentOrderId = order.$id;
-        }
+      // WHY NOT ALSO SET updateData.currentOrderId HERE?
+      // autoAssignNextOrderTo already persisted ShopperStatus.currentOrderId
+      // (and lastActiveTimeStamp) itself via its own updateDocument call -
+      // the updateDocument below only patches the fields listed in
+      // updateData (isAvailable, lastActiveTimeStamp), so it won't
+      // clobber what autoAssignNextOrderTo just wrote
+      const nextOrder = await autoAssignNextOrderTo(shopperId);
+      if (nextOrder) {
+        assignedOrder = nextOrder;
       }
     } else if (previousOrderId && !isAvailable) {
       // Becoming unavailable while working an order - release it back to the queue
@@ -545,5 +590,83 @@ export const clearCurrentOrder = async (
       data: null,
       error: errorMessage,
     };
+  }
+};
+
+// ============================================================
+// SWAP CURRENT ORDER
+// ============================================================
+
+/**
+ * Swap a shopper off their current order and onto a different pending
+ * one they picked from the available-tasks list, releasing the previous
+ * order back to the queue.
+ *
+ * WHY CLAIM THE NEW ORDER BEFORE RELEASING THE OLD ONE?
+ * - If claiming the new order fails partway, the shopper still has
+ *   their original order intact - nothing is lost. Releasing first
+ *   would risk leaving the shopper with neither order if the new claim
+ *   then failed.
+ *
+ * WHY reassignIfMostUrgent ON THE RELEASED ORDER?
+ * - Same reasoning as the "shopper goes unavailable mid-order" flow in
+ *   updateShopperAvailability - a released order shouldn't just sit
+ *   there if it's now the single most urgent thing pending and another
+ *   shopper is idle right now.
+ *
+ * WHY NOT TOUCH pickedItems/itemIssues ON THE RELEASED ORDER?
+ * - unassignOrder() (like the unavailable-mid-order path) leaves any
+ *   shopping progress on the order as-is - whoever picks it up next
+ *   sees what was already found/substituted rather than starting over.
+ *
+ * @param shopperId - The shopper making the swap
+ * @param previousOrderId - The order to release back to the queue
+ * @param newOrderId - The order to claim and start instead
+ * @returns Success/error result
+ */
+export const swapCurrentOrder = async (
+  shopperId: string,
+  previousOrderId: string,
+  newOrderId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const statusResult = await getShopperStatus(shopperId);
+    if (!statusResult.success || !statusResult.data) {
+      return { success: false, error: statusResult.error ?? 'Shopper status not found' };
+    }
+
+    const assignResult = await assignOrderInOrderService(newOrderId, shopperId, false);
+    if (!assignResult.success) {
+      return { success: false, error: assignResult.error ?? 'Failed to claim new order' };
+    }
+
+    const startResult = await startShoppingInOrderService(newOrderId);
+    if (!startResult.success) {
+      return { success: false, error: startResult.error ?? 'Failed to start shopping' };
+    }
+
+    await unassignOrderInOrderService(previousOrderId);
+
+    await databases.updateDocument<ShopperStatus>(
+      config.databaseId,
+      config.shopperStatusCollectionId,
+      statusResult.data.$id,
+      {
+        currentOrderId: newOrderId,
+        lastActiveTimeStamp: new Date().toISOString(),
+      }
+    );
+
+    // Best-effort - the swap itself already succeeded regardless of whether
+    // the released order gets an immediate hand-off to another shopper
+    reassignIfMostUrgent(previousOrderId, shopperId).catch((error) => {
+      console.error('Error reassigning released order after swap:', error);
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error swapping current order:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to swap order';
+    return { success: false, error: errorMessage };
   }
 };

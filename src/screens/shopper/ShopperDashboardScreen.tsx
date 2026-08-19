@@ -186,11 +186,19 @@ const formatDueTime = (scheduledReadyTime: string): string => {
 /**
  * Generate short order ID for display
  *
+ * WHY LAST 8 CHARS, NOT FIRST?
+ * - Must match every other screen that shows a short order id
+ *   (TaskDetailScreen, the customer OrderDetailScreen, both shopper
+ *   modals) - they all use orderId.slice(-8). This used to take the
+ *   first 8 instead, so the same order showed two different "short
+ *   ids" depending which screen you were on - found by that exact
+ *   mismatch during live testing.
+ *
  * @param orderId - Full order ID
- * @returns Short version (first 8 chars)
+ * @returns Short version (last 8 chars)
  */
 const generateShortOrderId = (orderId: string): string => {
-  return orderId.substring(0, 8).toUpperCase();
+  return orderId.slice(-8).toUpperCase();
 };
 
 // ============================================================

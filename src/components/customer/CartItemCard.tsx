@@ -183,7 +183,6 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
 
           <IconButton
             icon="trash-can-outline"
-            mode="text"
             size={24}
             onPress={handleRemove}
             iconColor={theme.colors.error}

@@ -33,12 +33,16 @@ import { Text, Card, Button, ActivityIndicator, Divider } from 'react-native-pap
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../theme';
-import { getOrderById, cancelOrder } from '../../services/orderService';
-import { formatPrice } from '../../services/productService';
+import { getOrderById, cancelOrder, respondToSubstitution } from '../../services/orderService';
+import { getProductById, formatPrice } from '../../services/productService';
+import { parseItemIssues } from '../../utils/orderItems';
 import OrderTimeline from '../../components/customer/OrderTimeline';
 import OrderStatusBadge from '../../components/customer/OrderStatusBadge';
 import ArrivalNotificationCard from '../../components/customer/ArrivalNotificationCard';
-import type { MainStackParamList, Order } from '../../types';
+import SubstitutionApprovalCard from '../../components/customer/SubstitutionApprovalCard';
+import type { MainStackParamList, Order, Product } from '../../types';
+
+const SUBSTITUTION_POLL_INTERVAL_MS = 8000;
 
 type OrderDetailScreenProps = NativeStackScreenProps<
   MainStackParamList,
@@ -105,6 +109,14 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Products referenced by any item issue (out-of-stock originals and
+   * both sides of a substitution proposal) - fetched by id as issues
+   * appear on the order.
+   */
+  const [issueProducts, setIssueProducts] = useState<Record<string, Product | null>>({});
+  const [substitutionResponding, setSubstitutionResponding] = useState<boolean>(false);
+
   const dynamicStyles = {
     container: {
       backgroundColor: theme.colors.background,
@@ -150,6 +162,82 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
     };
     load();
   }, [loadOrder]);
+
+  /**
+   * While the order is actively being shopped, poll for updates so a new
+   * substitution proposal (or an out-of-stock marker) shows up without the
+   * customer having to leave and re-open this screen. Same 8s interval as
+   * the shopper-side polling (ShoppingScreen, ShopperAssignmentContext) -
+   * there's no realtime push in this app, see docs/DECISIONS.md.
+   */
+  useEffect(() => {
+    if (order?.status !== 'shopping') return;
+
+    const intervalId = setInterval(() => {
+      loadOrder();
+    }, SUBSTITUTION_POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [order?.status, loadOrder]);
+
+  const itemIssues = order ? parseItemIssues(order.itemIssues ?? '') : [];
+  const isPendingSubstitution = (
+    issue: (typeof itemIssues)[number]
+  ): issue is Extract<(typeof itemIssues)[number], { kind: 'sub' }> =>
+    issue.kind === 'sub' && issue.status === 'pending';
+  const pendingSubstitution = itemIssues.find(isPendingSubstitution);
+  const outOfStockIssues = itemIssues.filter((issue) => issue.kind === 'oos');
+
+  /**
+   * Fetch product names for whichever items currently have an issue -
+   * both sides of a pending substitution, plus any out-of-stock items -
+   * so the UI can show names instead of raw product ids.
+   */
+  useEffect(() => {
+    const idsNeeded = new Set<string>();
+    for (const issue of itemIssues) {
+      idsNeeded.add(issue.productId);
+      if (issue.kind === 'sub') {
+        idsNeeded.add(issue.subProductId);
+      }
+    }
+
+    const missingIds = Array.from(idsNeeded).filter((id) => !(id in issueProducts));
+    if (missingIds.length === 0) return;
+
+    (async () => {
+      const entries = await Promise.all(
+        missingIds.map(async (id) => {
+          const result = await getProductById(id);
+          return [id, result.success ? result.data : null] as const;
+        })
+      );
+      setIssueProducts((prev) => {
+        const next = { ...prev };
+        for (const [id, product] of entries) {
+          next[id] = product;
+        }
+        return next;
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.itemIssues]);
+
+  const handleSubstitutionResponse = async (approve: boolean): Promise<void> => {
+    if (!order || !pendingSubstitution) return;
+
+    setSubstitutionResponding(true);
+    try {
+      const result = await respondToSubstitution(order.$id, pendingSubstitution.productId, approve);
+      if (result.success && result.data) {
+        setOrder(result.data);
+      } else {
+        Alert.alert('Error', result.error ?? 'Failed to respond to substitution');
+      }
+    } finally {
+      setSubstitutionResponding(false);
+    }
+  };
 
   const canCancelOrder = (orderStatus: string): boolean => {
     return orderStatus === 'pending' || orderStatus === 'assigned';
@@ -250,6 +338,37 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
           <OrderTimeline order={order} />
         </Card.Content>
       </Card>
+
+      {/* Pending Substitution Approval */}
+      {pendingSubstitution && (
+        <SubstitutionApprovalCard
+          originalProduct={issueProducts[pendingSubstitution.productId] ?? null}
+          substituteProduct={issueProducts[pendingSubstitution.subProductId] ?? null}
+          onApprove={() => handleSubstitutionResponse(true)}
+          onReject={() => handleSubstitutionResponse(false)}
+          loading={substitutionResponding}
+        />
+      )}
+
+      {/* Out of Stock Notice */}
+      {outOfStockIssues.length > 0 && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text
+              variant="titleSmall"
+              style={[styles.sectionTitle, dynamicStyles.sectionTitle]}
+            >
+              UNAVAILABLE ITEMS
+            </Text>
+            {outOfStockIssues.map((issue) => (
+              <Text key={issue.productId} variant="bodyMedium" style={dynamicStyles.detailText}>
+                {issueProducts[issue.productId]?.name ?? 'An item'} is out of stock and will not
+                be included in your order.
+              </Text>
+            ))}
+          </Card.Content>
+        </Card>
+      )}
 
       {/*
         ============================================================

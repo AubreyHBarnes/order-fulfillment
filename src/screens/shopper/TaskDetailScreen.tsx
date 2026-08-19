@@ -55,11 +55,18 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { Text, Icon, Card, Divider } from 'react-native-paper';
+import { Text, Icon, Card, Divider, Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppTheme } from '../../theme';
-import { getOrderById } from '../../services/orderService';
+import { useAuth } from '../../context/AuthContext';
+import { getOrderById, assignOrderToShopper, startShopping } from '../../services/orderService';
+import {
+  assignOrderToShopper as assignOrderInShopperStatus,
+  getShopperStatus,
+  swapCurrentOrder,
+} from '../../services/shopperStatusService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
 import { getProductById } from '../../services/productService';
 import type { ShopperStackParamList, Order, UserProfile, Product } from '../../types';
@@ -149,9 +156,10 @@ const parseDeliveryAddress = (deliveryAddress: string): {
 // COMPONENT
 // ============================================================
 
-const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route }) => {
+const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }) => {
   const theme = useAppTheme();
   const { orderId } = route.params;
+  const { userProfile } = useAuth();
 
   // ============================================================
   // STATE
@@ -162,6 +170,48 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route }) => {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
+
+  /**
+   * Whether this shopper already has a different order in flight
+   * (ShopperStatus.currentOrderId set to something other than this
+   * order). Needed to gate the 'claim' action - without this check, a
+   * shopper could claim a second order while still working a first one,
+   * orphaning it: ShopperStatus.currentOrderId can only point at one
+   * order, so the first order's shopperID would stay set with no path
+   * back to the queue (the same failure mode the "releasing a shopper's
+   * order when they go unavailable" fix exists to prevent elsewhere -
+   * see docs/DECISIONS.md).
+   */
+  const [shopperActiveOrderId, setShopperActiveOrderId] = useState<string | null>(null);
+
+  /**
+   * Full record of the shopper's current active order, fetched only so
+   * the swap confirmation dialog can show what's being given up (short
+   * id + due time) - not needed for the claim-gating check above, which
+   * only needs the id.
+   */
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    const shopperId = userProfile?.shopperID;
+    if (!shopperId) return;
+
+    getShopperStatus(shopperId).then((result) => {
+      if (result.success && result.data) {
+        const currentOrderId = result.data.currentOrderId || null;
+        setShopperActiveOrderId(currentOrderId);
+
+        if (currentOrderId) {
+          getOrderById(currentOrderId).then((orderResult) => {
+            if (orderResult.success && orderResult.data) {
+              setActiveOrder(orderResult.data);
+            }
+          });
+        }
+      }
+    });
+  }, [userProfile?.shopperID]);
 
   // ============================================================
   // EFFECTS
@@ -225,6 +275,113 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route }) => {
 
     fetchOrderData();
   }, [orderId]);
+
+  // ============================================================
+  // SHOPPER ACTION (claim / start / continue)
+  // ============================================================
+
+  /**
+   * Determine what action, if any, this shopper can take on the order.
+   *
+   * WHY DERIVE THIS FROM status + shopperID INSTEAD OF A STORED FLAG?
+   * - The three states (claimable, startable, continuable) fall directly
+   *   out of the order's existing status/shopperID fields - no new field
+   *   needed to track "what can this shopper do right now"
+   */
+  type ShopperAction = 'claim' | 'swap' | 'start' | 'continue' | null;
+
+  const getShopperAction = (): ShopperAction => {
+    if (!order || !userProfile?.shopperID) return null;
+
+    if (order.status === 'pending' && !order.shopperID) {
+      // A shopper already mid-task gets 'swap' instead of 'claim' - the
+      // gate that used to just hide the action outright now offers the
+      // swap flow instead
+      return shopperActiveOrderId ? 'swap' : 'claim';
+    }
+    if (order.shopperID === userProfile.shopperID) {
+      if (order.status === 'assigned') return 'start';
+      if (order.status === 'shopping') return 'continue';
+    }
+    return null;
+  };
+
+  /**
+   * Format a due time for the swap confirmation dialog
+   */
+  const formatDueTime = (scheduledReadyTime: string): string => {
+    return new Date(scheduledReadyTime).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const confirmAndSwap = (): void => {
+    if (!order || !activeOrder) return;
+
+    Alert.alert(
+      'Swap Current Order?',
+      `You're currently working Order #${getShortOrderId(activeOrder.$id)} ` +
+        `(due ${formatDueTime(activeOrder.scheduledReadyTime)}). Swapping will release it back ` +
+        `to the queue and start Order #${getShortOrderId(order.$id)} instead. ` +
+        'Any progress on the current order is kept for whoever picks it up next.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Swap', style: 'destructive', onPress: () => handleShopperAction('swap') },
+      ]
+    );
+  };
+
+  const handleShopperAction = async (action: ShopperAction): Promise<void> => {
+    if (!order || !userProfile?.shopperID || !action) return;
+
+    setActionLoading(true);
+    try {
+      if (action === 'claim') {
+        // Manual claim from the available-tasks list - not an
+        // auto-assignment, so autoAssigned is explicitly false
+        const assignResult = await assignOrderToShopper(order.$id, userProfile.shopperID, false);
+        if (!assignResult.success) {
+          Alert.alert('Error', assignResult.error ?? 'Failed to claim order');
+          return;
+        }
+        await assignOrderInShopperStatus(userProfile.shopperID, order.$id);
+        const startResult = await startShopping(order.$id);
+        if (!startResult.success) {
+          Alert.alert('Error', startResult.error ?? 'Failed to start shopping');
+          return;
+        }
+        navigation.navigate('Shopping', { orderId: order.$id });
+      } else if (action === 'start') {
+        const startResult = await startShopping(order.$id);
+        if (!startResult.success) {
+          Alert.alert('Error', startResult.error ?? 'Failed to start shopping');
+          return;
+        }
+        navigation.navigate('Shopping', { orderId: order.$id });
+      } else if (action === 'continue') {
+        navigation.navigate('Shopping', { orderId: order.$id });
+      } else if (action === 'swap') {
+        if (!shopperActiveOrderId) return;
+        const swapResult = await swapCurrentOrder(userProfile.shopperID, shopperActiveOrderId, order.$id);
+        if (!swapResult.success) {
+          Alert.alert('Error', swapResult.error ?? 'Failed to swap order');
+          return;
+        }
+        navigation.navigate('Shopping', { orderId: order.$id });
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const actionLabels: Record<Exclude<ShopperAction, null>, string> = {
+    claim: 'Claim & Start Shopping',
+    swap: 'Swap for This Order',
+    start: 'Start Shopping',
+    continue: 'Continue Shopping',
+  };
 
   // ============================================================
   // DYNAMIC STYLES
@@ -341,6 +498,7 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route }) => {
   const customerName = getCustomerDisplayName(customerProfile);
   const shortOrderId = getShortOrderId(order.$id);
   const totalItemCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+  const shopperAction = getShopperAction();
 
   return (
     <ScrollView
@@ -449,6 +607,21 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route }) => {
           </View>
         </Card.Content>
       </Card>
+
+      {/* Shopper Action */}
+      {shopperAction && (
+        <View style={styles.actionContainer}>
+          <Button
+            mode="contained"
+            onPress={() => (shopperAction === 'swap' ? confirmAndSwap() : handleShopperAction(shopperAction))}
+            loading={actionLoading}
+            disabled={actionLoading}
+            style={styles.actionButton}
+          >
+            {actionLabels[shopperAction]}
+          </Button>
+        </View>
+      )}
 
       {/* Bottom padding */}
       <View style={styles.bottomPadding} />
@@ -591,6 +764,15 @@ const styles = StyleSheet.create({
 
   bottomPadding: {
     height: 32,
+  },
+
+  actionContainer: {
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+
+  actionButton: {
+    borderRadius: 8,
   },
 });
 

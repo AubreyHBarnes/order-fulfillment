@@ -19,6 +19,7 @@
 
 import { ID, Query } from 'appwrite';
 import { databases, config } from './appwrite';
+import { parseItemIssues, formatItemIssues } from '../utils/orderItems';
 import type {
   Order,
   CreateOrderData,
@@ -555,15 +556,38 @@ export const getNextOrderForAssignment = async (): Promise<OrderResponse> => {
  * UPDATES:
  * - shopperID: The shopper taking this order
  * - status: Changes from 'pending' to 'assigned'
- * - autoAssigned: Set to true (was auto-assigned by the system)
+ * - autoAssigned: Whether the system assigned this (true) or the
+ *   shopper manually claimed it from the available-tasks list (false)
+ * - interruptedAt/interruptReason: cleared (see WHY below)
+ *
+ * WHY A DEFAULT OF true?
+ * - Every existing caller (auto-assignment on becoming available, rush
+ *   order placement) is in fact an auto-assignment - defaulting to true
+ *   keeps them all unchanged
+ * - The one manual-claim caller (TaskDetailScreen) passes false explicitly
+ *
+ * WHY CLEAR interruptedAt/interruptReason HERE?
+ * - Found live: an order interrupted once, then later re-assigned to any
+ *   shopper (auto-assignment, manual claim, or a swap) and then
+ *   unassigned again for a totally unrelated reason (voluntary swap,
+ *   going unavailable) still carried the OLD interruptedAt timestamp -
+ *   ShopperAssignmentContext's polling only checks "is interruptedAt
+ *   set", not "was this order just interrupted in this transition", so
+ *   it fired a false "Order Reassigned" modal off stale history.
+ *   Clearing both fields the moment an order is freshly assigned is the
+ *   single point where "this interrupt is now resolved" is actually
+ *   true, regardless of which of assignOrderToShopper's several callers
+ *   does the assigning.
  *
  * @param orderId - The order's document ID
  * @param shopperId - The shopper's user ID
+ * @param autoAssigned - Whether this was an automatic assignment (default true)
  * @returns OrderResponse with updated order or error
  */
 export const assignOrderToShopper = async (
   orderId: string,
-  shopperId: string
+  shopperId: string,
+  autoAssigned: boolean = true
 ): Promise<OrderResponse> => {
   try {
     const updated = await databases.updateDocument<Order>(
@@ -573,7 +597,9 @@ export const assignOrderToShopper = async (
       {
         shopperID: shopperId,
         status: 'assigned',
-        autoAssigned: true,
+        autoAssigned,
+        interruptedAt: null,
+        interruptReason: null,
       }
     );
 
@@ -776,6 +802,184 @@ export const updatePickedItems = async (
     console.error('Error updating picked items:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'Failed to update picked items';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+// ============================================================
+// SHOPPING WORKFLOW
+// ============================================================
+
+/**
+ * Move an order from 'assigned' to 'shopping' - the shopper has
+ * started actively working the item list.
+ *
+ * @param orderId - The order's document ID
+ * @returns OrderResponse with updated order or error
+ */
+export const startShopping = async (orderId: string): Promise<OrderResponse> => {
+  try {
+    const updated = await databases.updateDocument<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      orderId,
+      { status: 'shopping' }
+    );
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error starting shopping:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to start shopping';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
+ * Update the item issues for an order (out-of-stock markers and
+ * substitution proposals/approval state) - see src/utils/orderItems.ts
+ * for the compact string format and its parse/format helpers.
+ *
+ * @param orderId - The order's document ID
+ * @param itemIssues - String of item issues in the compact format
+ * @returns OrderResponse with updated order or error
+ */
+export const updateItemIssues = async (
+  orderId: string,
+  itemIssues: string
+): Promise<OrderResponse> => {
+  try {
+    const updated = await databases.updateDocument<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      orderId,
+      { itemIssues }
+    );
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error updating item issues:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to update item issues';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
+ * Mark an order complete, branching by fulfillment type
+ *
+ * WHY A nextStatus PARAM INSTEAD OF TWO FUNCTIONS?
+ * - Both branches do the exact same write, just a different status
+ *   value - the caller (OrderCompletionScreen) already knows which one
+ *   applies from the order's fulfillment type
+ *
+ * @param orderId - The order's document ID
+ * @param nextStatus - 'ready_for_pickup' for pickup orders, 'completed' for delivery
+ * @returns OrderResponse with updated order or error
+ */
+export const completeOrder = async (
+  orderId: string,
+  nextStatus: 'ready_for_pickup' | 'completed'
+): Promise<OrderResponse> => {
+  try {
+    const updated = await databases.updateDocument<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      orderId,
+      { status: nextStatus }
+    );
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error completing order:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to complete order';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
+ * Record the customer's approve/reject decision on a pending
+ * substitution proposal.
+ *
+ * WHY READ-MODIFY-WRITE INSTEAD OF A TARGETED UPDATE?
+ * - itemIssues is a single compact string covering every item on the
+ *   order, the same pattern as items/pickedItems - there's no partial
+ *   update for one entry within it, so the current value has to be
+ *   fetched, the matching issue's status flipped in memory, and the
+ *   whole string written back
+ *
+ * @param orderId - The order's document ID
+ * @param productId - The product whose substitution is being responded to
+ * @param approve - true to approve the substitute, false to reject it
+ * @returns OrderResponse with updated order or error
+ */
+export const respondToSubstitution = async (
+  orderId: string,
+  productId: string,
+  approve: boolean
+): Promise<OrderResponse> => {
+  try {
+    const orderResult = await getOrderById(orderId);
+    if (!orderResult.success || !orderResult.data) {
+      return {
+        success: false,
+        data: null,
+        error: orderResult.error ?? 'Order not found',
+      };
+    }
+
+    const issues = parseItemIssues(orderResult.data.itemIssues ?? '');
+    const updatedIssues = issues.map((issue) =>
+      issue.kind === 'sub' && issue.productId === productId
+        ? { ...issue, status: (approve ? 'approved' : 'rejected') as 'approved' | 'rejected' }
+        : issue
+    );
+
+    const updated = await databases.updateDocument<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      orderId,
+      { itemIssues: formatItemIssues(updatedIssues) }
+    );
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error responding to substitution:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to respond to substitution';
 
     return {
       success: false,

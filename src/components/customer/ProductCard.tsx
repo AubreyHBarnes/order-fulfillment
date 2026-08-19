@@ -49,7 +49,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
       color: theme.custom.textSecondary,
     },
     inCartContainer: {
-      backgroundColor: theme.custom.successContainer,
+      backgroundColor: theme.custom.successLight,
     },
     inCartText: {
       color: theme.custom.success,

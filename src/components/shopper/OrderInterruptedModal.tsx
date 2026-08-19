@@ -77,7 +77,7 @@ const OrderInterruptedModal: React.FC<OrderInterruptedModalProps> = ({
           {order && (
             <View style={styles.detailsBlock}>
               <Text variant="titleMedium" style={[styles.orderId, dynamicStyles.orderId]}>
-                #{order.$id.substring(0, 8).toUpperCase()}
+                #{order.$id.slice(-8).toUpperCase()}
               </Text>
               <Text variant="bodyMedium" style={[styles.detailText, dynamicStyles.detailText]}>
                 {countUniqueItems(order.items)} unique item
