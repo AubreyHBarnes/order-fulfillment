@@ -38,6 +38,8 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 ### For Shoppers
 - 📋 **Order Dashboard & Available Tasks** - View and manage assigned/available orders (implemented)
 - 🔍 **Task Detail** - View and work an individual order's items (implemented)
+- 🛍️ **Shopping Workflow** - Claim an order, work a checklist (found / out-of-stock / propose substitute), customer approves substitutions live, mark ready for pickup (implemented)
+- 🔄 **Order Swap & Rush-Order Interrupt** - Swap onto a more urgent pending order, get interrupted for a rush order when every shopper is busy, non-blocking toast when a more urgent order becomes available - all via 8s polling (implemented)
 - ⚡ **Auto-Assignment** - Orders can be flagged `autoAssigned` on placement; this is a simple client-side flag today, not yet a ranking/routing algorithm or serverless function
 - 🚗 **Drop-offs / Customer Check-ins / Settings** - Screens exist but are static placeholders, not yet functional
 
@@ -352,8 +354,8 @@ npm run ios
 ### As a Shopper
 
 1. **View Dashboard / Available Tasks** - See assigned and available orders
-2. **Open Task Detail** - Work an individual order
-3. **Fulfill Items, Handle Substitutions, Complete Order** - Not yet implemented; only the dashboard and task-detail/available-tasks views are functional today
+2. **Open Task Detail** - Claim an order (or accept/decline an auto-assignment), or swap onto a more urgent one
+3. **Fulfill Items, Handle Substitutions, Complete Order** - Work the checklist, propose substitutions for customer approval, mark ready for pickup
 4. **Drop-offs, Customer Check-ins, Settings** - Screens exist in navigation but are static placeholders
 
 ---
@@ -481,14 +483,17 @@ npm install
 ### In Progress 🚧
 - [ ] **Phase 4:** Shopper Fulfillment Interface
   - [x] Order dashboard, available tasks, task detail
-  - [ ] Item fulfillment / pick-items workflow (no in-app way to claim or complete an order yet)
-  - [ ] Customer arrival notifications (service layer exists, UI/flow incomplete)
-  - [ ] Drop-offs, customer check-ins, and settings screens (currently static placeholders)
+  - [x] Item fulfillment / pick-items workflow - claim an order (auto-assign or manual), work a checklist (found / out-of-stock / propose substitute), customer approves substitutions, mark ready for pickup
+  - [x] Accept/decline confirmation on auto-assignment
+  - [x] Rush-order interrupt (bumps the least-urgent in-progress order when every shopper is busy) with polling-driven live notification
+  - [x] Manual order swap onto a more urgent pending order, plus a non-blocking "more urgent order available" toast
+  - [x] Customer arrival notifications - customer side only (manual "I've Arrived" + free-text parking spot)
+  - [ ] Shopper-side customer check-ins, drop-offs, and settings screens (currently static placeholders)
 
 ### Planned 📋
 - [ ] **Phase 5:** Real-time Features
-  - WebSocket subscriptions
-  - Auto-assignment serverless functions
+  - Appwrite Realtime subscriptions (currently 8s polling instead - see `docs/DECISIONS.md`)
+  - Auto-assignment serverless function (currently a client-side sorted query)
   - Live order tracking
 - [ ] **Phase 6:** Polish & Production
   - UI/UX improvements

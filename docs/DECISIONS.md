@@ -201,6 +201,7 @@ It exists for two reasons: to keep a real record while the project is being acti
 
 ---
 
+<<<<<<< HEAD
 ## Back button restored on Shopping/OrderCompletion; current-task tap skips TaskDetail
 
 **Context:** `Shopping` and `OrderCompletion` were built with `headerBackVisible: false`, reasoned at the time as preventing a shopper from accidentally abandoning mid-shop progress via the header - "go Unavailable" via the status dropdown was meant to be the only intentional exit. In practice this left the shopper with no way off either screen at all except finishing the checklist (`Shopping`) or completing the order (`OrderCompletion`) - the status dropdown lives on the Home screen, which was exactly the screen this made unreachable.
@@ -246,3 +247,18 @@ It exists for two reasons: to keep a real record while the project is being acti
 **Why documented before implemented:** Same reasoning as the original rush-order interrupt gap entry above - this touches multiple screens and services, and #2 vs. #3 represent genuinely different scopes of effort (a real data-model feature vs. a guard clause) that deserve an explicit decision on which to build now, rather than being bundled silently into "add a notification."
 
 **Consequences / left open:** #3 is a real mitigation for the reported failure mode but not a full fix - a customer can still dismiss the warning and pick up a partial order on purpose (rush, mistake, whatever), and the store still has no single combined pickup to hand over even when the customer does wait. #2 is the actual production-matching behavior but is a separate, larger initiative (data model + at least two roles' UI) and stays out of scope until explicitly picked up. Like everything else in this app's notification story, #1 remains foreground-only - no OS-level push exists or is scoped here.
+=======
+## Proximity-based arrival notification: two options weighed, neither built yet
+
+**Context:** Real-world observation of a competitor's pickup app (customer-facing ETA jumping between 2-3 minutes and back, with the customer sometimes still half a mile out) raised the question of whether this app's "I've arrived" flow (`CustomerArrival`/`arrivalService.ts`/`ArrivalNotificationCard`) should auto-detect proximity instead of relying purely on a manual button tap, and whether a free-text `parkingSpot` field is precise enough when several other grocery chains' pickup lots are nearby.
+
+**Two options considered, not mutually exclusive but very different in cost:**
+
+1. **Structured parking-spot selection.** Replace the existing free-text `parkingSpot` string (`src/types/index.ts:202,220`, entered manually in `ArrivalNotificationCard.tsx`) with a tap-to-select spot from a small fixed set (numbered/lettered stalls), stored as an enum or small lookup table. Builds directly on the existing manual "I've Arrived" flow - no new permissions, no location code, no background processing, no app-store review exposure.
+
+2. **Geofenced auto-notify under ~0.1 mi.** Would require live customer GPS, which this app has none of today - no `expo-location`/`react-native-geolocation-service` dependency, no lat/lng fields on any collection, and the Info.plist `NSLocationWhenInUseUsageDescription` entry is unused RN template boilerplate. Full scope: a geolocation library; foreground *and* background location permissions (background triggers separate App Store / Play Store review scrutiny); native OS geofencing (`CLCircularRegion` / Android `GeofencingClient`) rather than raw polling, for battery reasons; a custom polygon geofence matching the actual lot boundary rather than a simple radius, since a circle risks bleeding into the three nearby competing pickup lots; debounce/hysteresis on boundary crossing to avoid flapping; and explicit customer consent UX. Flagged risk: consumer GPS accuracy in a multi-building retail lot is commonly 30-100+ ft, which is a meaningful fraction of a 528 ft (0.1 mi) threshold - the same accuracy problem is the likely cause of the jumpy ETA behavior that prompted this discussion in the first place.
+
+**Decision:** Neither built. If pursued, option 1 first (small, reuses existing infrastructure) with option 2 treated as a separate, larger initiative gated on whether the manual flow proves insufficient in practice - and prototyped against real GPS accuracy in the actual lot before committing to a 0.1 mi threshold specifically.
+
+**Consequences / left open:** This app has no background-process or realtime-push infrastructure at all yet (see "Pull-based data, not realtime" above), which option 2 would also need to build on top of, independent of the location work itself.
+>>>>>>> origin/main
