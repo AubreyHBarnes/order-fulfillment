@@ -55,6 +55,102 @@ import { handleRushOrderPlacement } from '../../services/shopperStatusService';
 import { formatPrice } from '../../services/productService';
 import type { MainStackParamList, FulfillmentType, CreateOrderData } from '../../types';
 
+// ============================================================
+// STORE HOURS CONSTANTS
+// ============================================================
+
+const STORE_OPEN_HOUR = 8;  // 8 AM
+const STORE_CLOSE_HOUR = 21; // 9 PM (21:00)
+const MINIMUM_LEAD_TIME_HOURS = 2; // Orders must be at least 2 hours out
+
+// ============================================================
+// SCHEDULING HELPERS
+// ============================================================
+
+/**
+ * Calculate the earliest available pickup time for a standard order
+ *
+ * RULES:
+ * 1. Must be at least 2 hours from current time
+ * 2. Standard orders can only be on the hour (9:00, 10:00, etc.)
+ * 3. If after store close (9 PM), schedule for next day opening (8 AM)
+ *
+ * NOTE: Rush orders (future feature) will allow non-hour times
+ *
+ * @returns Object with scheduledTime and isNextDay flag
+ */
+const calculateStandardPickupTime = (): {
+  scheduledTime: Date;
+  isNextDay: boolean;
+} => {
+  const now = new Date();
+
+  // Add minimum lead time (2 hours)
+  const earliestTime = new Date(now.getTime() + MINIMUM_LEAD_TIME_HOURS * 60 * 60 * 1000);
+
+  // Round UP to the next hour for standard orders
+  // If already exactly on the hour, keep it; otherwise round up
+  const minutes = earliestTime.getMinutes();
+  const seconds = earliestTime.getSeconds();
+  const milliseconds = earliestTime.getMilliseconds();
+
+  let scheduledTime: Date;
+  if (minutes === 0 && seconds === 0 && milliseconds === 0) {
+    // Already exactly on the hour
+    scheduledTime = new Date(earliestTime);
+  } else {
+    // Round up to next hour
+    scheduledTime = new Date(earliestTime);
+    scheduledTime.setMinutes(0, 0, 0);
+    scheduledTime.setHours(scheduledTime.getHours() + 1);
+  }
+
+  // Check if scheduled time is after store close (9 PM)
+  const scheduledHour = scheduledTime.getHours();
+  if (scheduledHour >= STORE_CLOSE_HOUR) {
+    // Schedule for next day at opening time (8 AM)
+    const nextDay = new Date(scheduledTime);
+    nextDay.setDate(nextDay.getDate() + 1);
+    nextDay.setHours(STORE_OPEN_HOUR, 0, 0, 0);
+    return {
+      scheduledTime: nextDay,
+      isNextDay: true,
+    };
+  }
+
+  // Check if scheduled time is before store open (shouldn't happen often, but handle it)
+  if (scheduledHour < STORE_OPEN_HOUR) {
+    scheduledTime.setHours(STORE_OPEN_HOUR, 0, 0, 0);
+  }
+
+  return {
+    scheduledTime,
+    isNextDay: false,
+  };
+};
+
+/**
+ * Format scheduled time for display
+ *
+ * @param date - The scheduled date/time
+ * @param isNextDay - Whether this is next-day pickup
+ * @returns Human-readable string like "Today at 2:00 PM" or "Tomorrow at 8:00 AM"
+ */
+const formatScheduledTime = (date: Date, isNextDay: boolean): string => {
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  if (isNextDay) {
+    const dayStr = date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    return `${dayStr} at ${timeStr}`;
+  }
+
+  return `Today at ${timeStr}`;
+};
+
 /**
  * WHY THESE IMPORTS?
  *
@@ -318,13 +414,34 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
 
       /**
        * Calculate scheduled ready time
-       * - Rush pickup orders: RUSH_PREP_MINUTES from now, skipping the hourly slots
-       * - Normal pickup orders: the customer-selected hourly slot
-       * - Delivery orders: still default to RUSH_PREP_MINUTES from now
-       *   (no time-slot UI for delivery yet)
+       *
+       * SCHEDULING RULES:
+       * - Standard orders: minimum 2 hours out, on the hour only
+       * - Rush orders (future): can be scheduled at any time with premium
+       * - After 9 PM close: scheduled for next day at 8 AM opening
        */
-      const scheduledReadyTime =
-        fulfillmentType === 'pickup' && !isRush ? selectedTimeSlot : getRushReadyTime();
+      const { scheduledTime, isNextDay } = calculateStandardPickupTime();
+      const scheduledReadyTime = scheduledTime.toISOString();
+
+      // Warn customer if order is scheduled for next day
+      if (isNextDay) {
+        const formattedTime = formatScheduledTime(scheduledTime, isNextDay);
+        const proceed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Next-Day Pickup',
+            `Our store closes at 9 PM. Your order will be scheduled for pickup on ${formattedTime}.\n\nWould you like to proceed?`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Continue', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+        if (!proceed) {
+          setLoading(false);
+          return;
+        }
+      }
 
       const orderData: CreateOrderData = {
         customerID: user!.$id,
@@ -391,7 +508,9 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * WHY scheduledReadyTime?
          * - Tells shoppers when the order should be ready
          * - Used for auto-assignment priority (closest due time first)
-         * - Currently set to 30 min from now (immediate orders)
+         * - Standard orders: 2+ hours out, on the hour only
+         * - Rush orders (future): can allow non-hour times
+         * - After-hours orders: scheduled for next day at 8 AM
          */
         pickedItems: '',
         /**

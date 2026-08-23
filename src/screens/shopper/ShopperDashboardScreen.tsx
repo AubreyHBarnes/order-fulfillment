@@ -310,18 +310,19 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
       const shopperId = userProfile?.shopperID;
 
       const fetchDashboardData = async (): Promise<void> => {
-        if (!shopperId) {
-          setInitialLoadComplete(true);
-          return;
-        }
-
-        // Fetch available tasks count
+        // Fetch available tasks count (doesn't depend on shopperID)
         setTasksCountLoading(true);
         const tasksResult = await getAvailableTasksCount();
         if (tasksResult.success) {
           setAvailableTasksCount(tasksResult.count);
         }
         setTasksCountLoading(false);
+
+        // Shopper-specific data requires shopperID
+        if (!shopperId) {
+          setInitialLoadComplete(true);
+          return;
+        }
 
         // Fetch shopper status from database
         const statusResult = await getShopperStatus(shopperId);
@@ -381,8 +382,18 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
    * - Updates currentTask state with assigned order
    */
   const handleStatusChange = async (newStatus: ShopperAvailability): Promise<void> => {
-    if (!userProfile?.shopperID) {
-      Alert.alert('Error', 'Shopper profile not found');
+    if (!userProfile) {
+      Alert.alert('Error', 'User profile not loaded. Please try again.');
+      console.error('handleStatusChange: userProfile is null/undefined');
+      return;
+    }
+
+    if (!userProfile.shopperID) {
+      Alert.alert(
+        'Error',
+        `Shopper ID not found in profile. Role: ${userProfile.role}. Please contact support or re-register as a shopper.`
+      );
+      console.error('handleStatusChange: shopperID missing from userProfile:', JSON.stringify(userProfile, null, 2));
       return;
     }
 
