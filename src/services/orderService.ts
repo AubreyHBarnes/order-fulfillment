@@ -22,6 +22,7 @@ import { databases, config } from './appwrite';
 import { parseItemIssues, formatItemIssues } from '../utils/orderItems';
 import type {
   Order,
+  OrderStatus,
   CreateOrderData,
   OrderResponse,
   OrderListResponse,
@@ -327,20 +328,28 @@ export const getOrderById = async (orderId: string): Promise<OrderResponse> => {
  * Fetch all orders for a customer
  *
  * @param customerId - The customer's user ID
+ * @param statuses - Optional status filter (e.g. only non-terminal orders,
+ *   for a poll that doesn't need to keep re-fetching completed/cancelled ones)
  * @returns OrderListResponse with orders sorted by date (newest first)
  */
 export const getOrdersByCustomerId = async (
-  customerId: string
+  customerId: string,
+  statuses?: OrderStatus[]
 ): Promise<OrderListResponse> => {
   try {
+    const queries = [
+      Query.equal('customerID', customerId),
+      Query.orderDesc('orderDate'),
+      Query.limit(50),
+    ];
+    if (statuses && statuses.length > 0) {
+      queries.push(Query.equal('status', statuses));
+    }
+
     const response = await databases.listDocuments<Order>(
       config.databaseId,
       config.ordersCollectionId,
-      [
-        Query.equal('customerID', customerId),
-        Query.orderDesc('orderDate'),
-        Query.limit(50),
-      ]
+      queries
     );
 
     return {

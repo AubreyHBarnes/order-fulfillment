@@ -857,6 +857,25 @@ export interface UrgentOrderToastProps {
 }
 
 /**
+ * OrderReadyToast component props
+ *
+ * WHY THE CUSTOMER-SIDE MIRROR OF UrgentOrderToastProps?
+ * - Same non-blocking Snackbar treatment, but for "your order is ready"
+ *   instead of "a more urgent order arrived" - different audience,
+ *   different message, so a separate (if structurally similar) props
+ *   shape rather than overloading one type for both
+ * - onView navigates straight to the order's detail screen, since
+ *   unlike the shopper toast (which just needs a Dismiss), there's an
+ *   obvious next action here worth surfacing directly
+ */
+export interface OrderReadyToastProps {
+  visible: boolean;
+  shortOrderId: string | null;
+  onDismiss: () => void;
+  onView: () => void;
+}
+
+/**
  * QuickLinkCard component props
  *
  * WHY GENERIC DESIGN?

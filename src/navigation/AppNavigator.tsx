@@ -21,6 +21,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { ShopperAssignmentProvider } from '../context/ShopperAssignmentContext';
+import { CustomerOrderProvider } from '../context/CustomerOrderContext';
 import type { AuthStackParamList, MainStackParamList, ShopperStackParamList } from '../types';
 
 // ============================================================
@@ -456,6 +457,13 @@ const AppNavigator: React.FC = () => {
         // MAIN APP STACK - Logged In as Customer
         // ========================================================
 
+        // WHY WRAPPED IN CustomerOrderProvider HERE?
+        // Mirrors ShopperAssignmentProvider above - this is the one
+        // place `role === 'customer'` (the else branch) is already
+        // evaluated, and it's above every customer screen, so the
+        // ready-for-pickup poll/toast is live no matter which customer
+        // screen is open, and stops entirely on logout.
+        <CustomerOrderProvider customerId={user?.$id ?? ''}>
         <MainStack.Navigator
           screenOptions={{
             /**
@@ -609,6 +617,7 @@ const AppNavigator: React.FC = () => {
            * navigation.navigate('TestConnection')
            */}
         </MainStack.Navigator>
+        </CustomerOrderProvider>
       )}
     </NavigationContainer>
   );

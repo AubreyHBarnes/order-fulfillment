@@ -42,7 +42,7 @@ import ArrivalNotificationCard from '../../components/customer/ArrivalNotificati
 import SubstitutionApprovalCard from '../../components/customer/SubstitutionApprovalCard';
 import type { MainStackParamList, Order, Product } from '../../types';
 
-const SUBSTITUTION_POLL_INTERVAL_MS = 8000;
+const ORDER_POLL_INTERVAL_MS = 8000;
 
 type OrderDetailScreenProps = NativeStackScreenProps<
   MainStackParamList,
@@ -164,18 +164,34 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
   }, [loadOrder]);
 
   /**
-   * While the order is actively being shopped, poll for updates so a new
-   * substitution proposal (or an out-of-stock marker) shows up without the
-   * customer having to leave and re-open this screen. Same 8s interval as
-   * the shopper-side polling (ShoppingScreen, ShopperAssignmentContext) -
-   * there's no realtime push in this app, see docs/DECISIONS.md.
+   * While the order hasn't reached a settled state yet, poll for updates
+   * so a new substitution proposal, an out-of-stock marker, or the order
+   * becoming ready for pickup all show up without the customer having to
+   * leave and re-open this screen. Same 8s interval as the shopper-side
+   * polling (ShoppingScreen, ShopperAssignmentContext) - there's no
+   * realtime push in this app, see docs/DECISIONS.md.
+   *
+   * WHY pending/assigned/shopping, NOT JUST 'shopping'?
+   * A customer who opens this screen before shopping has even started
+   * would otherwise never see it move to 'shopping', which meant this
+   * poll could never arm itself to then catch the later shopping ->
+   * ready_for_pickup transition either - it only ever started for a
+   * customer who happened to reopen the screen after shopping had
+   * already begun. Once ready_for_pickup/completed/cancelled, there's
+   * nothing left on this screen worth polling for.
    */
   useEffect(() => {
-    if (order?.status !== 'shopping') return;
+    if (
+      order?.status !== 'pending' &&
+      order?.status !== 'assigned' &&
+      order?.status !== 'shopping'
+    ) {
+      return;
+    }
 
     const intervalId = setInterval(() => {
       loadOrder();
-    }, SUBSTITUTION_POLL_INTERVAL_MS);
+    }, ORDER_POLL_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
   }, [order?.status, loadOrder]);
