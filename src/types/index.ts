@@ -47,6 +47,7 @@ export type OrderStatus =
   | 'assigned'
   | 'shopping'
   | 'ready_for_pickup'
+  | 'out_for_delivery'
   | 'completed'
   | 'cancelled';
 
@@ -193,13 +194,25 @@ export interface OrderListResponse {
  */
 export type ArrivalStatus = 'waiting' | 'acknowledged' | 'completed';
 
+/**
+ * WHY arrivedAt/notifiedShopperAt, and parkingSpot as a number?
+ * These match the live Appwrite CustomerArrivals schema, which drifted
+ * from an earlier `arrivalTime`/string-`parkingSpot` version of this
+ * type (same class of drift documented in docs/DECISIONS.md's
+ * "Appwrite schema drift" entry - the console-configured schema is the
+ * source of truth, so the code was changed to match it, not the other
+ * way around). `notifiedShopperAt` has no separate write path yet -
+ * recordArrival() sets it equal to `arrivedAt`, since notifying staff
+ * is synchronous with recording the arrival in this app today.
+ */
 export interface CustomerArrival extends Models.Document {
   orderID: string;
   customerID: string;
-  arrivalTime: string;
+  arrivedAt: string;
+  notifiedShopperAt: string;
   status: ArrivalStatus;
   vehicleDescription?: string;
-  parkingSpot?: string;
+  parkingSpot?: number;
   notes?: string;
 }
 
@@ -210,11 +223,18 @@ export interface CustomerArrival extends Models.Document {
  * Same pattern as CreateOrderData - we don't want to accidentally
  * include Appwrite document fields ($id, $createdAt) when creating.
  * This type only includes the fields WE provide, not system fields.
+ *
+ * WHY parkingSpot: string HERE BUT number ON CustomerArrival?
+ * The UI (ArrivalNotificationCard) still collects free text ("Spot 5",
+ * "Near entrance") - recordArrival() best-effort extracts a number for
+ * the schema's required integer field and preserves the original text
+ * in `notes`, so nothing the customer typed is lost even though the
+ * stored parkingSpot is numeric-only.
  */
 export interface CreateArrivalData {
   orderID: string;
   customerID: string;
-  arrivalTime: string;
+  arrivedAt: string;
   status: ArrivalStatus;
   vehicleDescription?: string;
   parkingSpot?: string;

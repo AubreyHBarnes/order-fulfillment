@@ -6,9 +6,11 @@
  * Final step of the shopping workflow. Recaps how the order went
  * (CompletionSummary) and lets the shopper confirm completion, branching
  * by fulfillment type - pickup orders go to 'ready_for_pickup', delivery
- * orders go straight to 'completed'. No separate DeliveryConfirmation
- * screen: the only difference between the two is the target status and
- * button label, not enough to justify a second screen.
+ * orders go to 'out_for_delivery' (DropOffsScreen then marks them
+ * 'completed' once physically dropped off). No separate
+ * DeliveryConfirmation screen: the only difference between the two
+ * branches is the target status and button label, not enough to
+ * justify a second screen.
  *
  * After confirming: frees the shopper (clearCurrentOrder) and, if
  * there's a pending order waiting, hands it to them immediately
@@ -74,7 +76,7 @@ const OrderCompletionScreen: React.FC<OrderCompletionScreenProps> = ({ route, na
     if (!order || !userProfile?.shopperID) return;
 
     const isPickup = order.deliveryAddress.startsWith('PICKUP:');
-    const nextStatus = isPickup ? 'ready_for_pickup' : 'completed';
+    const nextStatus = isPickup ? 'ready_for_pickup' : 'out_for_delivery';
 
     setSubmitting(true);
     try {
@@ -134,7 +136,7 @@ const OrderCompletionScreen: React.FC<OrderCompletionScreenProps> = ({ route, na
   }).length;
 
   const isPickup = order.deliveryAddress.startsWith('PICKUP:');
-  const confirmLabel = isPickup ? 'Mark Ready for Pickup' : 'Complete Delivery';
+  const confirmLabel = isPickup ? 'Mark Ready for Pickup' : 'Mark Out for Delivery';
 
   return (
     <View style={[styles.container, dynamicStyles.container]}>
@@ -143,7 +145,7 @@ const OrderCompletionScreen: React.FC<OrderCompletionScreenProps> = ({ route, na
           Order #{order.$id.slice(-8).toUpperCase()}
         </Text>
         <Text variant="bodyMedium" style={[styles.subtitle, dynamicStyles.subtitle]}>
-          Review the summary below before {isPickup ? 'marking this order ready' : 'completing this delivery'}.
+          Review the summary below before {isPickup ? 'marking this order ready' : 'marking this ready to deliver'}.
         </Text>
 
         <CompletionSummary

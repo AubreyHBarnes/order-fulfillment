@@ -229,7 +229,7 @@ const ArrivalNotificationCard: React.FC<ArrivalNotificationCardProps> = ({
     const result = await recordArrival({
       orderID: orderId,
       customerID: customerId,
-      arrivalTime: new Date().toISOString(),
+      arrivedAt: new Date().toISOString(),
       status: 'waiting',
       vehicleDescription: vehicleDescription.trim() || undefined,
       parkingSpot: parkingSpot.trim() || undefined,
@@ -380,7 +380,7 @@ const ArrivalNotificationCard: React.FC<ArrivalNotificationCardProps> = ({
             ✓ Staff Has Been Notified
           </Text>
           <Text variant="bodyMedium" style={[styles.subtitle, dynamicStyles.arrivedSubtitle]}>
-            You checked in at {formatArrivalTime(arrival.arrivalTime)}
+            You checked in at {formatArrivalTime(arrival.arrivedAt)}
           </Text>
           <Text variant="bodySmall" style={[styles.helpText, dynamicStyles.arrivedSubtitle]}>
             Please wait in your vehicle. A team member will bring your order out shortly.

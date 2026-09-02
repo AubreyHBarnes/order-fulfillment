@@ -46,6 +46,12 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status }) => {
           backgroundColor: theme.custom.success + '20',
           textColor: theme.custom.success,
         };
+      case 'out_for_delivery':
+        return {
+          label: 'Out for Delivery',
+          backgroundColor: theme.custom.success + '20',
+          textColor: theme.custom.success,
+        };
       case 'completed':
         return {
           label: 'Completed',

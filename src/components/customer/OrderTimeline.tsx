@@ -19,22 +19,21 @@ interface TimelineStep {
 }
 
 /**
- * Order of statuses for timeline display
+ * Order of statuses for timeline display, branching by fulfillment type -
+ * pickup orders pass through 'ready_for_pickup', delivery orders through
+ * 'out_for_delivery' instead (see OrderCompletionScreen/completeOrder).
  */
-const STATUS_ORDER: OrderStatus[] = [
-  'pending',
-  'assigned',
-  'shopping',
-  'ready_for_pickup',
-  'completed',
-];
+const getStatusOrder = (isPickup: boolean): OrderStatus[] =>
+  isPickup
+    ? ['pending', 'assigned', 'shopping', 'ready_for_pickup', 'completed']
+    : ['pending', 'assigned', 'shopping', 'out_for_delivery', 'completed'];
 
 /**
  * Get the index of a status in the timeline
  */
-const getStatusIndex = (status: OrderStatus): number => {
+const getStatusIndex = (status: OrderStatus, statusOrder: OrderStatus[]): number => {
   if (status === 'cancelled') return -1;
-  return STATUS_ORDER.indexOf(status);
+  return statusOrder.indexOf(status);
 };
 
 /**
@@ -64,6 +63,8 @@ const getStatusLabel = (status: OrderStatus): string => {
       return 'Shopping';
     case 'ready_for_pickup':
       return 'Ready for Pickup';
+    case 'out_for_delivery':
+      return 'Out for Delivery';
     case 'completed':
       return 'Completed';
     case 'cancelled':
@@ -75,7 +76,9 @@ const getStatusLabel = (status: OrderStatus): string => {
 
 const OrderTimeline: React.FC<OrderTimelineProps> = ({ order }) => {
   const theme = useAppTheme();
-  const currentStatusIndex = getStatusIndex(order.status);
+  const isPickup = order.deliveryAddress.startsWith('PICKUP:');
+  const statusOrder = getStatusOrder(isPickup);
+  const currentStatusIndex = getStatusIndex(order.status, statusOrder);
   const isCancelled = order.status === 'cancelled';
 
   const dynamicStyles = {
@@ -116,7 +119,7 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({ order }) => {
     const isCompleted = index < currentStatusIndex;
     const isCurrent = index === currentStatusIndex;
     const isPending = index > currentStatusIndex;
-    const isLast = index === STATUS_ORDER.length - 1;
+    const isLast = index === statusOrder.length - 1;
 
     let dotStyle;
     let lineStyle;
@@ -218,7 +221,7 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({ order }) => {
 
   return (
     <View style={styles.container}>
-      {STATUS_ORDER.map((status, index) => renderStep(status, index))}
+      {statusOrder.map((status, index) => renderStep(status, index))}
     </View>
   );
 };

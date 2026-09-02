@@ -82,7 +82,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../theme';
-import { getAvailableTasksCount, getCurrentAssignedOrder, startShopping } from '../../services/orderService';
+import {
+  getAvailableTasksCount,
+  getCurrentAssignedOrder,
+  getOutForDeliveryCount,
+  startShopping,
+} from '../../services/orderService';
+import { getActiveArrivalsCount } from '../../services/arrivalService';
 import { getShopperStatus, updateShopperAvailability } from '../../services/shopperStatusService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
 import ShopperStatusDropdown from '../../components/shopper/ShopperStatusDropdown';
@@ -106,10 +112,6 @@ type ShopperDashboardScreenProps = NativeStackScreenProps<
 
 // Store name (would come from app config or store selection)
 const STORE_NAME = 'Fresh Mart Grocery';
-
-// Mock counts for other quick links (will be replaced with real data later)
-const MOCK_DROP_OFFS_COUNT = 0;
-const MOCK_CHECK_INS_COUNT = 0;
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -257,6 +259,8 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
    */
   const [availableTasksCount, setAvailableTasksCount] = useState<number>(0);
   const [tasksCountLoading, setTasksCountLoading] = useState<boolean>(true);
+  const [dropOffsCount, setDropOffsCount] = useState<number>(0);
+  const [checkInsCount, setCheckInsCount] = useState<number>(0);
 
   // ============================================================
   // HELPER: Transform Order to TaskCardData
@@ -310,11 +314,19 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
       const shopperId = userProfile?.shopperID;
 
       const fetchDashboardData = async (): Promise<void> => {
-        // Fetch available tasks count (doesn't depend on shopperID)
+        // Fetch available tasks count and check-ins count (store-wide, don't
+        // depend on shopperID - see getActiveArrivals' docstring for why
+        // check-ins are store-wide rather than scoped to this shopper)
         setTasksCountLoading(true);
-        const tasksResult = await getAvailableTasksCount();
+        const [tasksResult, checkInsResult] = await Promise.all([
+          getAvailableTasksCount(),
+          getActiveArrivalsCount(),
+        ]);
         if (tasksResult.success) {
           setAvailableTasksCount(tasksResult.count);
+        }
+        if (checkInsResult.success) {
+          setCheckInsCount(checkInsResult.count);
         }
         setTasksCountLoading(false);
 
@@ -322,6 +334,12 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
         if (!shopperId) {
           setInitialLoadComplete(true);
           return;
+        }
+
+        // Drop offs count is scoped to this shopper's own out-for-delivery orders
+        const dropOffsResult = await getOutForDeliveryCount(shopperId);
+        if (dropOffsResult.success) {
+          setDropOffsCount(dropOffsResult.count);
         }
 
         // Fetch shopper status from database
@@ -735,7 +753,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
 
           <QuickLinkCard
             title="Drop Offs"
-            count={MOCK_DROP_OFFS_COUNT}
+            count={dropOffsCount}
             icon="truck-delivery"
             onPress={handleDropOffsPress}
             subtitle="Orders ready for delivery"
@@ -743,7 +761,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
 
           <QuickLinkCard
             title="Customer Check-ins"
-            count={MOCK_CHECK_INS_COUNT}
+            count={checkInsCount}
             icon="account-check"
             onPress={handleCheckInsPress}
             subtitle="Customers waiting for pickup"

@@ -200,7 +200,7 @@ Create these 7 collections with the specified attributes:
 | assignedDate | DateTime | - | No | - |
 | completedDate | DateTime | - | No | - |
 
-*Enum values for `status`: pending, assigned, shopping, completed, cancelled, ready_for_pickup*
+*Enum values for `status`: pending, assigned, shopping, completed, cancelled, ready_for_pickup, out_for_delivery*
 *Enum values for `fulfillmentType`: delivery, pickup*
 
 **Permissions:** Any - Create, Read, Update
@@ -479,16 +479,14 @@ npm install
 
 - [x] **Phase 3.3:** Shopping Cart Screen
 - [x] **Phase 3.4:** Checkout Flow
-
-### In Progress 🚧
-- [ ] **Phase 4:** Shopper Fulfillment Interface
+- [x] **Phase 4:** Shopper Fulfillment Interface
   - [x] Order dashboard, available tasks, task detail
   - [x] Item fulfillment / pick-items workflow - claim an order (auto-assign or manual), work a checklist (found / out-of-stock / propose substitute), customer approves substitutions, mark ready for pickup
   - [x] Accept/decline confirmation on auto-assignment
   - [x] Rush-order interrupt (bumps the least-urgent in-progress order when every shopper is busy) with polling-driven live notification
   - [x] Manual order swap onto a more urgent pending order, plus a non-blocking "more urgent order available" toast
   - [x] Customer arrival notifications - customer side only (manual "I've Arrived" + free-text parking spot)
-  - [ ] Shopper-side customer check-ins, drop-offs, and settings screens (currently static placeholders)
+  - [x] Shopper-side customer check-ins (store-wide waiting queue, hands off both the arrival and the order) and drop-offs (a new `out_for_delivery` order status, "Mark Delivered" action) - previously static placeholders. Shopper settings (dark/light/system theme, app version) also implemented.
 
 ### Planned 📋
 - [ ] **Phase 5:** Real-time Features

@@ -201,7 +201,6 @@ It exists for two reasons: to keep a real record while the project is being acti
 
 ---
 
-<<<<<<< HEAD
 ## Back button restored on Shopping/OrderCompletion; current-task tap skips TaskDetail
 
 **Context:** `Shopping` and `OrderCompletion` were built with `headerBackVisible: false`, reasoned at the time as preventing a shopper from accidentally abandoning mid-shop progress via the header - "go Unavailable" via the status dropdown was meant to be the only intentional exit. In practice this left the shopper with no way off either screen at all except finishing the checklist (`Shopping`) or completing the order (`OrderCompletion`) - the status dropdown lives on the Home screen, which was exactly the screen this made unreachable.
@@ -247,7 +246,9 @@ It exists for two reasons: to keep a real record while the project is being acti
 **Why documented before implemented:** Same reasoning as the original rush-order interrupt gap entry above - this touches multiple screens and services, and #2 vs. #3 represent genuinely different scopes of effort (a real data-model feature vs. a guard clause) that deserve an explicit decision on which to build now, rather than being bundled silently into "add a notification."
 
 **Consequences / left open:** #3 is a real mitigation for the reported failure mode but not a full fix - a customer can still dismiss the warning and pick up a partial order on purpose (rush, mistake, whatever), and the store still has no single combined pickup to hand over even when the customer does wait. #2 is the actual production-matching behavior but is a separate, larger initiative (data model + at least two roles' UI) and stays out of scope until explicitly picked up. Like everything else in this app's notification story, #1 remains foreground-only - no OS-level push exists or is scoped here.
-=======
+
+---
+
 ## Proximity-based arrival notification: two options weighed, neither built yet
 
 **Context:** Real-world observation of a competitor's pickup app (customer-facing ETA jumping between 2-3 minutes and back, with the customer sometimes still half a mile out) raised the question of whether this app's "I've arrived" flow (`CustomerArrival`/`arrivalService.ts`/`ArrivalNotificationCard`) should auto-detect proximity instead of relying purely on a manual button tap, and whether a free-text `parkingSpot` field is precise enough when several other grocery chains' pickup lots are nearby.
@@ -261,4 +262,25 @@ It exists for two reasons: to keep a real record while the project is being acti
 **Decision:** Neither built. If pursued, option 1 first (small, reuses existing infrastructure) with option 2 treated as a separate, larger initiative gated on whether the manual flow proves insufficient in practice - and prototyped against real GPS accuracy in the actual lot before committing to a 0.1 mi threshold specifically.
 
 **Consequences / left open:** This app has no background-process or realtime-push infrastructure at all yet (see "Pull-based data, not realtime" above), which option 2 would also need to build on top of, independent of the location work itself.
->>>>>>> origin/main
+
+---
+
+## Phase 4 finished: Drop Offs, Customer Check-ins, Shopper Settings
+
+**Context:** The last unchecked line in Phase 4 - three shopper screens (`DropOffsScreen`, `CustomerCheckInsScreen`, `ShopperSettingsScreen`) existed only as placeholders, already wired into `ShopperStack` with working nav shortcuts and count badges on the dashboard, but rendering static filler.
+
+**Decision, in four parts:**
+
+1. **Customer Check-ins is store-wide, not scoped to the shopper's own orders.** `CustomerArrival` has no shopper field at all, and `arrivalService.ts`'s own docstring already described the intended flow as generic "STAFF" - any on-duty shopper sees every waiting customer, matching how a real curbside desk works. New `getActiveArrivals()`/`getActiveArrivalsCount()` in `arrivalService.ts`.
+
+2. **Drop Offs needed a real intermediate order status.** Delivery orders previously jumped straight from `shopping` to `completed` (`OrderCompletionScreen`'s own header comment: "no separate DeliveryConfirmation screen") - there was no "out for delivery, not yet dropped off" state for a Drop Offs screen to list. Added `out_for_delivery` to the `Order.status` enum (same live Appwrite REST widen as the earlier `ready_for_pickup` addition), `OrderCompletionScreen` now lands delivery orders there instead of `completed`, and `DropOffsScreen` gives the shopper a real "Mark Delivered" action (`getOutForDeliveryOrdersByShopperId`/`getOutForDeliveryCount`, new in `orderService.ts`) that finally reaches `completed`. `OrderStatusBadge` and `OrderTimeline` (customer-facing) updated for the new status - `OrderTimeline`'s status sequence is now branched by fulfillment type instead of one fixed 5-step array, incidentally fixing a pre-existing inconsistency where a delivery order's timeline always showed an unreachable "Ready for Pickup" step.
+
+3. **Customer Check-ins closes a real, pre-existing gap: nothing ever completed a pickup order.** Auditing turned up that no code anywhere transitioned a pickup order from `ready_for_pickup` to `completed`, despite `arrivalService.ts`'s docstring describing that as step 9 of the flow. `completeOrder()` already accepted `'completed'` as a value - it just needed a caller. Customer Check-ins' "Hand Off Order" action is that caller: it marks the arrival `completed` (`updateArrivalStatus`) and the order `completed` (`completeOrder`) together.
+
+4. **A real, severe pre-existing bug found and fixed while testing this live: `CustomerArrivals` schema drift blocked the entire arrival flow.** The live collection's actual fields (`arrivedAt`, `notifiedShopperAt`, both required datetimes; `parkingSpot`, a required integer ranged 1-5) didn't match what `arrivalService.ts`/`types/index.ts` had assumed (`arrivalTime`; `parkingSpot` as an optional free-text string) - the customer-side "I've Arrived" button failed outright (`AppwriteException: Invalid document structure`) until this was fixed. Same resolution direction as the original "Appwrite schema drift" entry above: the code was changed to match the live schema, not the other way around. `vehicleDescription`/`notes` (already in the TS type, never on the live schema) were added as new optional string attributes via the API key rather than dropped, since the UI already collected them. `parkingSpot`'s 1-5 range was only discovered by an actual failed write (`"Value must be a valid range between 1 and 5"`) - `recordArrival()` now best-effort-extracts a digit from the free-text input and clamps it into range (defaulting to 1), while preserving the original free text verbatim in `notes` so nothing the customer typed is lost. `CustomerCheckInsScreen` displays `notes`, not the now-synthetic `parkingSpot` number, for that reason.
+
+**Why the parking-spot UI wasn't redesigned to match the 1-5 range properly:** That's exactly the "structured parking-spot selection" option already discussed and deliberately left unbuilt in the "Proximity-based arrival notification" entry above (a tap-to-select numbered stall, replacing the free-text field). Doing that now would mean making that call unprompted as a side effect of a schema-compatibility fix, not as its own considered decision - the clamp is the smallest change that makes the existing field honest against the real schema without redesigning it.
+
+**Verified end-to-end (2026-08-31, dual-emulator):** placed a delivery and a pickup order live; claimed and shopped both; delivery order confirmed reaching `out_for_delivery` then `completed` via Drop Offs' "Mark Delivered" (both status transitions confirmed via direct Appwrite REST reads); pickup order's customer "I've Arrived" (initially failing with the schema-drift error above, confirmed fixed) surfaced correctly in Customer Check-ins with the right wait-time badge, and "Hand Off Order" confirmed completing both the arrival and the order via REST. Shopper Settings' dark/light/system toggle confirmed re-theming the whole app instantly and surviving a full app restart (`ThemeContext`'s existing persistence, simply never surfaced in any settings UI before now).
+
+**Consequences / left open:** The parking-spot field is still free text on a schema that only meaningfully supports 5 fixed stalls - functionally fine (nothing breaks, nothing is lost), but the structured-picker redesign this points at remains its own future decision, unchanged from the entry above. Shopper Settings intentionally excludes notification preferences (no push infrastructure exists anywhere in this app) and an availability schedule (a distinct, larger scheduling feature) - both were on the original placeholder's planned-features comment but neither has real infrastructure to back it yet.

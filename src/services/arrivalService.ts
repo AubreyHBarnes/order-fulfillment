@@ -89,7 +89,7 @@ import type {
  * const result = await recordArrival({
  *   orderID: order.$id,
  *   customerID: user.$id,
- *   arrivalTime: new Date().toISOString(),
+ *   arrivedAt: new Date().toISOString(),
  *   status: 'waiting',
  *   vehicleDescription: 'Blue Honda Civic',
  *   parkingSpot: 'Spot 3',
@@ -112,12 +112,43 @@ export const recordArrival = async (
      * Alternatives:
      * - Custom ID: Could use `${orderID}_${timestamp}` but unique() is simpler
      * - Let Appwrite generate: ID.unique() is the standard approach
+     *
+     * WHY BUILD A SEPARATE PAYLOAD INSTEAD OF PASSING arrivalData DIRECTLY?
+     * The schema's `parkingSpot` is a required integer constrained to
+     * 1-5 (a small fixed lot - confirmed live: an out-of-range write
+     * fails with "Value must be a valid range between 1 and 5"), but
+     * the UI still collects free text ("Spot 5", "Near entrance" - see
+     * ArrivalNotificationCard). Best-effort-extract a number and clamp
+     * it into range for the required field, and keep the original text
+     * in `notes` so nothing the customer typed is lost - a value this
+     * loosely derived is not trustworthy enough to treat as the real
+     * stall number on its own. A real fix means replacing the free-text
+     * input with a 1-5 picker, which is exactly the "structured
+     * parking-spot selection" option already discussed and deliberately
+     * left unbuilt in docs/DECISIONS.md - not done here to avoid
+     * redesigning that UI as a side effect of a schema-compatibility fix.
+     * `notifiedShopperAt` is set equal to `arrivedAt` - there's no
+     * separate async notify step in this app today, recording the
+     * arrival *is* the notification.
      */
+    const parsedParkingSpot = arrivalData.parkingSpot?.match(/\d+/)?.[0];
+    const clampedParkingSpot = parsedParkingSpot
+      ? Math.min(5, Math.max(1, parseInt(parsedParkingSpot, 10)))
+      : 1;
     const arrival = await databases.createDocument<CustomerArrival>(
       config.databaseId,
       config.customerArrivalsCollectionId,
       ID.unique(),
-      arrivalData
+      {
+        orderID: arrivalData.orderID,
+        customerID: arrivalData.customerID,
+        arrivedAt: arrivalData.arrivedAt,
+        notifiedShopperAt: arrivalData.arrivedAt,
+        status: arrivalData.status,
+        vehicleDescription: arrivalData.vehicleDescription,
+        parkingSpot: clampedParkingSpot,
+        notes: arrivalData.notes ?? arrivalData.parkingSpot,
+      }
     );
 
     /**
@@ -191,7 +222,7 @@ export const recordArrival = async (
  * if (existing.success && existing.data) {
  *   // Customer already arrived, show waiting state
  *   setArrivalStatus('waiting');
- *   setArrivalTime(existing.data.arrivalTime);
+ *   setArrivedAt(existing.data.arrivedAt);
  * } else {
  *   // Show "I've Arrived" button
  *   setArrivalStatus('not_arrived');
@@ -222,7 +253,7 @@ export const getActiveArrivalForOrder = async (
       [
         Query.equal('orderID', orderID),
         Query.equal('status', 'waiting'),
-        Query.orderDesc('arrivalTime'),
+        Query.orderDesc('arrivedAt'),
         Query.limit(1),
       ]
     );
@@ -257,6 +288,92 @@ export const getActiveArrivalForOrder = async (
     return {
       success: false,
       data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+// ============================================================
+// GET ALL ACTIVE ARRIVALS (STORE-WIDE)
+// ============================================================
+
+/**
+ * Get every customer currently waiting for pickup, across all orders
+ *
+ * WHY STORE-WIDE, NOT SCOPED TO ONE SHOPPER?
+ * CustomerArrival has no shopper field at all - an arrival is tied to
+ * an order/customer, not to whichever shopper happened to shop it. This
+ * matches how a real curbside desk works: whichever shopper is free
+ * handles the next waiting customer, not just the one who shopped their
+ * order. Used by CustomerCheckInsScreen.
+ *
+ * WHY orderAsc('arrivedAt')?
+ * FIFO - whoever arrived first should be helped first, same fairness
+ * reasoning as getAvailableTasks' oldest-first ordering.
+ *
+ * @returns ArrivalListResponse with all 'waiting' arrivals, oldest first
+ */
+export const getActiveArrivals = async (): Promise<ArrivalListResponse> => {
+  try {
+    const response = await databases.listDocuments<CustomerArrival>(
+      config.databaseId,
+      config.customerArrivalsCollectionId,
+      [
+        Query.equal('status', 'waiting'),
+        Query.orderAsc('arrivedAt'),
+      ]
+    );
+
+    return {
+      success: true,
+      data: response.documents,
+    };
+  } catch (error) {
+    console.error('Error fetching active arrivals:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to fetch active arrivals';
+
+    return {
+      success: false,
+      data: [],
+      error: errorMessage,
+    };
+  }
+};
+
+/**
+ * Get count of customers currently waiting, store-wide - same
+ * limit(1)/response.total efficiency pattern as getAvailableTasksCount
+ *
+ * @returns Object with success status and count
+ */
+export const getActiveArrivalsCount = async (): Promise<{
+  success: boolean;
+  count: number;
+  error?: string;
+}> => {
+  try {
+    const response = await databases.listDocuments<CustomerArrival>(
+      config.databaseId,
+      config.customerArrivalsCollectionId,
+      [
+        Query.equal('status', 'waiting'),
+        Query.limit(1),
+      ]
+    );
+
+    return {
+      success: true,
+      count: response.total,
+    };
+  } catch (error) {
+    console.error('Error fetching active arrivals count:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to fetch active arrivals count';
+
+    return {
+      success: false,
+      count: 0,
       error: errorMessage,
     };
   }
@@ -357,7 +474,7 @@ export const getArrivalsForOrder = async (
       config.customerArrivalsCollectionId,
       [
         Query.equal('orderID', orderID),
-        Query.orderDesc('arrivalTime'),
+        Query.orderDesc('arrivedAt'),
       ]
     );
 

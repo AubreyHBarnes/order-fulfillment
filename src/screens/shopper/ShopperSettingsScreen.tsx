@@ -1,32 +1,40 @@
 /**
- * Shopper Settings Screen (Placeholder)
+ * Shopper Settings Screen
  * File: src/screens/shopper/ShopperSettingsScreen.tsx
  *
  * PURPOSE:
- * Provides settings and preferences for shoppers.
- * This includes notification preferences, account settings, logout.
- * This is a placeholder - full implementation will come later.
+ * Settings and preferences for shoppers: profile display, theme
+ * preference, app version, and logout.
  *
- * ============================================================
- * PLANNED FEATURES
- * ============================================================
+ * WHY NOT NOTIFICATION PREFERENCES OR AN AVAILABILITY SCHEDULE?
+ * Both were on the original placeholder's planned-features list, but
+ * neither has anything to control yet: there's no push notification
+ * library anywhere in this app (see docs/DECISIONS.md, "Pull-based
+ * data, not realtime" - everything is foreground polling), and an
+ * availability *schedule* would be a genuinely new recurring-schedule
+ * feature, not a settings toggle - out of scope here the same way the
+ * project has already deferred other adjacent-but-bigger features
+ * found while auditing a screen (e.g. multi-order pickup consolidation
+ * in the "Customer ready-for-pickup notification" DECISIONS.md entry).
+ * A toggle that controls nothing real would be worse than no toggle.
  *
- * In production, this screen would include:
- * 1. Profile information (name, photo)
- * 2. Notification settings (push, sound, vibration)
- * 3. Availability schedule preferences
- * 4. Dark mode toggle
- * 5. Logout button
- * 6. App version info
+ * WHY DARK MODE HERE?
+ * useThemeMode() (src/context/ThemeContext.tsx) already exists,
+ * fully wired (persists to storage, drives the whole app's theme) and
+ * was simply never surfaced in any settings UI - this is the first
+ * screen to actually expose it.
  */
 
 import React from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { Text, Icon, Button, Divider } from 'react-native-paper';
+import { Text, Icon, Button, Divider, SegmentedButtons } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
+import { useThemeMode } from '../../context/ThemeContext';
 import { useAppTheme } from '../../theme';
 import type { ShopperStackParamList } from '../../types';
+import type { ThemeMode } from '../../theme';
+import packageJson from '../../../package.json';
 
 type ShopperSettingsScreenProps = NativeStackScreenProps<
   ShopperStackParamList,
@@ -36,6 +44,7 @@ type ShopperSettingsScreenProps = NativeStackScreenProps<
 const ShopperSettingsScreen: React.FC<ShopperSettingsScreenProps> = ({ navigation }) => {
   const theme = useAppTheme();
   const { logout, userProfile } = useAuth();
+  const { themeMode, setThemeMode } = useThemeMode();
 
   /**
    * Handle logout with confirmation
@@ -77,13 +86,30 @@ const ShopperSettingsScreen: React.FC<ShopperSettingsScreenProps> = ({ navigatio
         </Text>
       </View>
 
-      <Divider style={styles.divider} />
+      <View style={styles.middleSection}>
+        <Divider style={styles.divider} />
 
-      {/* Placeholder Settings */}
-      <View style={styles.settingsSection}>
-        <Icon source="cog-outline" size={48} color={theme.custom.textDisabled} />
-        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: 8, textAlign: 'center' }}>
-          Additional settings will be available here
+        {/* Appearance Settings */}
+        <View style={styles.settingsSection}>
+          <Text variant="labelMedium" style={{ color: theme.custom.textSecondary, marginBottom: 8 }}>
+            APPEARANCE
+          </Text>
+          <SegmentedButtons
+            value={themeMode}
+            onValueChange={(value) => setThemeMode(value as ThemeMode)}
+            buttons={[
+              { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
+              { value: 'dark', label: 'Dark', icon: 'weather-night' },
+              { value: 'system', label: 'System', icon: 'cellphone' },
+            ]}
+          />
+        </View>
+
+        <Divider style={styles.divider} />
+
+        {/* App Version */}
+        <Text variant="bodySmall" style={[styles.versionText, { color: theme.custom.textDisabled }]}>
+          Version {packageJson.version}
         </Text>
       </View>
 
@@ -121,11 +147,16 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 16,
   },
-  settingsSection: {
+  middleSection: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+  },
+  settingsSection: {
+    paddingVertical: 4,
+  },
+  versionText: {
+    textAlign: 'center',
+    marginTop: 4,
   },
   logoutSection: {
     padding: 20,

@@ -780,6 +780,93 @@ export const getCurrentAssignedOrder = async (
 };
 
 /**
+ * Get a shopper's delivery orders that are out for delivery but not yet
+ * dropped off
+ *
+ * WHY A LIST, NOT A SINGLE ORDER (unlike getCurrentAssignedOrder)?
+ * Completing the shopping checklist frees the shopper immediately
+ * (clearCurrentOrder/autoAssignNextOrderTo in OrderCompletionScreen) and
+ * out_for_delivery is not one of the statuses that gates a new
+ * assignment - so a shopper can pick up and finish shopping a second
+ * (or third) delivery before physically dropping off an earlier one.
+ * DropOffsScreen needs to show all of them, not just one.
+ *
+ * @param shopperId - The shopper's ID
+ * @returns OrderListResponse with all matching orders
+ */
+export const getOutForDeliveryOrdersByShopperId = async (
+  shopperId: string
+): Promise<OrderListResponse> => {
+  try {
+    const response = await databases.listDocuments<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      [
+        Query.equal('shopperID', shopperId),
+        Query.equal('status', 'out_for_delivery'),
+        Query.orderAsc('scheduledReadyTime'),
+      ]
+    );
+
+    return {
+      success: true,
+      data: response.documents,
+      total: response.total,
+    };
+  } catch (error) {
+    console.error('Error fetching out-for-delivery orders:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to fetch out-for-delivery orders';
+
+    return {
+      success: false,
+      data: [],
+      total: 0,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
+ * Get count of a shopper's orders that are out for delivery but not yet
+ * dropped off - same limit(1)/response.total efficiency pattern as
+ * getAvailableTasksCount
+ *
+ * @param shopperId - The shopper's ID
+ * @returns Object with success status and count
+ */
+export const getOutForDeliveryCount = async (
+  shopperId: string
+): Promise<{ success: boolean; count: number; error?: string }> => {
+  try {
+    const response = await databases.listDocuments<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      [
+        Query.equal('shopperID', shopperId),
+        Query.equal('status', 'out_for_delivery'),
+        Query.limit(1),
+      ]
+    );
+
+    return {
+      success: true,
+      count: response.total,
+    };
+  } catch (error) {
+    console.error('Error fetching out-for-delivery count:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to fetch out-for-delivery count';
+
+    return {
+      success: false,
+      count: 0,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
  * Update the picked items for an order
  *
  * WHY STRING FORMAT?
@@ -903,13 +990,19 @@ export const updateItemIssues = async (
  *   value - the caller (OrderCompletionScreen) already knows which one
  *   applies from the order's fulfillment type
  *
+ * Also reused directly (with nextStatus: 'completed') for the final
+ * hand-off step on both fulfillment types - CustomerCheckInsScreen
+ * completing a pickup hand-off, DropOffsScreen completing a delivery -
+ * rather than adding a dedicated function for a write this one already does.
+ *
  * @param orderId - The order's document ID
- * @param nextStatus - 'ready_for_pickup' for pickup orders, 'completed' for delivery
+ * @param nextStatus - 'ready_for_pickup'/'out_for_delivery' when the shopper
+ *   finishes shopping (pickup vs delivery), 'completed' for the final hand-off
  * @returns OrderResponse with updated order or error
  */
 export const completeOrder = async (
   orderId: string,
-  nextStatus: 'ready_for_pickup' | 'completed'
+  nextStatus: 'ready_for_pickup' | 'out_for_delivery' | 'completed'
 ): Promise<OrderResponse> => {
   try {
     const updated = await databases.updateDocument<Order>(
