@@ -277,6 +277,12 @@ const AvailableTasksScreen: React.FC<AvailableTasksScreenProps> = ({
     fulfillmentText: {
       color: theme.colors.onPrimaryContainer,
     },
+    rushBadge: {
+      backgroundColor: theme.custom.warningLight,
+    },
+    rushText: {
+      color: theme.custom.warning,
+    },
     emptyText: {
       color: theme.custom.textSecondary,
     },
@@ -298,6 +304,7 @@ const AvailableTasksScreen: React.FC<AvailableTasksScreenProps> = ({
     const itemCount = getItemCount(order.items);
     const orderDate = formatOrderDate(order.orderDate);
     const fulfillmentType = getFulfillmentType(order.deliveryAddress);
+    const isRush = order.priority === 1;
 
     return (
       <TouchableOpacity
@@ -305,7 +312,7 @@ const AvailableTasksScreen: React.FC<AvailableTasksScreenProps> = ({
         activeOpacity={0.7}
         accessible={true}
         accessibilityRole="button"
-        accessibilityLabel={`Order from ${customerName}, ${itemCount} items, ${fulfillmentType}`}
+        accessibilityLabel={`Order from ${customerName}, ${itemCount} items, ${fulfillmentType}${isRush ? ', rush order' : ''}`}
         accessibilityHint="Double tap to view order details"
       >
         <Card style={[styles.card, dynamicStyles.card]} elevation={1}>
@@ -341,6 +348,18 @@ const AvailableTasksScreen: React.FC<AvailableTasksScreenProps> = ({
                   {fulfillmentType === 'delivery' ? 'Delivery' : 'Pickup'}
                 </Text>
               </View>
+
+              {isRush && (
+                <View style={[styles.fulfillmentBadge, dynamicStyles.rushBadge]}>
+                  <Icon source="run-fast" size={14} color={dynamicStyles.rushText.color} />
+                  <Text
+                    variant="labelSmall"
+                    style={[styles.fulfillmentText, dynamicStyles.rushText]}
+                  >
+                    Rush
+                  </Text>
+                </View>
+              )}
             </View>
           </Card.Content>
         </Card>
@@ -466,6 +485,7 @@ const styles = StyleSheet.create({
   fulfillmentRow: {
     flexDirection: 'row',
     marginTop: 8,
+    gap: 8,
   },
 
   fulfillmentBadge: {

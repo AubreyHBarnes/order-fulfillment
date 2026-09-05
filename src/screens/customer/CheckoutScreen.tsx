@@ -75,7 +75,7 @@ const MINIMUM_LEAD_TIME_HOURS = 2; // Orders must be at least 2 hours out
  * 2. Standard orders can only be on the hour (9:00, 10:00, etc.)
  * 3. If after store close (9 PM), schedule for next day opening (8 AM)
  *
- * NOTE: Rush orders (future feature) will allow non-hour times
+ * NOTE: Rush orders don't use this function at all - see getRushReadyTime()
  *
  * @returns Object with scheduledTime and isNextDay flag
  */
@@ -417,29 +417,36 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
        *
        * SCHEDULING RULES:
        * - Standard orders: minimum 2 hours out, on the hour only
-       * - Rush orders (future): can be scheduled at any time with premium
-       * - After 9 PM close: scheduled for next day at 8 AM opening
+       * - Rush orders: ready RUSH_PREP_MINUTES minutes from now (see getRushReadyTime)
+       * - After 9 PM close: standard orders scheduled for next day at 8 AM opening
        */
-      const { scheduledTime, isNextDay } = calculateStandardPickupTime();
-      const scheduledReadyTime = scheduledTime.toISOString();
+      const isRushOrder = fulfillmentType === 'pickup' && isRush;
+      let scheduledReadyTime: string;
 
-      // Warn customer if order is scheduled for next day
-      if (isNextDay) {
-        const formattedTime = formatScheduledTime(scheduledTime, isNextDay);
-        const proceed = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Next-Day Pickup',
-            `Our store closes at 9 PM. Your order will be scheduled for pickup on ${formattedTime}.\n\nWould you like to proceed?`,
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Continue', onPress: () => resolve(true) },
-            ]
-          );
-        });
+      if (isRushOrder) {
+        scheduledReadyTime = getRushReadyTime();
+      } else {
+        const { scheduledTime, isNextDay } = calculateStandardPickupTime();
+        scheduledReadyTime = scheduledTime.toISOString();
 
-        if (!proceed) {
-          setLoading(false);
-          return;
+        // Warn customer if order is scheduled for next day
+        if (isNextDay) {
+          const formattedTime = formatScheduledTime(scheduledTime, isNextDay);
+          const proceed = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              'Next-Day Pickup',
+              `Our store closes at 9 PM. Your order will be scheduled for pickup on ${formattedTime}.\n\nWould you like to proceed?`,
+              [
+                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                { text: 'Continue', onPress: () => resolve(true) },
+              ]
+            );
+          });
+
+          if (!proceed) {
+            setLoading(false);
+            return;
+          }
         }
       }
 
@@ -487,7 +494,7 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * - Order not yet assigned to shopper
          * - Will be true when system auto-assigns
          */
-        priority: fulfillmentType === 'pickup' && isRush ? 1 : 0,
+        priority: isRushOrder ? 1 : 0,
         /**
          * WHY REUSE priority AS THE RUSH FLAG?
          * - priority already exists on the Order schema and was unused -

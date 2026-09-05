@@ -763,6 +763,7 @@ export interface TaskCardData {
   fulfillmentType: 'pickup' | 'delivery';
   dueTime?: string;
   status: OrderStatus;
+  isRush: boolean;
 }
 
 // ============================================================

@@ -121,6 +121,12 @@ const CurrentTaskCard: React.FC<CurrentTaskCardProps> = ({ task, onPress }) => {
     fulfillmentText: {
       color: theme.colors.onPrimaryContainer,
     },
+    rushBadge: {
+      backgroundColor: theme.custom.warningLight,
+    },
+    rushText: {
+      color: theme.custom.warning,
+    },
   };
 
   // ============================================================
@@ -259,7 +265,7 @@ const CurrentTaskCard: React.FC<CurrentTaskCardProps> = ({ task, onPress }) => {
           </Text>
         </View>
 
-        {/* Fulfillment Type Badge */}
+        {/* Fulfillment Type Badge + Rush Badge */}
         <View style={styles.fulfillmentRow}>
           <View style={[styles.fulfillmentBadge, dynamicStyles.fulfillmentBadge]}>
             <Icon
@@ -274,6 +280,18 @@ const CurrentTaskCard: React.FC<CurrentTaskCardProps> = ({ task, onPress }) => {
               {task.fulfillmentType === 'delivery' ? 'Delivery' : 'Pickup'}
             </Text>
           </View>
+
+          {task.isRush && (
+            <View style={[styles.fulfillmentBadge, dynamicStyles.rushBadge]}>
+              <Icon source="run-fast" size={16} color={dynamicStyles.rushText.color} />
+              <Text
+                variant="labelMedium"
+                style={[styles.fulfillmentText, dynamicStyles.rushText]}
+              >
+                Rush
+              </Text>
+            </View>
+          )}
         </View>
       </Card.Content>
     </Card>
@@ -454,6 +472,7 @@ const styles = StyleSheet.create({
   fulfillmentRow: {
     flexDirection: 'row',
     marginTop: 4,
+    gap: 8,
   },
 
   /**

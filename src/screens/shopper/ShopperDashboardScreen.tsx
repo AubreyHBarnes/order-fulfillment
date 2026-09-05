@@ -294,6 +294,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
       fulfillmentType,
       dueTime: order.scheduledReadyTime ? formatDueTime(order.scheduledReadyTime) : undefined,
       status: order.status,
+      isRush: order.priority === 1,
     };
   };
 

@@ -412,6 +412,12 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
     fulfillmentText: {
       color: theme.colors.onPrimaryContainer,
     },
+    rushBadge: {
+      backgroundColor: theme.custom.warningLight,
+    },
+    rushText: {
+      color: theme.custom.warning,
+    },
     address: {
       color: theme.colors.onSurface,
     },
@@ -547,6 +553,15 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
                 {fulfillmentType === 'delivery' ? 'Delivery' : 'Pickup'}
               </Text>
             </View>
+
+            {order.priority === 1 && (
+              <View style={[styles.fulfillmentBadge, dynamicStyles.rushBadge]}>
+                <Icon source="run-fast" size={16} color={dynamicStyles.rushText.color} />
+                <Text variant="labelMedium" style={[styles.fulfillmentText, dynamicStyles.rushText]}>
+                  Rush
+                </Text>
+              </View>
+            )}
           </View>
         </Card.Content>
       </Card>
@@ -696,6 +711,7 @@ const styles = StyleSheet.create({
   fulfillmentRow: {
     flexDirection: 'row',
     marginTop: 4,
+    gap: 8,
   },
 
   fulfillmentBadge: {
