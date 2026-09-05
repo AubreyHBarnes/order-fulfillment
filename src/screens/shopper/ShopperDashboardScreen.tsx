@@ -75,12 +75,13 @@
  * - Subscribe to real-time updates
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useShopperAssignment } from '../../context/ShopperAssignmentContext';
 import { useAppTheme } from '../../theme';
 import {
   getAvailableTasksCount,
@@ -212,6 +213,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
 }) => {
   const theme = useAppTheme();
   const { userProfile } = useAuth();
+  const { acknowledgeOwnAssignment, assignmentResolvedSignal } = useShopperAssignment();
 
   // ============================================================
   // STATE
@@ -303,6 +305,63 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
   // ============================================================
 
   /**
+   * Fetch shopper status, current task, and available tasks count.
+   *
+   * WHY EXTRACTED TO COMPONENT SCOPE INSTEAD OF INLINE IN useFocusEffect?
+   * Also called from the assignmentResolvedSignal effect below, so a
+   * shopper sitting on Dashboard the whole time a ShopperAssignmentContext
+   * popup was up (no navigation, so no focus event) still sees their
+   * status/current task update the moment they accept or decline it.
+   */
+  const fetchDashboardData = useCallback(async (): Promise<void> => {
+    const shopperId = userProfile?.shopperID;
+
+    // Fetch available tasks count and check-ins count (store-wide, don't
+    // depend on shopperID - see getActiveArrivals' docstring for why
+    // check-ins are store-wide rather than scoped to this shopper)
+    setTasksCountLoading(true);
+    const [tasksResult, checkInsResult] = await Promise.all([
+      getAvailableTasksCount(),
+      getActiveArrivalsCount(),
+    ]);
+    if (tasksResult.success) {
+      setAvailableTasksCount(tasksResult.count);
+    }
+    if (checkInsResult.success) {
+      setCheckInsCount(checkInsResult.count);
+    }
+    setTasksCountLoading(false);
+
+    // Shopper-specific data requires shopperID
+    if (!shopperId) {
+      setInitialLoadComplete(true);
+      return;
+    }
+
+    // Drop offs count is scoped to this shopper's own out-for-delivery orders
+    const dropOffsResult = await getOutForDeliveryCount(shopperId);
+    if (dropOffsResult.success) {
+      setDropOffsCount(dropOffsResult.count);
+    }
+
+    // Fetch shopper status from database
+    const statusResult = await getShopperStatus(shopperId);
+    if (statusResult.success && statusResult.data) {
+      const status = statusResult.data;
+      setShopperStatus(status.isAvailable ? 'available' : 'unavailable');
+
+      // If there's a current order, fetch it
+      if (status.currentOrderId) {
+        await fetchCurrentTask(shopperId);
+      } else {
+        setCurrentTask(null);
+      }
+    }
+
+    setInitialLoadComplete(true);
+  }, [userProfile?.shopperID]);
+
+  /**
    * Fetch shopper status, current task, and available tasks count when screen focuses
    *
    * WHY useFocusEffect instead of useEffect?
@@ -312,57 +371,22 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
    */
   useFocusEffect(
     useCallback(() => {
-      const shopperId = userProfile?.shopperID;
-
-      const fetchDashboardData = async (): Promise<void> => {
-        // Fetch available tasks count and check-ins count (store-wide, don't
-        // depend on shopperID - see getActiveArrivals' docstring for why
-        // check-ins are store-wide rather than scoped to this shopper)
-        setTasksCountLoading(true);
-        const [tasksResult, checkInsResult] = await Promise.all([
-          getAvailableTasksCount(),
-          getActiveArrivalsCount(),
-        ]);
-        if (tasksResult.success) {
-          setAvailableTasksCount(tasksResult.count);
-        }
-        if (checkInsResult.success) {
-          setCheckInsCount(checkInsResult.count);
-        }
-        setTasksCountLoading(false);
-
-        // Shopper-specific data requires shopperID
-        if (!shopperId) {
-          setInitialLoadComplete(true);
-          return;
-        }
-
-        // Drop offs count is scoped to this shopper's own out-for-delivery orders
-        const dropOffsResult = await getOutForDeliveryCount(shopperId);
-        if (dropOffsResult.success) {
-          setDropOffsCount(dropOffsResult.count);
-        }
-
-        // Fetch shopper status from database
-        const statusResult = await getShopperStatus(shopperId);
-        if (statusResult.success && statusResult.data) {
-          const status = statusResult.data;
-          setShopperStatus(status.isAvailable ? 'available' : 'unavailable');
-
-          // If there's a current order, fetch it
-          if (status.currentOrderId) {
-            await fetchCurrentTask(shopperId);
-          } else {
-            setCurrentTask(null);
-          }
-        }
-
-        setInitialLoadComplete(true);
-      };
-
       fetchDashboardData();
-    }, [userProfile?.shopperID])
+    }, [fetchDashboardData])
   );
+
+  /**
+   * Catch up if ShopperAssignmentContext's own new-assignment popup was
+   * accepted or declined while this screen was already focused - see
+   * assignmentResolvedSignal's declaration in ShopperAssignmentContext
+   * for why useFocusEffect alone misses this case (no navigation occurs,
+   * so no focus event fires).
+   */
+  useEffect(() => {
+    if (assignmentResolvedSignal > 0) {
+      fetchDashboardData();
+    }
+  }, [assignmentResolvedSignal, fetchDashboardData]);
 
   /**
    * Fetch the current assigned order and transform to TaskCardData
@@ -439,6 +463,9 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
             shopperName
           );
           setPendingAssignment({ order: result.assignedOrder, taskData });
+          // Stop ShopperAssignmentContext's poll from also noticing this
+          // same transition and popping its own duplicate modal ~8s later.
+          acknowledgeOwnAssignment(result.assignedOrder.$id);
         }
       } else {
         // Going unavailable releases any current task back to the queue

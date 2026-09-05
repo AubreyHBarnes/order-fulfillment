@@ -3,11 +3,16 @@
  * File: src/components/shopper/NewAssignmentModal.tsx
  *
  * PURPOSE:
- * Shown when a shopper toggles to Available and an order auto-assigns.
- * Lets them accept it or step back to Unavailable, instead of silently
- * being handed a task with no confirmation step - matches the
- * accept/decline pattern from gig-fulfillment apps like Whole
- * Foods/Amazon Flex.
+ * Shown whenever an order auto-assigns to this shopper while idle -
+ * either the instant result of toggling to Available (rendered from
+ * ShopperDashboardScreen's own local state), or an order that lands on
+ * an already-idle shopper asynchronously - a rush push, or a normal
+ * order placed while they're just sitting Available (rendered globally
+ * from ShopperAssignmentContext, which polls for this no matter which
+ * shopper screen is open). Lets them start it or step back to
+ * Unavailable, instead of silently being handed a task with no
+ * confirmation step - matches the accept/decline pattern from
+ * gig-fulfillment apps like Whole Foods/Amazon Flex.
  *
  * Follows the same Modal + Pressable backdrop pattern as
  * ShopperStatusDropdown (see that file for the fuller rationale on
@@ -91,7 +96,7 @@ const NewAssignmentModal: React.FC<NewAssignmentModalProps> = ({
               disabled={declineLoading}
               style={styles.button}
             >
-              Go Unavailable
+              Unavailable
             </Button>
             <Button
               mode="contained"
@@ -99,7 +104,7 @@ const NewAssignmentModal: React.FC<NewAssignmentModalProps> = ({
               disabled={declineLoading}
               style={styles.button}
             >
-              Accept
+              Start Order
             </Button>
           </View>
         </Pressable>

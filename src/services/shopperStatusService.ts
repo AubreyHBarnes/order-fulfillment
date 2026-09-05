@@ -467,15 +467,64 @@ export const assignOrderToShopper = async (
 // ============================================================
 
 /**
+ * Try to hand a newly placed order straight to a truly idle shopper
+ * (isAvailable && no currentOrderId) instead of leaving it to sit in the
+ * pending queue until someone's availability happens to change.
+ *
+ * WHY NEVER INTERRUPT A BUSY SHOPPER HERE?
+ * - This is the shared idle-handoff step used for every new order,
+ *   rush or not. Bumping a shopper's in-progress order to make room is
+ *   rush-specific urgency logic, not something a normal order should
+ *   ever trigger - that stays in handleRushOrderPlacement's fallback.
+ *
+ * @param order - The newly created order
+ * @returns true if the order was handed to an idle shopper
+ */
+const tryAssignToIdleShopper = async (order: Order): Promise<boolean> => {
+  const idleResult = await getNextAvailableShopper();
+  if (!idleResult.success || !idleResult.data) {
+    return false;
+  }
+
+  const idleShopper = idleResult.data;
+  const assignResult = await assignOrderInOrderService(order.$id, idleShopper.shopperID);
+  if (!assignResult.success) {
+    return false;
+  }
+
+  await databases.updateDocument<ShopperStatus>(
+    config.databaseId,
+    config.shopperStatusCollectionId,
+    idleShopper.$id,
+    {
+      currentOrderId: order.$id,
+      lastActiveTimeStamp: new Date().toISOString(),
+    }
+  );
+  return true;
+};
+
+/**
+ * Handle a newly placed normal (non-rush) order: try to hand it straight
+ * to an idle shopper immediately instead of waiting for some shopper's
+ * availability to change later.
+ *
+ * WHY NO INTERRUPT FALLBACK (unlike handleRushOrderPlacement)?
+ * - Bumping a busy shopper's in-progress order is urgency logic that
+ *   should stay reserved for rush orders. If no one's idle right now,
+ *   a normal order just falls back to sitting in the pending queue,
+ *   same as before this feature existed.
+ *
+ * @param order - The newly created order
+ */
+export const handleNewOrderPlacement = async (order: Order): Promise<void> => {
+  await tryAssignToIdleShopper(order);
+};
+
+/**
  * Handle a newly placed rush order: try to get it to a shopper right
  * away instead of leaving it to sit in the pending queue until someone's
  * availability happens to change.
- *
- * WHY SCOPED TO RUSH ORDERS ONLY (caller only invokes this for priority === 1)?
- * - Normal orders keep their existing behavior - assigned only when a
- *   shopper toggles Available via updateShopperAvailability. Proactively
- *   pushing every new order to an idle shopper the instant it's placed
- *   would be a broader behavior change than what was asked for here.
  *
  * ORDER OF PREFERENCE:
  * 1. A truly idle shopper - same hand-off used by the become-available
@@ -491,21 +540,8 @@ export const assignOrderToShopper = async (
  * @param order - The newly created rush order
  */
 export const handleRushOrderPlacement = async (order: Order): Promise<void> => {
-  const idleResult = await getNextAvailableShopper();
-  if (idleResult.success && idleResult.data) {
-    const idleShopper = idleResult.data;
-    const assignResult = await assignOrderInOrderService(order.$id, idleShopper.shopperID);
-    if (assignResult.success) {
-      await databases.updateDocument<ShopperStatus>(
-        config.databaseId,
-        config.shopperStatusCollectionId,
-        idleShopper.$id,
-        {
-          currentOrderId: order.$id,
-          lastActiveTimeStamp: new Date().toISOString(),
-        }
-      );
-    }
+  const assignedToIdle = await tryAssignToIdleShopper(order);
+  if (assignedToIdle) {
     return;
   }
 

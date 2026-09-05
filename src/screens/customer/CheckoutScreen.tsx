@@ -51,7 +51,7 @@ import {
   getAvailableTimeSlots,
   getRushReadyTime,
 } from '../../services/orderService';
-import { handleRushOrderPlacement } from '../../services/shopperStatusService';
+import { handleRushOrderPlacement, handleNewOrderPlacement } from '../../services/shopperStatusService';
 import { formatPrice } from '../../services/productService';
 import type { MainStackParamList, FulfillmentType, CreateOrderData } from '../../types';
 
@@ -535,19 +535,24 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
 
       if (result.success && result.data) {
         /**
-         * RUSH ORDER: try to get it to a shopper immediately
+         * TRY TO GET THE ORDER TO A SHOPPER IMMEDIATELY
          *
          * WHY FIRE-AND-FORGET (not awaited into the success flow)?
          * - This is a best-effort push, not something the customer's
          *   order confirmation should ever fail or wait on - if it
          *   errors, the order still exists and correctly falls back to
          *   sitting in the normal pending queue like any other order.
-         * - Scoped to priority === 1 only; normal orders keep their
-         *   existing assign-on-availability-toggle behavior unchanged.
+         * - Rush orders additionally fall back to interrupting a busy
+         *   shopper if no one's idle; normal orders only take the idle
+         *   handoff and otherwise sit in the pending queue as before.
          */
         if (result.data.priority === 1) {
           handleRushOrderPlacement(result.data).catch((error) => {
             console.error('Error handling rush order placement:', error);
+          });
+        } else {
+          handleNewOrderPlacement(result.data).catch((error) => {
+            console.error('Error handling new order placement:', error);
           });
         }
 
