@@ -53,6 +53,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAppTheme } from '../../theme';
 import { getAvailableTasks } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
+import { subscribeToOrders } from '../../services/realtimeService';
 import type { ShopperStackParamList, Order, UserProfile } from '../../types';
 
 // ============================================================
@@ -229,7 +230,12 @@ const AvailableTasksScreen: React.FC<AvailableTasksScreenProps> = ({
   // ============================================================
 
   /**
-   * Fetch tasks when screen focuses
+   * Fetch tasks when screen focuses, and keep the list live for as long
+   * as it stays focused via a realtime subscription (see
+   * docs/DECISIONS.md's realtime-migration entry) - filtered to
+   * pending/unassigned orders, since those are the only changes that
+   * could add or remove a row from this list. Torn down on blur, same
+   * as the fetch-on-focus behavior it's layered on top of.
    *
    * WHY useFocusEffect?
    * - Refresh data when returning from TaskDetail
@@ -239,6 +245,14 @@ const AvailableTasksScreen: React.FC<AvailableTasksScreenProps> = ({
   useFocusEffect(
     useCallback(() => {
       fetchTasks();
+
+      const unsubscribe = subscribeToOrders((event) => {
+        if (event.payload.status === 'pending' && !event.payload.shopperID) {
+          fetchTasks();
+        }
+      });
+
+      return unsubscribe;
     }, [fetchTasks])
   );
 

@@ -32,14 +32,14 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 - 🛍️ **Shopping Cart** - Persistent cart using AsyncStorage
 - 📦 **Checkout & Order Placement** - Choose between delivery or pickup fulfillment, place orders against the real backend
 - 📋 **Order History** - View past and in-progress orders, order detail screens
-- 🔔 **Real-time Tracking** - Live order status updates (not yet implemented)
+- 🔔 **Real-time Tracking** - Live order status updates via Appwrite Realtime - substitution proposals, ready-for-pickup notifications, and more all push live to the customer's screen (implemented)
 - 📱 **Pickup Notifications** - "I've arrived" service/UI exists (`arrivalService.ts`, `ArrivalNotificationCard`), end-to-end flow still in progress
 
 ### For Shoppers
 - 📋 **Order Dashboard & Available Tasks** - View and manage assigned/available orders (implemented)
 - 🔍 **Task Detail** - View and work an individual order's items (implemented)
 - 🛍️ **Shopping Workflow** - Claim an order, work a checklist (found / out-of-stock / propose substitute), customer approves substitutions live, mark ready for pickup (implemented)
-- 🔄 **Order Swap & Rush-Order Interrupt** - Swap onto a more urgent pending order, get interrupted for a rush order when every shopper is busy, non-blocking toast when a more urgent order becomes available - all via 8s polling (implemented)
+- 🔄 **Order Swap & Rush-Order Interrupt** - Swap onto a more urgent pending order, get interrupted for a rush order when every shopper is busy, non-blocking toast when a more urgent order becomes available - all pushed live via Appwrite Realtime (implemented)
 - ⚡ **Auto-Assignment** - Orders can be flagged `autoAssigned` on placement; this is a simple client-side flag today, not yet a ranking/routing algorithm or serverless function
 - 🚗 **Drop-offs / Customer Check-ins / Settings** - Screens exist but are static placeholders, not yet functional
 
@@ -47,7 +47,7 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 - 🔐 **Role-Based Authentication** - Separate customer and shopper access
 - 🎨 **Light/Dark Theme System** - `ThemeContext` with dedicated light/dark theme definitions
 - 📱 **Material Design 3** - Modern, responsive UI with React Native Paper
-- 🔄 **Real-time Synchronization** - WebSocket subscriptions via Appwrite Realtime (planned, not yet implemented)
+- 🔄 **Real-time Synchronization** - WebSocket subscriptions via Appwrite Realtime, replacing the earlier 8s-polling approach across every live-update feature (implemented - see `docs/DECISIONS.md`)
 
 ---
 
@@ -483,17 +483,17 @@ npm install
   - [x] Order dashboard, available tasks, task detail
   - [x] Item fulfillment / pick-items workflow - claim an order (auto-assign or manual), work a checklist (found / out-of-stock / propose substitute), customer approves substitutions, mark ready for pickup
   - [x] Accept/decline confirmation on auto-assignment
-  - [x] Rush-order interrupt (bumps the least-urgent in-progress order when every shopper is busy) with polling-driven live notification
+  - [x] Rush-order interrupt (bumps the least-urgent in-progress order when every shopper is busy) with live push notification
   - [x] Manual order swap onto a more urgent pending order, plus a non-blocking "more urgent order available" toast
   - [x] Customer arrival notifications - customer side only (manual "I've Arrived" + free-text parking spot)
   - [x] Shopper-side customer check-ins (store-wide waiting queue, hands off both the arrival and the order) and drop-offs (a new `out_for_delivery` order status, "Mark Delivered" action) - previously static placeholders. Shopper settings (dark/light/system theme, app version) also implemented.
+- [x] **Phase 5:** Real-time Features
+  - [x] Appwrite Realtime subscriptions replacing 8s polling across every live-update feature (shopper assignment/interrupt/urgent-order signals, customer ready-for-pickup notification, the substitution approval round trip, and live list/count updates on the shopper's task screens) - see `docs/DECISIONS.md` for the empirical verification behind this
 
 ### Planned 📋
-- [ ] **Phase 5:** Real-time Features
-  - Appwrite Realtime subscriptions (currently 8s polling instead - see `docs/DECISIONS.md`)
+- [ ] **Phase 6:** Remaining Backend & Polish
   - Auto-assignment serverless function (currently a client-side sorted query)
-  - Live order tracking
-- [ ] **Phase 6:** Polish & Production
+  - Live order tracking (a map/ETA view - order status itself already updates live via Realtime)
   - UI/UX improvements
   - Performance optimization
   - Comprehensive testing

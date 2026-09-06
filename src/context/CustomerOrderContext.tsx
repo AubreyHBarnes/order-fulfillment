@@ -11,10 +11,14 @@
  * ready-for-pickup notification" entry for the full scope this was
  * built from.
  *
- * WHY POLLING, NOT REALTIME?
- * Same reasoning as ShopperAssignmentContext - no realtime
- * infrastructure exists anywhere in this app yet. See that file and
- * docs/DECISIONS.md for the full writeup.
+ * WHY REALTIME, NOT POLLING?
+ * This used to be an 8s poll of getOrdersByCustomerId - see
+ * docs/DECISIONS.md's realtime-migration entry for why that was
+ * replaced with a live subscription (via subscribeToOrders in
+ * realtimeService.ts) once Realtime was empirically verified safe in
+ * this RN + Appwrite Cloud setup. The initial fetch-based baseline
+ * below is unchanged - it's still needed to seed the diff and to catch
+ * anything that happened before this session's socket connected.
  *
  * WHY A PROVIDER MOUNTED ABOVE THE WHOLE MainStack, NOT A PER-SCREEN HOOK?
  * Directly mirrors ShopperAssignmentContext's reasoning: the toast
@@ -40,10 +44,15 @@ import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getOrdersByCustomerId } from '../services/orderService';
+import {
+  subscribeToOrders,
+  onRealtimeReconnect,
+  onAppForeground,
+  isUpdateEvent,
+  type RealtimeEvent,
+} from '../services/realtimeService';
 import OrderReadyToast from '../components/customer/OrderReadyToast';
-import type { MainStackParamList, OrderStatus } from '../types';
-
-const POLL_INTERVAL_MS = 8000;
+import type { MainStackParamList, Order, OrderStatus } from '../types';
 
 /**
  * Only orders that could still transition matter for this poll -
@@ -82,7 +91,13 @@ export const CustomerOrderProvider: React.FC<CustomerOrderProviderProps> = ({
 
     if (!customerId) return;
 
-    const poll = async (): Promise<void> => {
+    /**
+     * Fetch-based baseline/reconcile - unchanged from the old poll()
+     * body, just no longer run on a timer. Runs once on mount, and
+     * again after any realtime reconnect or app-foreground event, since
+     * Appwrite Realtime doesn't replay events missed while disconnected.
+     */
+    const fetchAndReconcile = async (): Promise<void> => {
       const result = await getOrdersByCustomerId(customerId, ACTIVE_STATUSES);
       if (!result.success) return;
 
@@ -109,7 +124,7 @@ export const CustomerOrderProvider: React.FC<CustomerOrderProviderProps> = ({
       lastKnownStatusesRef.current = next;
 
       if (!hasBaselineRef.current) {
-        // First poll after mount just establishes the baseline - a
+        // First fetch after mount just establishes the baseline - a
         // customer opening the app to an order that's already been
         // ready for a while didn't just have that happen, there's
         // nothing to compare yet.
@@ -122,9 +137,49 @@ export const CustomerOrderProvider: React.FC<CustomerOrderProviderProps> = ({
       }
     };
 
-    poll();
-    const intervalId = setInterval(poll, POLL_INTERVAL_MS);
-    return () => clearInterval(intervalId);
+    /**
+     * Live path: one order's event at a time, applying the exact same
+     * "was it a different status before, now ready_for_pickup" diff as
+     * fetchAndReconcile above, just fed a single payload instead of a
+     * full list snapshot.
+     *
+     * WHY FILTER TO event.payload.customerID HERE?
+     * Realtime pushes every customer's order events on this channel -
+     * see realtimeService.ts's "no server-side filtering" note. This
+     * callback discards everyone else's orders before touching state.
+     */
+    const handleOrderEvent = (event: RealtimeEvent<Order>): void => {
+      const order = event.payload;
+      if (order.customerID !== customerId || !isUpdateEvent(event)) {
+        return;
+      }
+
+      const previousStatus = lastKnownStatusesRef.current[order.$id];
+      lastKnownStatusesRef.current = {
+        ...lastKnownStatusesRef.current,
+        [order.$id]: order.status,
+      };
+
+      if (
+        hasBaselineRef.current &&
+        order.status === 'ready_for_pickup' &&
+        previousStatus &&
+        previousStatus !== 'ready_for_pickup'
+      ) {
+        setReadyOrderId(order.$id);
+      }
+    };
+
+    const unsubscribe = subscribeToOrders(handleOrderEvent);
+    onRealtimeReconnect(fetchAndReconcile);
+    const stopWatchingForeground = onAppForeground(fetchAndReconcile);
+
+    fetchAndReconcile();
+
+    return () => {
+      unsubscribe();
+      stopWatchingForeground();
+    };
   }, [customerId]);
 
   const dismiss = (): void => {

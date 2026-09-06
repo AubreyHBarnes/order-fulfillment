@@ -92,6 +92,7 @@ import {
 import { getActiveArrivalsCount } from '../../services/arrivalService';
 import { getShopperStatus, updateShopperAvailability } from '../../services/shopperStatusService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
+import { subscribeToOrders, subscribeToShopperStatus } from '../../services/realtimeService';
 import ShopperStatusDropdown from '../../components/shopper/ShopperStatusDropdown';
 import CurrentTaskCard from '../../components/shopper/CurrentTaskCard';
 import QuickLinkCard from '../../components/shopper/QuickLinkCard';
@@ -369,10 +370,38 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
    * - Need fresh data each time they return
    * - Catches new orders and status changes
    */
+  /**
+   * Fetch on focus, plus a focus-scoped realtime subscription (see
+   * docs/DECISIONS.md's realtime-migration entry) so status, current
+   * task, and counts stay live while the screen is open - filtered to
+   * this shopper's own shopperStatus doc and own orders, re-running the
+   * same fetchDashboardData() used everywhere else on this screen.
+   */
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
-    }, [fetchDashboardData])
+
+      const shopperId = userProfile?.shopperID;
+      if (!shopperId) {
+        return undefined;
+      }
+
+      const unsubscribeStatus = subscribeToShopperStatus((event) => {
+        if (event.payload.shopperID === shopperId) {
+          fetchDashboardData();
+        }
+      });
+      const unsubscribeOrders = subscribeToOrders((event) => {
+        if (event.payload.shopperID === shopperId) {
+          fetchDashboardData();
+        }
+      });
+
+      return () => {
+        unsubscribeStatus();
+        unsubscribeOrders();
+      };
+    }, [fetchDashboardData, userProfile?.shopperID])
   );
 
   /**

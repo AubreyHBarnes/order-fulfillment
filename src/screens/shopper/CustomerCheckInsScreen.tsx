@@ -44,6 +44,7 @@ import { useAppTheme } from '../../theme';
 import { getActiveArrivals, updateArrivalStatus } from '../../services/arrivalService';
 import { getOrderById, completeOrder } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
+import { subscribeToCustomerArrivals } from '../../services/realtimeService';
 import type { CustomerArrival, Order, UserProfile } from '../../types';
 
 // ============================================================
@@ -151,9 +152,23 @@ const CustomerCheckInsScreen: React.FC = () => {
     }
   }, []);
 
+  /**
+   * Fetch on focus, plus a focus-scoped realtime subscription (see
+   * docs/DECISIONS.md's realtime-migration entry) so the store-wide
+   * waiting queue stays live while the screen is open - the first and
+   * only screen watching the customerArrivals channel.
+   */
   useFocusEffect(
     useCallback(() => {
       fetchCheckIns();
+
+      const unsubscribe = subscribeToCustomerArrivals((event) => {
+        if (event.payload.status === 'waiting') {
+          fetchCheckIns();
+        }
+      });
+
+      return unsubscribe;
     }, [fetchCheckIns])
   );
 

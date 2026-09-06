@@ -42,6 +42,7 @@ import { useAppTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { getOutForDeliveryOrdersByShopperId, completeOrder } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
+import { subscribeToOrders } from '../../services/realtimeService';
 import type { Order, UserProfile } from '../../types';
 
 // ============================================================
@@ -143,10 +144,28 @@ const DropOffsScreen: React.FC = () => {
     }
   }, [userProfile?.shopperID]);
 
+  /**
+   * Fetch on focus, plus a focus-scoped realtime subscription (see
+   * docs/DECISIONS.md's realtime-migration entry) so this shopper's own
+   * out-for-delivery list stays live while the screen is open.
+   */
   useFocusEffect(
     useCallback(() => {
       fetchDropOffs();
-    }, [fetchDropOffs])
+
+      if (!userProfile?.shopperID) {
+        return undefined;
+      }
+
+      const shopperID = userProfile.shopperID;
+      const unsubscribe = subscribeToOrders((event) => {
+        if (event.payload.shopperID === shopperID && event.payload.status === 'out_for_delivery') {
+          fetchDropOffs();
+        }
+      });
+
+      return unsubscribe;
+    }, [fetchDropOffs, userProfile?.shopperID])
   );
 
   const handleRefresh = (): void => {

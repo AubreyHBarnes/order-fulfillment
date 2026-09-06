@@ -37,19 +37,18 @@
  * after showing its own modal so this context's poll doesn't also flag
  * the same transition ~8s later as "new" and pop a duplicate.
  *
- * WHY POLLING, NOT APPWRITE REALTIME?
- * This app has zero realtime/live-update infrastructure anywhere -
- * everything else is fetch-on-focus. True push (Appwrite's Realtime
- * service, already an unused part of the installed `appwrite` SDK) was
- * considered, but the current Appwrite Cloud database-scoped channel
- * string format isn't documented anywhere in this installed SDK
- * version, and one of its code paths touches `window.localStorage`
- * without the guard the older client code has elsewhere - likely not a
- * global that exists in this React Native runtime. Polling reuses the
- * exact fetch (getShopperStatus) this app already calls elsewhere, with
- * zero new unknowns, at the cost of up-to-POLL_INTERVAL_MS latency
- * instead of instant push. See docs/DECISIONS.md for the full writeup;
- * Realtime is logged there as a deferred follow-up, not abandoned.
+ * WHY REALTIME, NOT POLLING?
+ * This used to be an 8s poll of getShopperStatus - see
+ * docs/DECISIONS.md's realtime-migration entry for the Phase 0 spike
+ * that verified Appwrite Realtime works correctly in this RN + Appwrite
+ * Cloud setup, superseding the earlier "unverified territory" concern.
+ * Two subscriptions replace the poll: subscribeToShopperStatus (own
+ * shopperID) drives the currentOrderId-changed detection below;
+ * subscribeToOrders backs the interrupt/new-assignment order lookups
+ * and re-triggers the urgent-order check whenever a relevant order
+ * changes. getNextOrderForAssignment() itself stays a genuine query
+ * (not reconstructed from events) since it needs whole-queue ordering,
+ * not a single document's state.
  *
  * WHY A CONTEXT, NOT A HOOK CALLED FROM EACH SCREEN?
  * The interrupt needs to be visible no matter which shopper screen is
@@ -73,12 +72,17 @@ import { Alert } from 'react-native';
 import { getShopperStatus, updateShopperAvailability } from '../services/shopperStatusService';
 import { getOrderById, getNextOrderForAssignment } from '../services/orderService';
 import { getUserProfileById, getCustomerDisplayName } from '../services/userService';
+import {
+  subscribeToOrders,
+  subscribeToShopperStatus,
+  onRealtimeReconnect,
+  onAppForeground,
+  type RealtimeEvent,
+} from '../services/realtimeService';
 import OrderInterruptedModal from '../components/shopper/OrderInterruptedModal';
 import UrgentOrderToast from '../components/shopper/UrgentOrderToast';
 import NewAssignmentModal from '../components/shopper/NewAssignmentModal';
-import type { Order, TaskCardData } from '../types';
-
-const POLL_INTERVAL_MS = 8000;
+import type { Order, ShopperStatus, TaskCardData } from '../types';
 
 const formatDueTime = (scheduledReadyTime: string): string =>
   new Date(scheduledReadyTime).toLocaleTimeString('en-US', {
@@ -256,71 +260,52 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
     lastUrgentCheckOrderIdRef.current = null;
     setPendingAssignment(null);
 
-    const poll = async (): Promise<void> => {
-      const statusResult = await getShopperStatus(shopperId);
-      if (!statusResult.success || !statusResult.data) {
+    /**
+     * NEW ASSIGNMENT WHILE IDLE
+     *
+     * Was idle (no order), has one now, and nothing's already showing
+     * for it (the dashboard's own instant path calls
+     * acknowledgeOwnAssignment to cover itself - see that function).
+     * This is what catches a rush push or a normal auto-assigned order
+     * landing on an already-Available shopper with no toggle involved.
+     */
+    const checkNewAssignment = async (currentOrderId: string): Promise<void> => {
+      if (pendingAssignmentRef.current) {
         return;
       }
-
-      const currentOrderId = statusResult.data.currentOrderId || null;
-
-      if (!hasBaselineRef.current) {
-        // First poll after mount just establishes the baseline - a
-        // shopper who already has no order when they open the app
-        // didn't just get interrupted, there's nothing to compare yet.
-        lastKnownOrderIdRef.current = currentOrderId;
-        hasBaselineRef.current = true;
-        return;
+      const newOrderResult = await getOrderById(currentOrderId);
+      if (newOrderResult.success && newOrderResult.data) {
+        const newOrder = newOrderResult.data;
+        const customerResult = await getUserProfileById(newOrder.customerID);
+        const customerName = getCustomerDisplayName(customerResult.data);
+        setPendingAssignment({ order: newOrder, taskData: buildTaskCardData(newOrder, customerName) });
       }
+    };
 
-      const previousOrderId = lastKnownOrderIdRef.current;
-      lastKnownOrderIdRef.current = currentOrderId;
-
-      /**
-       * NEW ASSIGNMENT WHILE IDLE
-       *
-       * Was idle (no order) last poll, has one now, and nothing's
-       * already showing for it (the dashboard's own instant path calls
-       * acknowledgeOwnAssignment to cover itself - see that function).
-       * This is what catches a rush push or a normal auto-assigned order
-       * landing on an already-Available shopper with no toggle involved.
-       */
-      if (!previousOrderId && currentOrderId && !pendingAssignmentRef.current) {
-        const newOrderResult = await getOrderById(currentOrderId);
-        if (newOrderResult.success && newOrderResult.data) {
-          const newOrder = newOrderResult.data;
-          const customerResult = await getUserProfileById(newOrder.customerID);
-          const customerName = getCustomerDisplayName(customerResult.data);
-          setPendingAssignment({ order: newOrder, taskData: buildTaskCardData(newOrder, customerName) });
-        }
+    /**
+     * Their order changed underneath them - confirm it was actually an
+     * interrupt (interruptedAt set) rather than assuming, since a
+     * completed/cancelled order also clears currentOrderId.
+     */
+    const checkInterrupt = async (previousOrderId: string): Promise<void> => {
+      const orderResult = await getOrderById(previousOrderId);
+      if (orderResult.success && orderResult.data?.interruptedAt) {
+        setInterruptedOrder(orderResult.data);
       }
+    };
 
-      if (previousOrderId && previousOrderId !== currentOrderId) {
-        // Their order changed underneath them - confirm it was actually
-        // an interrupt (interruptedAt set) rather than assuming, since a
-        // completed/cancelled order also clears currentOrderId.
-        const orderResult = await getOrderById(previousOrderId);
-        if (orderResult.success && orderResult.data?.interruptedAt) {
-          setInterruptedOrder(orderResult.data);
-        }
-      }
-
-      /**
-       * URGENT ORDER CHECK
-       *
-       * Only meaningful while the shopper is actively working an order -
-       * compares the single most urgent pending order in the queue
-       * (getNextOrderForAssignment, already sorted by scheduledReadyTime
-       * ascending) against the shopper's own current order's due time.
-       * A non-blocking toast, not the OrderInterruptedModal treatment -
-       * nothing has happened to THIS shopper's order, they just might
-       * not know something more urgent is sitting unclaimed.
-       */
-      if (!currentOrderId) {
-        lastUrgentCheckOrderIdRef.current = null;
-        return;
-      }
-
+    /**
+     * URGENT ORDER CHECK
+     *
+     * Only meaningful while the shopper is actively working an order -
+     * compares the single most urgent pending order in the queue
+     * (getNextOrderForAssignment, already sorted by scheduledReadyTime
+     * ascending) against the shopper's own current order's due time.
+     * A non-blocking toast, not the OrderInterruptedModal treatment -
+     * nothing has happened to THIS shopper's order, they just might
+     * not know something more urgent is sitting unclaimed.
+     */
+    const checkUrgentOrder = async (currentOrderId: string): Promise<void> => {
       const currentOrderResult = await getOrderById(currentOrderId);
       const currentOrder = currentOrderResult.success ? currentOrderResult.data : null;
       if (!currentOrder || (currentOrder.status !== 'assigned' && currentOrder.status !== 'shopping')) {
@@ -347,9 +332,118 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       }
     };
 
-    poll();
-    const intervalId = setInterval(poll, POLL_INTERVAL_MS);
-    return () => clearInterval(intervalId);
+    /**
+     * Fetch-based baseline/reconcile - unchanged from the old poll()
+     * body, just no longer run on a timer. Runs once on mount, and
+     * again after any realtime reconnect or app-foreground event, since
+     * Appwrite Realtime doesn't replay events missed while disconnected.
+     */
+    const fetchAndReconcile = async (): Promise<void> => {
+      const statusResult = await getShopperStatus(shopperId);
+      if (!statusResult.success || !statusResult.data) {
+        return;
+      }
+
+      const currentOrderId = statusResult.data.currentOrderId || null;
+
+      if (!hasBaselineRef.current) {
+        // First fetch after mount just establishes the baseline - a
+        // shopper who already has no order when they open the app
+        // didn't just get interrupted, there's nothing to compare yet.
+        lastKnownOrderIdRef.current = currentOrderId;
+        hasBaselineRef.current = true;
+        return;
+      }
+
+      const previousOrderId = lastKnownOrderIdRef.current;
+      lastKnownOrderIdRef.current = currentOrderId;
+
+      if (!previousOrderId && currentOrderId) {
+        await checkNewAssignment(currentOrderId);
+      }
+
+      if (previousOrderId && previousOrderId !== currentOrderId) {
+        await checkInterrupt(previousOrderId);
+      }
+
+      if (!currentOrderId) {
+        lastUrgentCheckOrderIdRef.current = null;
+        return;
+      }
+
+      await checkUrgentOrder(currentOrderId);
+    };
+
+    /**
+     * Live path: one shopperStatus event at a time, applying the same
+     * "currentOrderId changed" diff as fetchAndReconcile above. Guarded
+     * on hasBaselineRef so an event that arrives before the initial
+     * fetchAndReconcile() baseline completes doesn't get treated as a
+     * transition from nothing.
+     */
+    const handleShopperStatusEvent = (event: RealtimeEvent<ShopperStatus>): void => {
+      const status = event.payload;
+      if (status.shopperID !== shopperId || !hasBaselineRef.current) {
+        return;
+      }
+
+      const currentOrderId = status.currentOrderId || null;
+      const previousOrderId = lastKnownOrderIdRef.current;
+      if (previousOrderId === currentOrderId) {
+        return;
+      }
+      lastKnownOrderIdRef.current = currentOrderId;
+
+      if (!previousOrderId && currentOrderId) {
+        checkNewAssignment(currentOrderId);
+      }
+
+      if (previousOrderId && previousOrderId !== currentOrderId) {
+        checkInterrupt(previousOrderId);
+      }
+
+      if (currentOrderId) {
+        checkUrgentOrder(currentOrderId);
+      } else {
+        lastUrgentCheckOrderIdRef.current = null;
+      }
+    };
+
+    /**
+     * Live path for the urgent-order comparison: re-runs
+     * getNextOrderForAssignment() (a genuine query, not reconstructed
+     * from this event) whenever an order event could plausibly change
+     * who the most-urgent-pending candidate is - either a pending,
+     * unassigned order changing (entering/leaving contention) or the
+     * shopper's own current order itself changing (e.g. its due time,
+     * though that's rare in practice).
+     */
+    const handleOrderEvent = (event: RealtimeEvent<Order>): void => {
+      const order = event.payload;
+      const currentOrderId = lastKnownOrderIdRef.current;
+      if (!currentOrderId || !hasBaselineRef.current) {
+        return;
+      }
+
+      const isCandidateChange = order.status === 'pending' && !order.shopperID;
+      const isOwnOrder = order.$id === currentOrderId;
+      if (isCandidateChange || isOwnOrder) {
+        checkUrgentOrder(currentOrderId);
+      }
+    };
+
+    const unsubscribeStatus = subscribeToShopperStatus(handleShopperStatusEvent);
+    const unsubscribeOrders = subscribeToOrders(handleOrderEvent);
+    onRealtimeReconnect(fetchAndReconcile);
+    const stopWatchingForeground = onAppForeground(fetchAndReconcile);
+
+    fetchAndReconcile();
+
+    return () => {
+      unsubscribeStatus();
+      unsubscribeOrders();
+      stopWatchingForeground();
+    };
   }, [shopperId]);
 
   const dismissInterrupt = (): void => {

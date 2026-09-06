@@ -10,11 +10,13 @@
  *
  * SUBSTITUTION FLOW:
  * Proposing a substitute writes a 'pending' entry to the order's
- * itemIssues field. There's no realtime push in this app (see
- * docs/DECISIONS.md, "Pull-based data, not realtime") - so while any
- * substitution is pending, this screen polls the order every 8 seconds
- * (same interval as ShopperAssignmentContext) until the customer
- * approves or rejects it via OrderDetailScreen's matching poll.
+ * itemIssues field. While any substitution is pending, this screen
+ * subscribes to this one order's realtime channel (see
+ * docs/DECISIONS.md's realtime-migration entry) until the customer
+ * approves or rejects it via OrderDetailScreen's matching subscription.
+ * Not registered for reconnect reconciliation (unlike the two global
+ * contexts) - this screen's own mount-time load() already covers that,
+ * and it mounts/unmounts per visit rather than once per session.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -24,6 +26,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppTheme } from '../../theme';
 import { getOrderById, updatePickedItems, updateItemIssues } from '../../services/orderService';
 import { getProductById } from '../../services/productService';
+import { subscribeToOrders, isUpdateEvent } from '../../services/realtimeService';
 import {
   parseItemsString,
   parsePickedItemsString,
@@ -35,8 +38,6 @@ import {
 import ItemChecklistItem from '../../components/shopper/ItemChecklistItem';
 import SubstitutionPickerModal from '../../components/shopper/SubstitutionPickerModal';
 import type { ShopperStackParamList, Product } from '../../types';
-
-const POLL_INTERVAL_MS = 8000;
 
 type ShoppingScreenProps = NativeStackScreenProps<ShopperStackParamList, 'Shopping'>;
 
@@ -129,22 +130,21 @@ const ShoppingScreen: React.FC<ShoppingScreenProps> = ({ route, navigation }) =>
   }, [orderId]);
 
   // ============================================================
-  // POLL WHILE A SUBSTITUTION IS PENDING CUSTOMER APPROVAL
+  // LIVE UPDATE WHILE A SUBSTITUTION IS PENDING CUSTOMER APPROVAL
   // ============================================================
 
   useEffect(() => {
     const hasPending = issues.some((issue) => issue.kind === 'sub' && issue.status === 'pending');
     if (!hasPending) return;
 
-    const poll = async (): Promise<void> => {
-      const result = await getOrderById(orderId);
-      if (result.success && result.data) {
-        setIssues(parseItemIssues(result.data.itemIssues ?? ''));
+    const unsubscribe = subscribeToOrders((event) => {
+      if (event.payload.$id !== orderId || !isUpdateEvent(event)) {
+        return;
       }
-    };
+      setIssues(parseItemIssues(event.payload.itemIssues ?? ''));
+    });
 
-    const intervalId = setInterval(poll, POLL_INTERVAL_MS);
-    return () => clearInterval(intervalId);
+    return unsubscribe;
   }, [issues, orderId]);
 
   // ============================================================

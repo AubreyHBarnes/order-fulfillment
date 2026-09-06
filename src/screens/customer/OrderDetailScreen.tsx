@@ -35,14 +35,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../theme';
 import { getOrderById, cancelOrder, respondToSubstitution } from '../../services/orderService';
 import { getProductById, formatPrice } from '../../services/productService';
+import { subscribeToOrders, isUpdateEvent } from '../../services/realtimeService';
 import { parseItemIssues } from '../../utils/orderItems';
 import OrderTimeline from '../../components/customer/OrderTimeline';
 import OrderStatusBadge from '../../components/customer/OrderStatusBadge';
 import ArrivalNotificationCard from '../../components/customer/ArrivalNotificationCard';
 import SubstitutionApprovalCard from '../../components/customer/SubstitutionApprovalCard';
 import type { MainStackParamList, Order, Product } from '../../types';
-
-const ORDER_POLL_INTERVAL_MS = 8000;
 
 type OrderDetailScreenProps = NativeStackScreenProps<
   MainStackParamList,
@@ -164,21 +163,23 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
   }, [loadOrder]);
 
   /**
-   * While the order hasn't reached a settled state yet, poll for updates
-   * so a new substitution proposal, an out-of-stock marker, or the order
-   * becoming ready for pickup all show up without the customer having to
-   * leave and re-open this screen. Same 8s interval as the shopper-side
-   * polling (ShoppingScreen, ShopperAssignmentContext) - there's no
-   * realtime push in this app, see docs/DECISIONS.md.
+   * While the order hasn't reached a settled state yet, subscribe for
+   * live updates so a new substitution proposal, an out-of-stock marker,
+   * or the order becoming ready for pickup all show up without the
+   * customer having to leave and re-open this screen. See
+   * docs/DECISIONS.md's realtime-migration entry. Not registered for
+   * reconnect reconciliation (unlike the two global contexts) - this
+   * screen's own mount-time loadOrder() already covers that, and it
+   * mounts/unmounts per visit rather than once per session.
    *
    * WHY pending/assigned/shopping, NOT JUST 'shopping'?
    * A customer who opens this screen before shopping has even started
    * would otherwise never see it move to 'shopping', which meant this
-   * poll could never arm itself to then catch the later shopping ->
-   * ready_for_pickup transition either - it only ever started for a
-   * customer who happened to reopen the screen after shopping had
-   * already begun. Once ready_for_pickup/completed/cancelled, there's
-   * nothing left on this screen worth polling for.
+   * subscription could never arm itself to then catch the later
+   * shopping -> ready_for_pickup transition either - it only ever
+   * started for a customer who happened to reopen the screen after
+   * shopping had already begun. Once ready_for_pickup/completed/
+   * cancelled, there's nothing left on this screen worth watching for.
    */
   useEffect(() => {
     if (
@@ -189,12 +190,15 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
       return;
     }
 
-    const intervalId = setInterval(() => {
+    const unsubscribe = subscribeToOrders((event) => {
+      if (event.payload.$id !== orderId || !isUpdateEvent(event)) {
+        return;
+      }
       loadOrder();
-    }, ORDER_POLL_INTERVAL_MS);
+    });
 
-    return () => clearInterval(intervalId);
-  }, [order?.status, loadOrder]);
+    return unsubscribe;
+  }, [order?.status, orderId, loadOrder]);
 
   const itemIssues = order ? parseItemIssues(order.itemIssues ?? '') : [];
   const isPendingSubstitution = (
