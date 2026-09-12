@@ -191,8 +191,18 @@ export interface OrderListResponse {
  * - vehicleDescription: Optional - helps staff find the customer
  * - parkingSpot: Optional - specific location info for curbside
  * - notes: Optional - any special instructions
+ *
+ * WHY THESE FOUR VALUES SPECIFICALLY?
+ * Matches the live Appwrite enum exactly (confirmed via the REST schema
+ * read documented in docs/DECISIONS.md's "CustomerArrivals status enum
+ * drift" entry) - this type used to include 'acknowledged', which the
+ * live enum has never had. The app only ever writes 'waiting' (on
+ * arrival) and 'completed' (on hand-off) today - 'notified'/'in_progress'
+ * exist on the schema for a future staff-acknowledgment step but have no
+ * writer yet, same "flagged, not built" status as the other deferred
+ * arrival-flow gaps in DECISIONS.md.
  */
-export type ArrivalStatus = 'waiting' | 'acknowledged' | 'completed';
+export type ArrivalStatus = 'waiting' | 'notified' | 'in_progress' | 'completed';
 
 /**
  * WHY arrivedAt/notifiedShopperAt, and parkingSpot as a number?

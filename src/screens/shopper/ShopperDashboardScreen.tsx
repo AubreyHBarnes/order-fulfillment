@@ -228,7 +228,6 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
    */
   const [shopperStatus, setShopperStatus] = useState<ShopperAvailability>('unavailable');
   const [statusLoading, setStatusLoading] = useState(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   /**
    * CURRENT TASK STATE
@@ -306,6 +305,36 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
   // ============================================================
 
   /**
+   * Fetch the current assigned order and transform to TaskCardData
+   *
+   * WHY useCallback HERE?
+   * fetchDashboardData (below) calls this and lists it as a dependency -
+   * without memoizing it, fetchDashboardData would need a new identity
+   * every render (defeating its own useCallback) to satisfy
+   * react-hooks/exhaustive-deps.
+   */
+  const fetchCurrentTask = useCallback(async (shopperId: string): Promise<void> => {
+    const orderResult = await getCurrentAssignedOrder(shopperId);
+    if (orderResult.success && orderResult.data) {
+      const order = orderResult.data;
+
+      // Fetch customer profile for name
+      const customerResult = await getUserProfileById(order.customerID);
+      const customerName = getCustomerDisplayName(customerResult.data);
+
+      // Get shopper's name from current user profile
+      const shopperName = userProfile
+        ? `${userProfile.firstName} ${userProfile.lastName}`
+        : 'Unknown Shopper';
+
+      const taskData = transformOrderToTaskCard(order, customerName, shopperName);
+      setCurrentTask(taskData);
+    } else {
+      setCurrentTask(null);
+    }
+  }, [userProfile]);
+
+  /**
    * Fetch shopper status, current task, and available tasks count.
    *
    * WHY EXTRACTED TO COMPONENT SCOPE INSTEAD OF INLINE IN useFocusEffect?
@@ -335,7 +364,6 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
 
     // Shopper-specific data requires shopperID
     if (!shopperId) {
-      setInitialLoadComplete(true);
       return;
     }
 
@@ -358,9 +386,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
         setCurrentTask(null);
       }
     }
-
-    setInitialLoadComplete(true);
-  }, [userProfile?.shopperID]);
+  }, [userProfile?.shopperID, fetchCurrentTask]);
 
   /**
    * Fetch shopper status, current task, and available tasks count when screen focuses
@@ -416,30 +442,6 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
       fetchDashboardData();
     }
   }, [assignmentResolvedSignal, fetchDashboardData]);
-
-  /**
-   * Fetch the current assigned order and transform to TaskCardData
-   */
-  const fetchCurrentTask = async (shopperId: string): Promise<void> => {
-    const orderResult = await getCurrentAssignedOrder(shopperId);
-    if (orderResult.success && orderResult.data) {
-      const order = orderResult.data;
-
-      // Fetch customer profile for name
-      const customerResult = await getUserProfileById(order.customerID);
-      const customerName = getCustomerDisplayName(customerResult.data);
-
-      // Get shopper's name from current user profile
-      const shopperName = userProfile
-        ? `${userProfile.firstName} ${userProfile.lastName}`
-        : 'Unknown Shopper';
-
-      const taskData = transformOrderToTaskCard(order, customerName, shopperName);
-      setCurrentTask(taskData);
-    } else {
-      setCurrentTask(null);
-    }
-  };
 
   // ============================================================
   // HANDLERS

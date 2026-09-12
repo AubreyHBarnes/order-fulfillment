@@ -33,7 +33,7 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 - 📦 **Checkout & Order Placement** - Choose between delivery or pickup fulfillment, place orders against the real backend
 - 📋 **Order History** - View past and in-progress orders, order detail screens
 - 🔔 **Real-time Tracking** - Live order status updates via Appwrite Realtime - substitution proposals, ready-for-pickup notifications, and more all push live to the customer's screen (implemented)
-- 📱 **Pickup Notifications** - "I've arrived" service/UI exists (`arrivalService.ts`, `ArrivalNotificationCard`), end-to-end flow still in progress
+- 📱 **Pickup Notifications** - Customer taps "I've Arrived" (`arrivalService.ts`, `ArrivalNotificationCard`); a shopper sees it store-wide in Customer Check-ins and hands off the order, completing both the arrival and the order together (implemented, verified end-to-end)
 
 ### For Shoppers
 - 📋 **Order Dashboard & Available Tasks** - View and manage assigned/available orders (implemented)
@@ -224,16 +224,20 @@ Create these 7 collections with the specified attributes:
 **5. CustomerArrivals Collection**
 | Attribute | Type | Size | Required | Default |
 |-----------|------|------|----------|---------|
-| orderId | String | 255 | Yes | - |
-| customerId | String | 255 | Yes | - |
+| orderID | String | 255 | Yes | - |
+| customerID | String | 255 | Yes | - |
 | arrivedAt | DateTime | - | Yes | - |
-| parkingSpot | String | 20 | No | - |
-| notifiedShopperAt | DateTime | - | No | - |
-| status | Enum | - | Yes | waiting |
+| notifiedShopperAt | DateTime | - | Yes | - |
+| parkingSpot | Integer (1-5) | - | Yes | - |
+| status | Enum | - | No | - |
+| vehicleDescription | String | 255 | No | - |
+| notes | String | 255 | No | - |
 
 *Enum values for `status`: waiting, notified, in_progress, completed*
 
 **Permissions:** Any - Create, Read, Update
+
+> This table reflects the live schema, confirmed via a direct REST read of the collection. It previously listed `orderId`/`customerId` (wrong casing), a free-text `parkingSpot`, and no `vehicleDescription`/`notes` — see "CustomerArrivals schema drift" in `docs/DECISIONS.md` for the full story of how this collection's schema and the app code drifted apart, and in what order each mismatch was found and fixed.
 
 ---
 

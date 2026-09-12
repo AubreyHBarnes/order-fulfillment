@@ -41,7 +41,7 @@ type ShopperSettingsScreenProps = NativeStackScreenProps<
   'ShopperSettings'
 >;
 
-const ShopperSettingsScreen: React.FC<ShopperSettingsScreenProps> = ({ navigation }) => {
+const ShopperSettingsScreen: React.FC<ShopperSettingsScreenProps> = () => {
   const theme = useAppTheme();
   const { logout, userProfile } = useAuth();
   const { themeMode, setThemeMode } = useThemeMode();

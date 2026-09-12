@@ -65,7 +65,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { StyleSheet, Alert } from 'react-native';
 import { Card, Text, Button, TextInput, ActivityIndicator } from 'react-native-paper';
 import { useAppTheme } from '../../theme';
 import {

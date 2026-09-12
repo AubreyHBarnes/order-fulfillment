@@ -33,7 +33,6 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   lightTheme,
-  darkTheme,
   getThemeFromMode,
   ThemeMode,
   AppTheme,

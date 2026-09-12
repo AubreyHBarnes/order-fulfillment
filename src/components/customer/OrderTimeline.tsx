@@ -11,13 +11,6 @@ import { Text } from 'react-native-paper';
 import { useAppTheme } from '../../theme';
 import type { OrderTimelineProps, OrderStatus } from '../../types';
 
-interface TimelineStep {
-  status: OrderStatus;
-  label: string;
-  timestamp?: string;
-  detail?: string;
-}
-
 /**
  * Order of statuses for timeline display, branching by fulfillment type -
  * pickup orders pass through 'ready_for_pickup', delivery orders through

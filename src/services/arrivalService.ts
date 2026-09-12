@@ -54,6 +54,7 @@ import type {
   CreateArrivalData,
   ArrivalResponse,
   ArrivalListResponse,
+  ArrivalStatus,
 } from '../types';
 
 // ============================================================
@@ -391,11 +392,14 @@ export const getActiveArrivalsCount = async (): Promise<{
  * the status. This is primarily for the staff/shopper side of the app,
  * but we include it here for completeness.
  *
- * STATUS FLOW:
- * 'waiting' → 'acknowledged' → 'completed'
+ * STATUS FLOW (matches the live Appwrite enum - see ArrivalStatus in
+ * types/index.ts and docs/DECISIONS.md's status-enum-drift entry):
+ * 'waiting' → ['notified' | 'in_progress'] → 'completed'
  *
  * - waiting: Customer just arrived, staff not yet notified
- * - acknowledged: Staff has seen the notification
+ * - notified / in_progress: reserved for a future staff-acknowledgment
+ *   step - no code path writes these today, only 'waiting' and
+ *   'completed' are currently used
  * - completed: Order has been handed to customer
  *
  * @param arrivalId - The arrival document ID to update
@@ -404,16 +408,13 @@ export const getActiveArrivalsCount = async (): Promise<{
  *
  * EXAMPLE USAGE (staff app):
  * ```typescript
- * // Staff taps "On my way" button
- * await updateArrivalStatus(arrival.$id, 'acknowledged');
- *
  * // Staff completes handoff
  * await updateArrivalStatus(arrival.$id, 'completed');
  * ```
  */
 export const updateArrivalStatus = async (
   arrivalId: string,
-  status: 'waiting' | 'acknowledged' | 'completed'
+  status: ArrivalStatus
 ): Promise<ArrivalResponse> => {
   try {
     /**
