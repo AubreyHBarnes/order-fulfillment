@@ -224,6 +224,20 @@ export interface CustomerArrival extends Models.Document {
   vehicleDescription?: string;
   parkingSpot?: number;
   notes?: string;
+  /**
+   * The shopper who most recently declined ArrivalNotificationModal for
+   * this arrival, if any - lets the auto-assignment Function's
+   * reassignStuckArrival() exclude them from the next idle-shopper
+   * search. Without this, a shopper who declines while otherwise idle
+   * (isAvailable stays true - decline isn't a full "go unavailable," see
+   * docs/DECISIONS.md's arrival hand-off entry) could immediately get
+   * the same arrival handed straight back to them. Only remembers the
+   * single most recent decliner, not a full history - if a second
+   * shopper also declines, the first becomes eligible again; a
+   * deliberate scope limit, not an oversight, for a case unlikely to
+   * chain more than once in practice.
+   */
+  declinedByShopperID?: string;
 }
 
 /**
@@ -904,6 +918,62 @@ export interface OrderReadyToastProps {
   shortOrderId: string | null;
   onDismiss: () => void;
   onView: () => void;
+}
+
+/**
+ * Enough info to render ArrivalNotificationModal - resolved by
+ * ShopperAssignmentContext from a CustomerArrival + its order + the
+ * customer's profile, the same enrichment shape checkNewAssignment
+ * already does for NewAssignmentModal's task data.
+ */
+export interface ArrivalNotificationData {
+  arrivalId: string;
+  orderId: string;
+  customerName: string;
+  shortOrderId: string;
+  vehicleDescription?: string;
+  notes?: string;
+}
+
+/**
+ * ArrivalNotificationModal component props
+ *
+ * WHY A MODAL HERE, NOT A TOAST (reversing the original build of this
+ * feature)?
+ * A customer arrival is addressed to *one specific shopper* - whoever
+ * shopped the order (Order.shopperID) - not store-wide the way Customer
+ * Check-ins' queue itself is. That's a deliberate correction: an
+ * arrival was initially treated the same as an unclaimed order (shared
+ * queue, non-blocking toast), but it's actually the same shape as an
+ * assignment - one shopper, needs an explicit accept/decline, with a
+ * consequence for not responding. See docs/DECISIONS.md's arrival
+ * hand-off entry for the full design (the timeout-and-reassignment
+ * mechanism this modal's onDecline path feeds into).
+ *
+ * WHY MIRROR NewAssignmentModalProps' shape (visible + one data object +
+ * onAccept/onDecline/declineLoading) INSTEAD OF REUSING IT DIRECTLY?
+ * Different domain object (an arrival, not a task), different wording
+ * ("Hand Off Order" vs "Start Order"), and TaskCardData carries fields
+ * (pickedItemCount, fulfillmentType, isRush, status) that don't apply
+ * here - matches this codebase's existing convention of one
+ * purpose-built component per notification type rather than one
+ * generic modal overloaded for every case.
+ *
+ * WHY DOES onDecline READ AS "Unavailable" (SAME AS NewAssignmentModal),
+ * NOT A SOFTER "NOT ME"?
+ * Matches this app's existing precedent exactly: NewAssignmentModal's
+ * decline button is already labeled "Unavailable" and already marks the
+ * shopper unavailable, not just a no-penalty pass. Declining an arrival
+ * hand-off does the same - it's the same "I'm not the one to do this
+ * right now" signal, and this codebase already treats that as going
+ * unavailable rather than inventing a separate, softer decline concept.
+ */
+export interface ArrivalNotificationModalProps {
+  visible: boolean;
+  arrival: ArrivalNotificationData | null;
+  onAccept: () => void;
+  onDecline: () => void;
+  declineLoading?: boolean;
 }
 
 /**

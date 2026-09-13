@@ -19,11 +19,22 @@
  * 4. CUSTOMER receives notification that order is ready
  * 5. CUSTOMER drives to store
  * 6. CUSTOMER opens OrderDetailScreen and taps "I've Arrived" ← THIS SERVICE
- * 7. STAFF sees arrival notification and brings order to customer
- * 8. STAFF marks arrival as 'completed'
+ * 7. The SHOPPER who shopped the order (Order.shopperID) gets an
+ *    ArrivalNotificationModal - not store-wide, addressed to them
+ *    specifically. If they don't respond within a timeout, they're
+ *    marked unavailable and the next idle shopper gets the modal
+ *    instead (Order.shopperID transfers to whoever accepts) - see
+ *    functions/auto-assignment and docs/DECISIONS.md's arrival hand-off
+ *    entry for the full mechanism. Any on-duty shopper can also just
+ *    open Customer Check-ins directly regardless of who's currently
+ *    targeted - this is the fallback path, not the only path.
+ * 8. Accepting shopper marks the arrival 'in_progress', then brings the
+ *    order out and marks it 'completed' from Customer Check-ins'
+ *    "Hand Off Order" action
  * 9. Order status changes to 'completed'
  *
- * This service handles step 6 - recording the customer's arrival.
+ * This service handles step 6 - recording the customer's arrival - plus
+ * the queries Customer Check-ins and the arrival-detection UI need.
  *
  * ============================================================
  * WHY A SEPARATE SERVICE FILE?
@@ -208,9 +219,17 @@ export const recordArrival = async (
  * QUERY EXPLANATION:
  * We query for arrivals where:
  * - orderID matches the current order
- * - status is 'waiting' (not yet completed)
+ * - status is 'waiting' or 'in_progress' (not yet completed)
  *
- * WHY CHECK STATUS = 'waiting'?
+ * WHY 'waiting' OR 'in_progress', NOT JUST 'waiting'?
+ * 'in_progress' means the assigned shopper has acknowledged
+ * ArrivalNotificationModal and is bringing the order out - the customer
+ * hasn't been handed anything yet, so this is still very much an active
+ * arrival, not a completed one. Excluding it here would make the
+ * customer's "I've Arrived" button reappear the moment a shopper
+ * accepts, inviting a duplicate arrival record for the same visit.
+ *
+ * WHY EXCLUDE 'completed'?
  * If a previous arrival was 'completed', the customer might have left
  * and come back. We only care about active/pending arrivals.
  *
@@ -253,7 +272,7 @@ export const getActiveArrivalForOrder = async (
       config.customerArrivalsCollectionId,
       [
         Query.equal('orderID', orderID),
-        Query.equal('status', 'waiting'),
+        Query.equal('status', ['waiting', 'in_progress']),
         Query.orderDesc('arrivedAt'),
         Query.limit(1),
       ]
@@ -299,20 +318,29 @@ export const getActiveArrivalForOrder = async (
 // ============================================================
 
 /**
- * Get every customer currently waiting for pickup, across all orders
+ * Get every customer currently waiting for (or being brought) pickup,
+ * across all orders
  *
- * WHY STORE-WIDE, NOT SCOPED TO ONE SHOPPER?
- * CustomerArrival has no shopper field at all - an arrival is tied to
- * an order/customer, not to whichever shopper happened to shop it. This
- * matches how a real curbside desk works: whichever shopper is free
- * handles the next waiting customer, not just the one who shopped their
- * order. Used by CustomerCheckInsScreen.
+ * WHY LISTED HERE (CustomerCheckInsScreen) EVEN THOUGH EACH ARRIVAL IS
+ * NOW ADDRESSED TO ONE SPECIFIC SHOPPER (see ArrivalNotificationModal)?
+ * The targeted modal/timeout/reassignment mechanism is how a shopper
+ * *finds out*; this screen is the fallback any on-duty shopper can
+ * still use to look up and complete a hand-off directly (matches how a
+ * real curbside desk works - whoever's free can still walk over and
+ * help, notification or not). CustomerArrival itself still has no
+ * shopper field, so this stays store-wide/unscoped by design.
+ *
+ * WHY 'waiting' OR 'in_progress'?
+ * Same reasoning as getActiveArrivalForOrder above - an arrival a
+ * shopper has already accepted (status 'in_progress') is still an
+ * active, un-handed-off pickup, not a completed one; it needs to stay
+ * visible here so "Hand Off Order" is still reachable for it.
  *
  * WHY orderAsc('arrivedAt')?
  * FIFO - whoever arrived first should be helped first, same fairness
  * reasoning as getAvailableTasks' oldest-first ordering.
  *
- * @returns ArrivalListResponse with all 'waiting' arrivals, oldest first
+ * @returns ArrivalListResponse with all active arrivals, oldest first
  */
 export const getActiveArrivals = async (): Promise<ArrivalListResponse> => {
   try {
@@ -320,7 +348,7 @@ export const getActiveArrivals = async (): Promise<ArrivalListResponse> => {
       config.databaseId,
       config.customerArrivalsCollectionId,
       [
-        Query.equal('status', 'waiting'),
+        Query.equal('status', ['waiting', 'in_progress']),
         Query.orderAsc('arrivedAt'),
       ]
     );
@@ -358,7 +386,7 @@ export const getActiveArrivalsCount = async (): Promise<{
       config.databaseId,
       config.customerArrivalsCollectionId,
       [
-        Query.equal('status', 'waiting'),
+        Query.equal('status', ['waiting', 'in_progress']),
         Query.limit(1),
       ]
     );
@@ -393,13 +421,21 @@ export const getActiveArrivalsCount = async (): Promise<{
  * but we include it here for completeness.
  *
  * STATUS FLOW (matches the live Appwrite enum - see ArrivalStatus in
- * types/index.ts and docs/DECISIONS.md's status-enum-drift entry):
- * 'waiting' → ['notified' | 'in_progress'] → 'completed'
+ * types/index.ts and docs/DECISIONS.md's status-enum-drift entry, plus
+ * the arrival hand-off entry for how 'in_progress' finally got a writer):
+ * 'waiting' → 'in_progress' → 'completed'
  *
- * - waiting: Customer just arrived, staff not yet notified
- * - notified / in_progress: reserved for a future staff-acknowledgment
- *   step - no code path writes these today, only 'waiting' and
- *   'completed' are currently used
+ * - waiting: Customer just arrived; the currently-targeted shopper
+ *   (Order.shopperID) has an ArrivalNotificationModal pending, whether
+ *   or not they've seen it yet
+ * - in_progress: that shopper tapped "Hand Off Order" on the modal -
+ *   acknowledged, on their way to the customer, but hasn't physically
+ *   handed anything over yet (that's the separate 'completed' step)
+ * - notified: still reserved, no code path writes this - the modal
+ *   approach ended up not needing a distinct "seen but not acted on"
+ *   state, since notifiedShopperAt (a timestamp, not a status value)
+ *   already carries that information for the timeout/reassignment
+ *   mechanism (see functions/auto-assignment)
  * - completed: Order has been handed to customer
  *
  * @param arrivalId - The arrival document ID to update
@@ -438,6 +474,55 @@ export const updateArrivalStatus = async (
     console.error('Error updating arrival status:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'Failed to update arrival';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+// ============================================================
+// RECORD ARRIVAL DECLINE
+// ============================================================
+
+/**
+ * Stamp declinedByShopperID on an arrival when a shopper taps
+ * "Unavailable" on ArrivalNotificationModal.
+ *
+ * WHY A SEPARATE FUNCTION FROM updateArrivalStatus?
+ * status stays 'waiting' on a decline (unchanged - the arrival still
+ * needs a shopper, same as before) - only declinedByShopperID changes,
+ * so this isn't a status transition at all, just an exclusion hint for
+ * the auto-assignment Function's reassignStuckArrival() to read. See
+ * CustomerArrival.declinedByShopperID's own docstring in types/index.ts
+ * for why this exists and its (deliberately narrow) scope.
+ *
+ * @param arrivalId - The arrival document ID
+ * @param shopperId - The shopper who just declined
+ * @returns ArrivalResponse with updated arrival or error
+ */
+export const recordArrivalDecline = async (
+  arrivalId: string,
+  shopperId: string
+): Promise<ArrivalResponse> => {
+  try {
+    const updated = await databases.updateDocument<CustomerArrival>(
+      config.databaseId,
+      config.customerArrivalsCollectionId,
+      arrivalId,
+      { declinedByShopperID: shopperId }
+    );
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error recording arrival decline:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to record arrival decline';
 
     return {
       success: false,

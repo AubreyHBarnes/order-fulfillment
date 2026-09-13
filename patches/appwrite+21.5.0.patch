@@ -1,0 +1,66 @@
+diff --git a/node_modules/appwrite/dist/cjs/sdk.js b/node_modules/appwrite/dist/cjs/sdk.js
+index 69baeac..5044e61 100644
+--- a/node_modules/appwrite/dist/cjs/sdk.js
++++ b/node_modules/appwrite/dist/cjs/sdk.js
+@@ -577,7 +577,7 @@ class Client {
+                     switch (message.type) {
+                         case 'connected':
+                             let session = this.config.session;
+-                            if (!session) {
++                            if (!session && typeof window !== 'undefined' && window.localStorage) {
+                                 const cookie = JSON.parse((_a = window.localStorage.getItem('cookieFallback')) !== null && _a !== void 0 ? _a : '{}');
+                                 session = cookie === null || cookie === void 0 ? void 0 : cookie[`a_session_${this.config.project}`];
+                             }
+@@ -5212,7 +5212,7 @@ class Realtime {
+         }
+         const messageData = message.data;
+         let session = this.client.config.session;
+-        if (!session) {
++        if (!session && typeof window !== 'undefined' && window.localStorage) {
+             try {
+                 const cookie = JSON.parse((_a = window.localStorage.getItem('cookieFallback')) !== null && _a !== void 0 ? _a : '{}');
+                 session = cookie === null || cookie === void 0 ? void 0 : cookie[`a_session_${this.client.config.project}`];
+diff --git a/node_modules/appwrite/dist/esm/sdk.js b/node_modules/appwrite/dist/esm/sdk.js
+index b01aaac..e8df500 100644
+--- a/node_modules/appwrite/dist/esm/sdk.js
++++ b/node_modules/appwrite/dist/esm/sdk.js
+@@ -575,7 +575,7 @@ class Client {
+                     switch (message.type) {
+                         case 'connected':
+                             let session = this.config.session;
+-                            if (!session) {
++                            if (!session && typeof window !== 'undefined' && window.localStorage) {
+                                 const cookie = JSON.parse((_a = window.localStorage.getItem('cookieFallback')) !== null && _a !== void 0 ? _a : '{}');
+                                 session = cookie === null || cookie === void 0 ? void 0 : cookie[`a_session_${this.config.project}`];
+                             }
+@@ -5210,7 +5210,7 @@ class Realtime {
+         }
+         const messageData = message.data;
+         let session = this.client.config.session;
+-        if (!session) {
++        if (!session && typeof window !== 'undefined' && window.localStorage) {
+             try {
+                 const cookie = JSON.parse((_a = window.localStorage.getItem('cookieFallback')) !== null && _a !== void 0 ? _a : '{}');
+                 session = cookie === null || cookie === void 0 ? void 0 : cookie[`a_session_${this.client.config.project}`];
+diff --git a/node_modules/appwrite/dist/iife/sdk.js b/node_modules/appwrite/dist/iife/sdk.js
+index bf7b0ec..3bfe4eb 100644
+--- a/node_modules/appwrite/dist/iife/sdk.js
++++ b/node_modules/appwrite/dist/iife/sdk.js
+@@ -578,7 +578,7 @@
+                         switch (message.type) {
+                             case 'connected':
+                                 let session = this.config.session;
+-                                if (!session) {
++                                if (!session && typeof window !== 'undefined' && window.localStorage) {
+                                     const cookie = JSON.parse((_a = window.localStorage.getItem('cookieFallback')) !== null && _a !== void 0 ? _a : '{}');
+                                     session = cookie === null || cookie === void 0 ? void 0 : cookie[`a_session_${this.config.project}`];
+                                 }
+@@ -5213,7 +5213,7 @@
+             }
+             const messageData = message.data;
+             let session = this.client.config.session;
+-            if (!session) {
++            if (!session && typeof window !== 'undefined' && window.localStorage) {
+                 try {
+                     const cookie = JSON.parse((_a = window.localStorage.getItem('cookieFallback')) !== null && _a !== void 0 ? _a : '{}');
+                     session = cookie === null || cookie === void 0 ? void 0 : cookie[`a_session_${this.client.config.project}`];

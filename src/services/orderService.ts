@@ -676,6 +676,63 @@ export const unassignOrder = async (orderId: string): Promise<OrderResponse> => 
 };
 
 /**
+ * Release a ready_for_pickup order's current hand-off shopper, without
+ * touching its status - used when a shopper declines
+ * ArrivalNotificationModal for an order they already finished shopping.
+ *
+ * WHY NOT unassignOrder()?
+ * unassignOrder() resets status to 'pending', which is correct for a
+ * shopping-stage release (the order genuinely needs to be shopped again
+ * from scratch) but wrong here - shopping is already done, only the
+ * hand-off needs a different shopper. Regressing status to 'pending'
+ * would re-enter this order into the normal shopping-assignment queue
+ * (getNextOrderForAssignment(), tryAssignToIdleShopper(), etc.), which
+ * would be a real bug: a shopper would get handed an order to "shop"
+ * that's actually already fully picked and just waiting for pickup.
+ *
+ * WHY DOES CLEARING shopperID HERE TRIGGER REASSIGNMENT AT ALL?
+ * The auto-assignment Function's `orders` update handler treats a
+ * ready_for_pickup order whose shopperID just went empty the same way
+ * it treats a pending order losing its shopper - both mean "this order
+ * needs someone new" - and reassigns the hand-off to the next idle
+ * shopper. See functions/auto-assignment/src/main.js and
+ * docs/DECISIONS.md's arrival hand-off entry.
+ *
+ * @param orderId - The order's document ID
+ * @returns OrderResponse with updated order or error
+ */
+export const releaseArrivalHandoff = async (orderId: string): Promise<OrderResponse> => {
+  try {
+    const updated = await databases.updateDocument<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      orderId,
+      {
+        shopperID: '',
+        autoAssigned: false,
+      }
+    );
+
+    console.log(`Order ${orderId} hand-off released, status unchanged`);
+
+    return {
+      success: true,
+      data: updated,
+    };
+  } catch (error) {
+    console.error('Error releasing arrival hand-off:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to release arrival hand-off';
+
+    return {
+      success: false,
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+/**
  * Interrupt an order: release it back to the pending queue like
  * unassignOrder does, but also stamp interruptedAt/interruptReason so
  * there's a record of why it was taken from its shopper.
@@ -785,7 +842,8 @@ export const getCurrentAssignedOrder = async (
  *
  * WHY A LIST, NOT A SINGLE ORDER (unlike getCurrentAssignedOrder)?
  * Completing the shopping checklist frees the shopper immediately
- * (clearCurrentOrder/autoAssignNextOrderTo in OrderCompletionScreen) and
+ * (clearCurrentOrder in OrderCompletionScreen, which the auto-assignment
+ * Function may then hand a new order off the back of) and
  * out_for_delivery is not one of the statuses that gates a new
  * assignment - so a shopper can pick up and finish shopping a second
  * (or third) delivery before physically dropping off an earlier one.

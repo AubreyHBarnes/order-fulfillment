@@ -51,7 +51,6 @@ import {
   getAvailableTimeSlots,
   getRushReadyTime,
 } from '../../services/orderService';
-import { handleRushOrderPlacement, handleNewOrderPlacement } from '../../services/shopperStatusService';
 import { formatPrice } from '../../services/productService';
 import type { MainStackParamList, FulfillmentType, CreateOrderData } from '../../types';
 
@@ -535,26 +534,16 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
 
       if (result.success && result.data) {
         /**
-         * TRY TO GET THE ORDER TO A SHOPPER IMMEDIATELY
+         * GETTING THE ORDER TO A SHOPPER
          *
-         * WHY FIRE-AND-FORGET (not awaited into the success flow)?
-         * - This is a best-effort push, not something the customer's
-         *   order confirmation should ever fail or wait on - if it
-         *   errors, the order still exists and correctly falls back to
-         *   sitting in the normal pending queue like any other order.
-         * - Rush orders additionally fall back to interrupting a busy
-         *   shopper if no one's idle; normal orders only take the idle
-         *   handoff and otherwise sit in the pending queue as before.
+         * Used to be a fire-and-forget call into shopperStatusService's
+         * client-side assignment logic right here. That logic moved
+         * server-side into an Appwrite Function (see
+         * docs/DECISIONS.md's "Auto-assignment" entries) triggered
+         * directly by this order's own `create` event - nothing needs
+         * to be called from here at all anymore; the order existing is
+         * itself the trigger.
          */
-        if (result.data.priority === 1) {
-          handleRushOrderPlacement(result.data).catch((error) => {
-            console.error('Error handling rush order placement:', error);
-          });
-        } else {
-          handleNewOrderPlacement(result.data).catch((error) => {
-            console.error('Error handling new order placement:', error);
-          });
-        }
 
         /**
          * SUCCESS FLOW

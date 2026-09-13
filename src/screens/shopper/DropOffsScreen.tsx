@@ -17,9 +17,10 @@
  *
  * WHY CAN THERE BE MORE THAN ONE?
  * Finishing a delivery's checklist frees the shopper immediately
- * (OrderCompletionScreen's clearCurrentOrder/autoAssignNextOrderTo) -
- * out_for_delivery doesn't block a new assignment, so a shopper can
- * finish shopping a second delivery before dropping off the first.
+ * (OrderCompletionScreen's clearCurrentOrder, which the auto-assignment
+ * Function may then hand a new order off the back of) - out_for_delivery
+ * doesn't block a new assignment, so a shopper can finish shopping a
+ * second delivery before dropping off the first.
  *
  * DATA FLOW (mirrors AvailableTasksScreen's list + join pattern):
  * 1. On mount/focus, fetch this shopper's out_for_delivery orders

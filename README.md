@@ -33,7 +33,7 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 - 📦 **Checkout & Order Placement** - Choose between delivery or pickup fulfillment, place orders against the real backend
 - 📋 **Order History** - View past and in-progress orders, order detail screens
 - 🔔 **Real-time Tracking** - Live order status updates via Appwrite Realtime - substitution proposals, ready-for-pickup notifications, and more all push live to the customer's screen (implemented)
-- 📱 **Pickup Notifications** - Customer taps "I've Arrived" (`arrivalService.ts`, `ArrivalNotificationCard`); a shopper sees it store-wide in Customer Check-ins and hands off the order, completing both the arrival and the order together (implemented, verified end-to-end)
+- 📱 **Pickup Notifications** - Customer taps "I've Arrived" (`arrivalService.ts`, `ArrivalNotificationCard`); the shopper who shopped the order gets a targeted `ArrivalNotificationModal` (accept, or decline and it reassigns to the next available shopper - a timeout does the same if they don't respond, via the auto-assignment Function's scheduled sweep) and hands off the order, completing both the arrival and the order together. Any on-duty shopper can also complete a hand-off directly from Customer Check-ins regardless of who's currently targeted (implemented, verified end-to-end - see `docs/DECISIONS.md`'s arrival hand-off entry)
 
 ### For Shoppers
 - 📋 **Order Dashboard & Available Tasks** - View and manage assigned/available orders (implemented)
@@ -496,11 +496,11 @@ npm install
 
 ### Planned 📋
 - [ ] **Phase 6:** Remaining Backend & Polish
-  - Auto-assignment serverless function (currently a client-side sorted query)
-  - Live order tracking (a map/ETA view - order status itself already updates live via Realtime)
-  - UI/UX improvements
-  - Performance optimization
-  - Comprehensive testing
+  - [x] Auto-assignment serverless function - an event-triggered Appwrite Function (`functions/auto-assignment/`) now decides every assignment (idle hand-off, rush-order interrupt, released-order requeue), replacing the client-side sorted query; see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full design, the race conditions it closes, and what's deliberately still open (permission tightening was scoped out - Appwrite has no field-level permissions, so full lockdown would mean routing every Orders/ShopperStatus write through Functions, a separate future project)
+  - [ ] Live order tracking (a map/ETA view - order status itself already updates live via Realtime)
+  - [ ] UI/UX improvements
+  - [ ] Performance optimization
+  - [ ] Comprehensive testing
 
 ---
 

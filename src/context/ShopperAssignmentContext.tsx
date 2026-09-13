@@ -9,46 +9,55 @@
  * or when a brand new order auto-assigns while they're sitting idle -
  * so they find out live instead of only the next time they happen to
  * revisit the Dashboard screen (the only place data refreshes today,
- * via useFocusEffect).
+ * via useFocusEffect). Also surfaces a customer arrival
+ * (ArrivalNotificationModal) targeted at whichever specific shopper the
+ * order's hand-off is currently addressed to (Order.shopperID) - the
+ * same accept/decline shape as a new assignment, not a store-wide
+ * notice; see docs/DECISIONS.md's arrival hand-off entry for the full
+ * design (an initial store-wide-toast build of this was corrected once
+ * the intended behavior - one targeted shopper, a timeout, reassignment
+ * on no response - was clarified).
  *
- * WHY DOES "NEW ORDER ASSIGNED" ALSO NEED TO LIVE HERE, NOT JUST ON THE
- * DASHBOARD?
- * ShopperDashboardScreen already shows NewAssignmentModal instantly when
- * toggling to Available auto-assigns an order - that's a synchronous
- * result of the shopper's own action, no polling needed. But an order
- * can also land on an idle, already-Available shopper asynchronously -
- * a rush order pushed to them, or (since normal orders now auto-assign
- * to an idle shopper at checkout time too, see handleNewOrderPlacement)
- * any regular order placed while they happen to be free. Previously
- * there was no signal for this at all - the shopper would only notice
- * next time something refetched (e.g. navigating back to Dashboard).
- * This context's poll loop catches that transition and shows the same
- * modal, globally, the same way it already does for interrupts.
+ * WHY DOES "NEW ORDER ASSIGNED" LIVE HERE RATHER THAN ON THE DASHBOARD?
+ * An order can land on a shopper in several ways - toggling Available
+ * with a pending order waiting, a rush order pushed to an idle shopper,
+ * a normal order auto-assigned at checkout time, or a released order
+ * getting re-queued straight to whoever's free. Since the
+ * auto-assignment Function (see docs/DECISIONS.md) now decides and
+ * writes every one of those *asynchronously*, none of them can be
+ * caught synchronously from within a single screen's own action handler
+ * anymore - there's no "the assignment already happened by the time this
+ * function returns" case left. This context's realtime subscription on
+ * the shopper's own `shopperStatus` document (currentOrderId going from
+ * empty to set) is the one place that catches all of them uniformly,
+ * regardless of which screen the shopper happens to be on or what
+ * triggered the assignment.
  *
- * WHY NOT JUST LET THE DASHBOARD'S OWN PATH HANDLE BOTH?
- * The dashboard's version only fires from within handleStatusChange,
- * synchronously - it has no way to notice an assignment that happens
- * while the shopper is on TaskDetail, AvailableTasks, or anywhere else.
- * Keeping both paths (instead of moving the toggle-triggered one here
- * too) avoids the toggle case losing its instant, no-poll-latency feel
- * and avoids ShopperDashboardScreen's `currentTask` losing its immediate
- * local update on accept. `acknowledgeOwnAssignment` (below) is the only
- * coordination needed between the two: the dashboard calls it right
- * after showing its own modal so this context's poll doesn't also flag
- * the same transition ~8s later as "new" and pop a duplicate.
+ * This used to be two separate paths - this context's poll loop for the
+ * "landed on an idle shopper" cases, plus ShopperDashboardScreen's own
+ * instant modal for the "shopper's own toggle" case, needing an
+ * `acknowledgeOwnAssignment` handshake so the two didn't both fire for
+ * the same assignment. Once assignment moved fully server-side and
+ * asynchronous, the dashboard's toggle stopped being able to get an
+ * instant result at all, so that path (and the coordination it needed)
+ * was removed - this context's subscription is now the only path.
  *
  * WHY REALTIME, NOT POLLING?
  * This used to be an 8s poll of getShopperStatus - see
  * docs/DECISIONS.md's realtime-migration entry for the Phase 0 spike
  * that verified Appwrite Realtime works correctly in this RN + Appwrite
  * Cloud setup, superseding the earlier "unverified territory" concern.
- * Two subscriptions replace the poll: subscribeToShopperStatus (own
+ * Three subscriptions replace the poll: subscribeToShopperStatus (own
  * shopperID) drives the currentOrderId-changed detection below;
  * subscribeToOrders backs the interrupt/new-assignment order lookups
  * and re-triggers the urgent-order check whenever a relevant order
- * changes. getNextOrderForAssignment() itself stays a genuine query
- * (not reconstructed from events) since it needs whole-queue ordering,
- * not a single document's state.
+ * changes; subscribeToCustomerArrivals drives ArrivalNotificationModal,
+ * filtered (client-side, same as every other collection-wide
+ * subscription in this app - see realtimeService.ts) down to arrivals
+ * whose order is currently addressed to *this* shopper (see
+ * handleArrivalEvent below). getNextOrderForAssignment() itself stays a
+ * genuine query (not reconstructed from events) since it needs
+ * whole-queue ordering, not a single document's state.
  *
  * WHY A CONTEXT, NOT A HOOK CALLED FROM EACH SCREEN?
  * The interrupt needs to be visible no matter which shopper screen is
@@ -69,12 +78,16 @@ import React, {
   type ReactNode,
 } from 'react';
 import { Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getShopperStatus, updateShopperAvailability } from '../services/shopperStatusService';
-import { getOrderById, getNextOrderForAssignment } from '../services/orderService';
+import { getOrderById, getNextOrderForAssignment, releaseArrivalHandoff } from '../services/orderService';
 import { getUserProfileById, getCustomerDisplayName } from '../services/userService';
+import { updateArrivalStatus, recordArrivalDecline } from '../services/arrivalService';
 import {
   subscribeToOrders,
   subscribeToShopperStatus,
+  subscribeToCustomerArrivals,
   onRealtimeReconnect,
   onAppForeground,
   type RealtimeEvent,
@@ -82,7 +95,15 @@ import {
 import OrderInterruptedModal from '../components/shopper/OrderInterruptedModal';
 import UrgentOrderToast from '../components/shopper/UrgentOrderToast';
 import NewAssignmentModal from '../components/shopper/NewAssignmentModal';
-import type { Order, ShopperStatus, TaskCardData } from '../types';
+import ArrivalNotificationModal from '../components/shopper/ArrivalNotificationModal';
+import type {
+  Order,
+  ShopperStatus,
+  CustomerArrival,
+  TaskCardData,
+  ArrivalNotificationData,
+  ShopperStackParamList,
+} from '../types';
 
 const formatDueTime = (scheduledReadyTime: string): string =>
   new Date(scheduledReadyTime).toLocaleTimeString('en-US', {
@@ -147,14 +168,6 @@ interface ShopperAssignmentContextType {
   interruptedOrder: Order | null;
   dismissInterrupt: () => void;
   /**
-   * Tell this context's poll loop "the shopper's currentOrderId just
-   * changed to this because of something already handled elsewhere" (the
-   * Dashboard's own instant toggle-triggered assignment modal) - so the
-   * next poll tick doesn't also treat it as a brand new, unhandled
-   * assignment and show a duplicate popup for the same order.
-   */
-  acknowledgeOwnAssignment: (orderId: string) => void;
-  /**
    * Bumps whenever a pending assignment this context showed (poll-
    * detected, not the dashboard's own toggle-triggered one) is accepted
    * or declined - see the state declaration above for why the dashboard
@@ -176,6 +189,8 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   shopperId,
   children,
 }) => {
+  const navigation = useNavigation<NativeStackNavigationProp<ShopperStackParamList>>();
+
   const [interruptedOrder, setInterruptedOrder] = useState<Order | null>(null);
 
   /**
@@ -184,6 +199,17 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    * and after the toast auto-dismisses.
    */
   const [urgentOrderDueTime, setUrgentOrderDueTime] = useState<string | null>(null);
+
+  /**
+   * A customer arrival currently addressed to *this* shopper, for
+   * ArrivalNotificationModal - null before anything's been found and
+   * after accept/decline. Unlike pendingAssignment below (also scoped
+   * to this shopper, but via currentOrderId), this is matched by
+   * checking the arrival's order's shopperID against this context's own
+   * shopperId - see handleArrivalEvent.
+   */
+  const [pendingArrival, setPendingArrival] = useState<ArrivalNotificationData | null>(null);
+  const [declineArrivalLoading, setDeclineArrivalLoading] = useState(false);
 
   /**
    * A new order that auto-assigned while the shopper was idle, not yet
@@ -264,10 +290,13 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
      * NEW ASSIGNMENT WHILE IDLE
      *
      * Was idle (no order), has one now, and nothing's already showing
-     * for it (the dashboard's own instant path calls
-     * acknowledgeOwnAssignment to cover itself - see that function).
-     * This is what catches a rush push or a normal auto-assigned order
-     * landing on an already-Available shopper with no toggle involved.
+     * for it. Catches every way an order can land on a shopper - a
+     * rush push, a normal auto-assigned order landing on an
+     * already-Available idle shopper, or the shopper's own toggle to
+     * Available - all of it now happens asynchronously via the
+     * auto-assignment Function, so this is the one path that catches
+     * all of them (see the file header for why there's no longer a
+     * separate synchronous path for the toggle case).
      */
     const checkNewAssignment = async (currentOrderId: string): Promise<void> => {
       if (pendingAssignmentRef.current) {
@@ -432,8 +461,50 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       }
     };
 
+    /**
+     * ARRIVAL HAND-OFF ADDRESSED TO THIS SHOPPER
+     *
+     * Fires on two distinct occasions, both handled identically: a
+     * customer just tapped "I've Arrived" (a fresh CustomerArrival,
+     * status 'waiting'), or a stuck arrival just got reassigned to this
+     * shopper after the previous one didn't respond in time (an update
+     * to the same document - notifiedShopperAt reset, status still
+     * 'waiting' - see functions/auto-assignment). Either way, the
+     * arrival's *order* is fetched to check whether this shopper is the
+     * one currently addressed - CustomerArrival itself has no shopper
+     * field, Order.shopperID is the only source of truth for who it's
+     * for right now, and that can change over the arrival's lifetime.
+     *
+     * WHY NOT FILTER TO isCreateEvent LIKE THE ORIGINAL (store-wide
+     * toast) BUILD DID?
+     * A reassignment is an *update* to the same document, driven
+     * server-side, not this shopper's own action - restricting to
+     * create events would silently miss every reassignment landing on
+     * a new shopper, which is the whole point of this mechanism.
+     */
+    const handleArrivalEvent = async (event: RealtimeEvent<CustomerArrival>): Promise<void> => {
+      const arrival = event.payload;
+      if (arrival.status !== 'waiting') {
+        return;
+      }
+      const orderResult = await getOrderById(arrival.orderID);
+      if (!orderResult.success || !orderResult.data || orderResult.data.shopperID !== shopperId) {
+        return;
+      }
+      const customerResult = await getUserProfileById(arrival.customerID);
+      setPendingArrival({
+        arrivalId: arrival.$id,
+        orderId: orderResult.data.$id,
+        customerName: getCustomerDisplayName(customerResult.data),
+        shortOrderId: generateShortOrderId(orderResult.data.$id),
+        vehicleDescription: arrival.vehicleDescription,
+        notes: arrival.notes,
+      });
+    };
+
     const unsubscribeStatus = subscribeToShopperStatus(handleShopperStatusEvent);
     const unsubscribeOrders = subscribeToOrders(handleOrderEvent);
+    const unsubscribeArrivals = subscribeToCustomerArrivals(handleArrivalEvent);
     onRealtimeReconnect(fetchAndReconcile);
     const stopWatchingForeground = onAppForeground(fetchAndReconcile);
 
@@ -442,6 +513,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
     return () => {
       unsubscribeStatus();
       unsubscribeOrders();
+      unsubscribeArrivals();
       stopWatchingForeground();
     };
   }, [shopperId]);
@@ -454,8 +526,90 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
     setUrgentOrderDueTime(null);
   };
 
-  const acknowledgeOwnAssignment = (orderId: string): void => {
-    lastKnownOrderIdRef.current = orderId;
+  /**
+   * Accept the arrival hand-off: acknowledges it (status -> 'in_progress',
+   * so it stays visible in Customer Check-ins - see arrivalService.ts's
+   * getActiveArrivals) and navigates there so the shopper can complete
+   * the physical hand-off ("Hand Off Order") once they've actually
+   * brought the order out. Doesn't touch Order.shopperID - accepting
+   * keeps this shopper as the one responsible, only declining or timing
+   * out hands it to someone else.
+   */
+  const acceptArrival = async (): Promise<void> => {
+    if (!pendingArrival) {
+      return;
+    }
+    const result = await updateArrivalStatus(pendingArrival.arrivalId, 'in_progress');
+    // WHY TREAT "could not be found" AS A SILENT NO-OP, NOT AN ALERT?
+    // The arrival this modal is showing can stop existing out from under
+    // it - completed/reassigned/deleted by something else while it was
+    // up (a race this project's own rapid REST-driven test scripts hit
+    // directly; a real customer's arrival won't normally vanish, but a
+    // stale modal referencing a gone document is still a real
+    // reachable state worth handling gracefully rather than surfacing a
+    // raw Appwrite error). Any other failure (network, permissions)
+    // still alerts normally.
+    if (!result.success) {
+      if (result.error?.includes('could not be found')) {
+        setPendingArrival(null);
+        return;
+      }
+      Alert.alert('Error', result.error ?? 'Failed to accept arrival');
+      return;
+    }
+    setPendingArrival(null);
+    navigation.navigate('CustomerCheckIns');
+  };
+
+  /**
+   * Decline the arrival hand-off.
+   *
+   * WHY releaseArrivalHandoff(orderId) INSTEAD OF
+   * updateShopperAvailability(shopperId, false) (NewAssignmentModal's
+   * decline, and this modal's own "Unavailable" label)?
+   * Labeled the same as NewAssignmentModal's decline for the same
+   * reason - "not me right now" - but the underlying action has to be
+   * narrower: unlike a fresh assignment (only ever shown to an idle
+   * shopper with nothing else in flight), the shopper an arrival is
+   * addressed to already finished shopping this order and could easily
+   * be actively shopping a *different* one right now. Going through
+   * updateShopperAvailability would also release that unrelated order
+   * (see its own docstring) as a side effect of declining a drop-off -
+   * not the intended behavior. releaseArrivalHandoff only clears this
+   * one order's shopperID, leaving status and everything else about
+   * this shopper's current work untouched; the auto-assignment
+   * Function's `orders` update handler treats that the same way it
+   * treats a released pending order - hands it to the next idle
+   * shopper (see docs/DECISIONS.md's arrival hand-off entry).
+   *
+   * WHY recordArrivalDecline() BEFORE releaseArrivalHandoff(), AND WHY
+   * AT ALL?
+   * Declining doesn't mark this shopper unavailable (see above) - they
+   * can easily still be sitting idle (isAvailable true, currentOrderId
+   * empty) immediately after declining, which is exactly what
+   * getNextAvailableShopper() looks for. Without recording who just
+   * declined, the reassignment search could hand the same arrival
+   * straight back to the same shopper who just said no to it. Recording
+   * it first (awaited before releaseArrivalHandoff runs) guarantees the
+   * auto-assignment Function sees declinedByShopperID already set by
+   * the time the order's shopperID-cleared event reaches it.
+   */
+  const declineArrival = async (): Promise<void> => {
+    if (!pendingArrival) {
+      return;
+    }
+    setDeclineArrivalLoading(true);
+    // Best-effort - if the arrival itself is already gone (see
+    // acceptArrival's comment on the same failure mode), there's
+    // nothing to stamp a decliner onto, but the order-side release
+    // below should still be attempted regardless.
+    await recordArrivalDecline(pendingArrival.arrivalId, shopperId);
+    const result = await releaseArrivalHandoff(pendingArrival.orderId);
+    if (!result.success && !result.error?.includes('could not be found')) {
+      Alert.alert('Error', result.error ?? 'Failed to decline arrival');
+    }
+    setPendingArrival(null);
+    setDeclineArrivalLoading(false);
   };
 
   /**
@@ -473,13 +627,15 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   /**
    * Decline the pending order.
    *
-   * WHY CALL updateShopperAvailability AGAIN INSTEAD OF NEW LOGIC?
-   * Same reasoning as ShopperDashboardScreen's handleDeclineAssignment:
-   * the shopper's status doc already has currentOrderId set to this
-   * order (the auto-assign already wrote it), so calling
-   * updateShopperAvailability(shopperId, false) walks the existing
-   * "going unavailable while working an order" release/reassign branch -
-   * no new backend logic needed.
+   * WHY CALL updateShopperAvailability(shopperId, false) INSTEAD OF NEW
+   * LOGIC?
+   * The shopper's status doc already has currentOrderId set to this
+   * order (the auto-assignment Function already wrote it) - flipping
+   * isAvailable to false produces the same `shopperStatus` update event
+   * the Function reacts to for any other "went unavailable while
+   * holding an order" case, releasing it back to the queue and
+   * re-checking whether it's now the most urgent pending order. No new
+   * logic needed here for decline specifically.
    */
   const declinePendingAssignment = async (): Promise<void> => {
     setDeclineAssignmentLoading(true);
@@ -501,7 +657,6 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       value={{
         interruptedOrder,
         dismissInterrupt,
-        acknowledgeOwnAssignment,
         assignmentResolvedSignal,
       }}
     >
@@ -522,6 +677,13 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         onAccept={acceptPendingAssignment}
         onDecline={declinePendingAssignment}
         declineLoading={declineAssignmentLoading}
+      />
+      <ArrivalNotificationModal
+        visible={!!pendingArrival}
+        arrival={pendingArrival}
+        onAccept={acceptArrival}
+        onDecline={declineArrival}
+        declineLoading={declineArrivalLoading}
       />
     </ShopperAssignmentContext.Provider>
   );

@@ -12,10 +12,14 @@
  * branches is the target status and button label, not enough to
  * justify a second screen.
  *
- * After confirming: frees the shopper (clearCurrentOrder) and, if
- * there's a pending order waiting, hands it to them immediately
- * (autoAssignNextOrderTo) instead of leaving them idle until their next
- * status toggle.
+ * After confirming: frees the shopper (clearCurrentOrder). If there's a
+ * pending order waiting, the auto-assignment Function hands it to them
+ * off the back of that same write (see docs/DECISIONS.md) instead of
+ * leaving them idle until their next status toggle - asynchronously,
+ * so this screen no longer waits on or announces that itself;
+ * ShopperAssignmentContext's NewAssignmentModal (mounted once above the
+ * whole shopper stack) surfaces it whenever it lands, same as every
+ * other auto-assignment path.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -25,7 +29,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { getOrderById, completeOrder } from '../../services/orderService';
-import { clearCurrentOrder, autoAssignNextOrderTo } from '../../services/shopperStatusService';
+import { clearCurrentOrder } from '../../services/shopperStatusService';
 import { parseItemsString, parsePickedItemsString, parseItemIssues } from '../../utils/orderItems';
 import CompletionSummary from '../../components/shopper/CompletionSummary';
 import type { ShopperStackParamList, Order } from '../../types';
@@ -87,17 +91,12 @@ const OrderCompletionScreen: React.FC<OrderCompletionScreenProps> = ({ route, na
       }
 
       await clearCurrentOrder(userProfile.shopperID);
-      const nextOrder = await autoAssignNextOrderTo(userProfile.shopperID);
-
-      if (nextOrder) {
-        Alert.alert(
-          'Order Complete',
-          `Nice work! A new order (#${nextOrder.$id.slice(-8).toUpperCase()}) has been assigned to you.`,
-          [{ text: 'OK', onPress: () => navigation.navigate('ShopperHome') }]
-        );
-      } else {
-        navigation.navigate('ShopperHome');
-      }
+      // Whether a new order gets auto-assigned off the back of that
+      // write is now decided asynchronously by the auto-assignment
+      // Function - ShopperAssignmentContext's NewAssignmentModal
+      // surfaces it if/when it lands, so this screen just navigates
+      // home rather than waiting on or announcing it itself.
+      navigation.navigate('ShopperHome');
     } finally {
       setSubmitting(false);
     }

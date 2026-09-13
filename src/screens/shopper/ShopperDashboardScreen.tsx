@@ -92,11 +92,14 @@ import {
 import { getActiveArrivalsCount } from '../../services/arrivalService';
 import { getShopperStatus, updateShopperAvailability } from '../../services/shopperStatusService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
-import { subscribeToOrders, subscribeToShopperStatus } from '../../services/realtimeService';
+import {
+  subscribeToOrders,
+  subscribeToShopperStatus,
+  subscribeToCustomerArrivals,
+} from '../../services/realtimeService';
 import ShopperStatusDropdown from '../../components/shopper/ShopperStatusDropdown';
 import CurrentTaskCard from '../../components/shopper/CurrentTaskCard';
 import QuickLinkCard from '../../components/shopper/QuickLinkCard';
-import NewAssignmentModal from '../../components/shopper/NewAssignmentModal';
 import type { ShopperStackParamList, ShopperAvailability, TaskCardData, Order } from '../../types';
 
 // ============================================================
@@ -214,7 +217,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
 }) => {
   const theme = useAppTheme();
   const { userProfile } = useAuth();
-  const { acknowledgeOwnAssignment, assignmentResolvedSignal } = useShopperAssignment();
+  const { assignmentResolvedSignal } = useShopperAssignment();
 
   // ============================================================
   // STATE
@@ -236,20 +239,6 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
    * null = no assigned task.
    */
   const [currentTask, setCurrentTask] = useState<TaskCardData | null>(null);
-
-  /**
-   * PENDING ASSIGNMENT STATE
-   *
-   * Set when going Available auto-assigns a new order, before the
-   * shopper has accepted or declined it. `currentTask` is only updated
-   * once they accept - keeps the dashboard's task card from flashing a
-   * task the shopper hasn't confirmed yet.
-   */
-  const [pendingAssignment, setPendingAssignment] = useState<{
-    order: Order;
-    taskData: TaskCardData;
-  } | null>(null);
-  const [declineLoading, setDeclineLoading] = useState(false);
 
   /**
    * AVAILABLE TASKS COUNT
@@ -399,17 +388,30 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
   /**
    * Fetch on focus, plus a focus-scoped realtime subscription (see
    * docs/DECISIONS.md's realtime-migration entry) so status, current
-   * task, and counts stay live while the screen is open - filtered to
-   * this shopper's own shopperStatus doc and own orders, re-running the
-   * same fetchDashboardData() used everywhere else on this screen.
+   * task, and counts stay live while the screen is open - shopperStatus/
+   * orders filtered to this shopper's own doc/orders, but
+   * subscribeToCustomerArrivals deliberately isn't filtered at all: the
+   * "Customer Check-ins" count is store-wide (any on-duty shopper can
+   * help any waiting customer, same as CustomerCheckInsScreen itself),
+   * so every arrival create/update/delete should refresh it, not just
+   * ones tied to this shopper. Previously this count only refreshed on
+   * focus (navigating back to Dashboard) - a shopper sitting here got no
+   * live signal at all when a customer arrived; see
+   * ShopperAssignmentContext's NewArrivalToast for the accompanying
+   * non-blocking notice, added for the same reason.
    */
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
 
       const shopperId = userProfile?.shopperID;
+
+      const unsubscribeArrivals = subscribeToCustomerArrivals(() => {
+        fetchDashboardData();
+      });
+
       if (!shopperId) {
-        return undefined;
+        return unsubscribeArrivals;
       }
 
       const unsubscribeStatus = subscribeToShopperStatus((event) => {
@@ -426,6 +428,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
       return () => {
         unsubscribeStatus();
         unsubscribeOrders();
+        unsubscribeArrivals();
       };
     }, [fetchDashboardData, userProfile?.shopperID])
   );
@@ -450,10 +453,24 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
   /**
    * Handle status change
    *
-   * When becoming available:
-   * - Updates ShopperStatus.isAvailable in database
-   * - Checks for pending orders and auto-assigns if found
-   * - Updates currentTask state with assigned order
+   * Just writes ShopperStatus.isAvailable now - see
+   * shopperStatusService.ts's file header for why. Any resulting
+   * auto-assignment (or release-and-requeue, going the other way)
+   * happens server-side and asynchronously in the auto-assignment
+   * Function; this screen no longer waits on or drives that itself.
+   *
+   * WHY NO MORE "if an order was auto-assigned, show NewAssignmentModal"
+   * BRANCH HERE?
+   * That depended on `updateShopperAvailability` returning the newly
+   * assigned order synchronously, which it no longer can - the Function
+   * decides and writes that asynchronously, off the `shopperStatus`
+   * update event this call produces. `ShopperAssignmentContext` already
+   * watches for exactly that transition (currentOrderId going from
+   * empty to set) via its own realtime subscription, and shows the same
+   * NewAssignmentModal - it used to exist only to catch an order landing
+   * on an *already*-available idle shopper (no toggle involved); now
+   * it's the single path for both cases, so this screen doesn't need
+   * its own copy of that modal/state anymore (removed below).
    */
   const handleStatusChange = async (newStatus: ShopperAvailability): Promise<void> => {
     if (!userProfile) {
@@ -479,27 +496,10 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
     if (result.success) {
       setShopperStatus(newStatus);
 
-      if (isAvailable) {
-        // If an order was auto-assigned, hold it as a pending assignment
-        // instead of setting currentTask directly - the shopper confirms
-        // via NewAssignmentModal before it becomes their current task.
-        if (result.assignedOrder) {
-          const customerResult = await getUserProfileById(result.assignedOrder.customerID);
-          const customerName = getCustomerDisplayName(customerResult.data);
-          const shopperName = `${userProfile.firstName} ${userProfile.lastName}`;
-
-          const taskData = transformOrderToTaskCard(
-            result.assignedOrder,
-            customerName,
-            shopperName
-          );
-          setPendingAssignment({ order: result.assignedOrder, taskData });
-          // Stop ShopperAssignmentContext's poll from also noticing this
-          // same transition and popping its own duplicate modal ~8s later.
-          acknowledgeOwnAssignment(result.assignedOrder.$id);
-        }
-      } else {
+      if (!isAvailable) {
         // Going unavailable releases any current task back to the queue
+        // (the Function performs the actual release write) - clear it
+        // here optimistically rather than waiting for that to land.
         setCurrentTask(null);
       }
 
@@ -513,52 +513,6 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
     }
 
     setStatusLoading(false);
-  };
-
-  /**
-   * Accept a pending assignment - promotes it to the current task.
-   */
-  const handleAcceptAssignment = (): void => {
-    if (pendingAssignment) {
-      setCurrentTask(pendingAssignment.taskData);
-    }
-    setPendingAssignment(null);
-  };
-
-  /**
-   * Decline a pending assignment.
-   *
-   * WHY CALL updateShopperAvailability AGAIN INSTEAD OF NEW LOGIC?
-   * By this point the shopper's status doc already has currentOrderId
-   * set to the pending order (the auto-assign call already wrote it).
-   * Calling updateShopperAvailability(shopperId, false) walks the exact
-   * same "going unavailable while working an order" branch used by the
-   * unassign-on-unavailable fix: it releases the order back to pending
-   * and immediately offers it to the next idle shopper if it's the most
-   * urgent one queued. No new backend logic needed for decline.
-   */
-  const handleDeclineAssignment = async (): Promise<void> => {
-    if (!userProfile?.shopperID) {
-      return;
-    }
-
-    setDeclineLoading(true);
-    const result = await updateShopperAvailability(userProfile.shopperID, false);
-
-    if (result.success) {
-      setShopperStatus('unavailable');
-      setCurrentTask(null);
-
-      const tasksResult = await getAvailableTasksCount();
-      if (tasksResult.success) {
-        setAvailableTasksCount(tasksResult.count);
-      }
-    } else {
-      Alert.alert('Error', result.error ?? 'Failed to decline assignment');
-    }
-
-    setPendingAssignment(null);
-    setDeclineLoading(false);
   };
 
   /**
@@ -764,14 +718,6 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
         <CurrentTaskCard
           task={currentTask}
           onPress={handleTaskPress}
-        />
-
-        <NewAssignmentModal
-          visible={!!pendingAssignment}
-          task={pendingAssignment?.taskData ?? null}
-          onAccept={handleAcceptAssignment}
-          onDecline={handleDeclineAssignment}
-          declineLoading={declineLoading}
         />
 
         {/* ============================================================
