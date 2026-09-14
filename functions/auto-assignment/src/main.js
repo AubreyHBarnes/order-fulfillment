@@ -46,7 +46,7 @@
  * only ever marks a shopper unavailable or retries a reassignment
  * search, both idempotent no-ops once nothing stale remains to find.
  */
-import { Client, Databases, Query } from 'node-appwrite';
+import { Client, Databases, Query, Account } from 'node-appwrite';
 
 const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
 const ORDERS_COLLECTION_ID = process.env.APPWRITE_ORDERS_COLLECTION_ID;
@@ -140,6 +140,33 @@ async function getShopperStatusDoc(databases, shopperId) {
   return res.documents[0] ?? null;
 }
 
+/**
+ * Resolve an HTTP action's caller from the JWT it supplied, verifying it
+ * against Appwrite itself rather than trusting anything the client
+ * claims. This project's Appwrite plan can't scope a Function's execute
+ * permission to "logged-in users" (only any/guests - confirmed live),
+ * so `execute` is wide open and this check is the *only* authentication
+ * boundary an HTTP action has - see docs/DECISIONS.md's "Permission
+ * tightening" entry for the full spike that established this pattern.
+ * `caller.$id` is the same Appwrite Auth user ID stored as `shopperID`
+ * everywhere else in this app (AuthContext sets it to `newAccount.$id`
+ * at signup), so it's directly usable as one without a lookup.
+ */
+async function resolveCaller(jwt) {
+  if (!jwt) {
+    return null;
+  }
+  try {
+    const jwtClient = new Client()
+      .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
+      .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
+      .setJWT(jwt);
+    return await new Account(jwtClient).get();
+  } catch {
+    return null;
+  }
+}
+
 // ============================================================
 // WRITES - same field set as assignOrderToShopper/unassignOrder/
 // interruptOrder in orderService.ts
@@ -149,6 +176,30 @@ async function getShopperStatusDoc(databases, shopperId) {
  * Assign orderId to shopperId: writes both sides of the relationship
  * (Order.shopperID + ShopperStatus.currentOrderId), same two-document
  * shape the client-side version always wrote.
+ *
+ * WHY ALSO SET isAvailable: true HERE, EVEN THOUGH EVERY AUTOMATIC
+ * CALLER ALREADY REQUIRES isAvailable === true TO FIND A CANDIDATE?
+ * Found live, via claimOrder (docs/DECISIONS.md's "Permission
+ * tightening" entry): this write's own currentOrderId update re-fires
+ * the shopperStatus `isUpdate` handler below, whose `isAvailable ===
+ * false` branch (handleShopperWentUnavailable) matches on ANY update
+ * where isAvailable happens to be false, not just a transition into it
+ * - not distinguishable from a payload snapshot alone. For every
+ * existing automatic-assignment caller this is a genuine no-op
+ * (isAvailable was already true, by construction of the query that
+ * found the shopper). For a manual claim, though, the shopper is
+ * realistically almost always Unavailable at the moment they claim
+ * (the Function auto-grabs any pending order the instant a shopper
+ * goes idle+available, sub-second - there's essentially no UI-reachable
+ * window where "available, idle, and a pending order exists" survives
+ * long enough for a human to tap Claim first) - without this write,
+ * handleShopperWentUnavailable immediately released the just-claimed
+ * order right back to pending, confirmed via its own execution log
+ * ("went unavailable, released order ..."), moments after a successful
+ * claim. Setting it true here isn't a workaround for that alone - it's
+ * also the correct invariant: a shopper actively holding an in-progress
+ * order should read as available/on-duty, matching what every other
+ * assignment path in this app already guarantees by construction.
  */
 async function assign(databases, orderId, shopperId, autoAssigned = true) {
   await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, {
@@ -163,6 +214,7 @@ async function assign(databases, orderId, shopperId, autoAssigned = true) {
   if (shopperStatus) {
     await databases.updateDocument(DATABASE_ID, SHOPPER_STATUS_COLLECTION_ID, shopperStatus.$id, {
       currentOrderId: orderId,
+      isAvailable: true,
       lastActiveTimeStamp: nowIso(),
     });
   }
@@ -480,6 +532,293 @@ async function handleScheduledSweep(databases, log) {
 }
 
 // ============================================================
+// HTTP ACTIONS - one per client-side write this replaces, per
+// docs/DECISIONS.md's "Permission tightening" entry. Each is
+// responsible for its own authorization beyond "is the JWT valid" -
+// resolveCaller() only proves *who*, not what they're allowed to do.
+// ============================================================
+
+/**
+ * claimOrder - a shopper manually claiming an unclaimed order from the
+ * available-tasks list. Replaces TaskDetailScreen's 'claim' branch,
+ * which today makes three separate client writes in sequence
+ * (assignOrderToShopper on Orders, assignOrderToShopper on
+ * ShopperStatus, then startShopping) with no check that the order is
+ * still actually unclaimed by the time each write lands - exactly the
+ * "two clients read stale state, second write wins silently" race the
+ * original auto-assignment primer described for the automatic path,
+ * never closed for the manual one. This re-checks both sides fresh,
+ * inside one server-side execution, immediately before writing.
+ *
+ * WHY CHECK THE SHOPPER'S OWN currentOrderId TOO, NOT JUST THE ORDER?
+ * TaskDetailScreen only ever offers 'claim' when the shopper has no
+ * active order (offers 'swap' instead otherwise) - but that's a client
+ * UI decision, not something enforced here today. Once this is the
+ * actual authorization boundary, it has to hold on its own regardless
+ * of what UI state the caller's screen happened to be in.
+ */
+async function handleClaimOrder(databases, caller, payload, log) {
+  const { orderId } = payload;
+  if (!orderId) {
+    return { status: 400, body: { ok: false, error: 'orderId is required' } };
+  }
+
+  let order;
+  try {
+    order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (order.status !== 'pending' || order.shopperID !== '') {
+    return { status: 409, body: { ok: false, error: 'Order is no longer available to claim' } };
+  }
+
+  const shopperStatus = await getShopperStatusDoc(databases, caller.$id);
+  if (!shopperStatus) {
+    return { status: 403, body: { ok: false, error: 'No shopper profile for this account' } };
+  }
+  if (shopperStatus.currentOrderId !== '') {
+    return { status: 409, body: { ok: false, error: 'You already have an active order' } };
+  }
+
+  await assign(databases, orderId, caller.$id, false);
+  // Manual claim starts shopping immediately (the button reads "Claim &
+  // Start Shopping") - assign() alone only reaches 'assigned', same as
+  // every automatic-assignment path, so a second write bumps it the
+  // rest of the way, matching the client's existing two-call sequence.
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: 'shopping' });
+
+  log(`claimOrder: ${orderId} claimed by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * swapOrder - a shopper swapping off their current order onto a
+ * different pending one from the available-tasks list, releasing the
+ * previous order back to the queue. Replaces TaskDetailScreen's 'swap'
+ * branch (swapCurrentOrder in shopperStatusService.ts).
+ *
+ * WHY DERIVE previousOrderId FROM shopperStatus.currentOrderId INSTEAD
+ * OF TAKING IT AS A PARAMETER, THE WAY THE CLIENT VERSION DID?
+ * The old client version trusted whatever order ID the caller's own
+ * last-read local state claimed was their current one - fine when the
+ * client was also the only place doing the writing, but not something
+ * an authorization boundary can accept: a forged previousOrderId would
+ * release an unrelated order back to pending on the caller's say-so
+ * alone. The caller only gets to choose which NEW order they want;
+ * which order gets released is always read fresh from the shopper's
+ * own server-side ShopperStatus doc, never taken on faith.
+ *
+ * WHY CLAIM THE NEW ORDER BEFORE RELEASING THE OLD ONE?
+ * Same reasoning as the client version this replaces: if claiming the
+ * new order fails partway, the shopper still has their original order
+ * intact - nothing lost. Releasing first would risk leaving them with
+ * neither. It also matters for a second reason specific to this
+ * server-side version: assign()'s ShopperStatus write (currentOrderId
+ * -> newOrderId) happens first, so by the time release() fires the
+ * old order's `orders` update event, this shopper's currentOrderId no
+ * longer reads as idle - handleOrderReleased's getNextAvailableShopper
+ * query correctly can't hand the just-released order right back to the
+ * same shopper who just swapped off it.
+ */
+async function handleSwapOrder(databases, caller, payload, log) {
+  const { newOrderId } = payload;
+  if (!newOrderId) {
+    return { status: 400, body: { ok: false, error: 'newOrderId is required' } };
+  }
+
+  const shopperStatus = await getShopperStatusDoc(databases, caller.$id);
+  if (!shopperStatus) {
+    return { status: 403, body: { ok: false, error: 'No shopper profile for this account' } };
+  }
+  const previousOrderId = shopperStatus.currentOrderId;
+  if (!previousOrderId) {
+    return { status: 409, body: { ok: false, error: 'No active order to swap from' } };
+  }
+  if (newOrderId === previousOrderId) {
+    return { status: 409, body: { ok: false, error: 'Already working this order' } };
+  }
+
+  let newOrder;
+  try {
+    newOrder = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, newOrderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (newOrder.status !== 'pending' || newOrder.shopperID !== '') {
+    return { status: 409, body: { ok: false, error: 'Order is no longer available to claim' } };
+  }
+
+  await assign(databases, newOrderId, caller.$id, false);
+  // Same "claim starts shopping immediately" behavior as claimOrder -
+  // the button reads "Swap for This Order" and navigates straight to
+  // the Shopping screen, so the new order needs to already be past
+  // 'assigned' by the time that navigation happens.
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, newOrderId, { status: 'shopping' });
+  await release(databases, previousOrderId, undefined);
+
+  log(`swapOrder: ${caller.$id} swapped from ${previousOrderId} to ${newOrderId}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * Every arrival action needs both the CustomerArrival and the Order it
+ * points at (arrival.orderID) - the Order is what actually says who the
+ * hand-off is addressed to (Order.shopperID), matching
+ * ShopperAssignmentContext's own targeting check (handleArrivalEvent)
+ * exactly, not a separate field on the arrival itself.
+ */
+async function getArrivalAndOrder(databases, arrivalId) {
+  const arrival = await databases
+    .getDocument(DATABASE_ID, CUSTOMER_ARRIVALS_COLLECTION_ID, arrivalId)
+    .catch(() => null);
+  if (!arrival) {
+    return { arrival: null, order: null };
+  }
+  const order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, arrival.orderID).catch(() => null);
+  return { arrival, order };
+}
+
+/**
+ * acceptArrivalHandoff - the targeted shopper acknowledging
+ * ArrivalNotificationModal ("Hand Off Order"). Replaces
+ * ShopperAssignmentContext's acceptArrival, which called
+ * updateArrivalStatus() directly with no check the caller was actually
+ * the shopper this arrival is addressed to - only the client's own
+ * local `pendingArrival` state (itself already filtered to matching
+ * orders) kept that true in practice. Doesn't touch Order.shopperID -
+ * accepting keeps this shopper responsible, same as the client version.
+ */
+async function handleAcceptArrivalHandoff(databases, caller, payload, log) {
+  const { arrivalId } = payload;
+  if (!arrivalId) {
+    return { status: 400, body: { ok: false, error: 'arrivalId is required' } };
+  }
+
+  const { arrival, order } = await getArrivalAndOrder(databases, arrivalId);
+  if (!arrival) {
+    return { status: 404, body: { ok: false, error: 'Arrival could not be found' } };
+  }
+  if (!order || order.shopperID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This hand-off is not addressed to you' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, CUSTOMER_ARRIVALS_COLLECTION_ID, arrival.$id, {
+    status: 'in_progress',
+  });
+  log(`acceptArrivalHandoff: ${arrivalId} accepted by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * declineArrivalHandoff - the targeted shopper declining
+ * ArrivalNotificationModal ("Unavailable"). Replaces
+ * ShopperAssignmentContext's declineArrival (recordArrivalDecline() +
+ * releaseArrivalHandoff() as two separate client writes), same
+ * targeting check as accept. Order matters here exactly as the client
+ * version's own WHY-comment already explains: declinedByShopperID has
+ * to be written before shopperID clears, so the resulting `orders`
+ * update event's reassignment search (reassignStuckArrival, triggered
+ * below by this exact write) already excludes this shopper by the time
+ * it runs - both writes happen inside one execution here, so that
+ * ordering is naturally guaranteed rather than depending on two
+ * sequential client calls landing in order.
+ *
+ * WHY {shopperID: ''} ONLY, NOT THE SHARED release() HELPER?
+ * release() also forces status back to 'pending' - wrong here, this
+ * order is ready_for_pickup and stays that way; only who's holding the
+ * hand-off changes. Matches releaseArrivalHandoff()'s exact shape in
+ * orderService.ts, not unassignOrder()'s.
+ */
+async function handleDeclineArrivalHandoff(databases, caller, payload, log) {
+  const { arrivalId } = payload;
+  if (!arrivalId) {
+    return { status: 400, body: { ok: false, error: 'arrivalId is required' } };
+  }
+
+  const { arrival, order } = await getArrivalAndOrder(databases, arrivalId);
+  if (!arrival) {
+    return { status: 404, body: { ok: false, error: 'Arrival could not be found' } };
+  }
+  if (!order || order.shopperID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This hand-off is not addressed to you' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, CUSTOMER_ARRIVALS_COLLECTION_ID, arrival.$id, {
+    declinedByShopperID: caller.$id,
+  });
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, order.$id, { shopperID: '' });
+
+  log(`declineArrivalHandoff: ${arrivalId} declined by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * completeArrivalHandoff - physically handing the order to the
+ * customer from Customer Check-ins ("Hand Off Order"). Replaces
+ * CustomerCheckInsScreen's two separate, unguarded writes
+ * (updateArrivalStatus + completeOrder) with one execution that does
+ * both together.
+ *
+ * WHY NO order.shopperID === caller.$id CHECK, UNLIKE ACCEPT/DECLINE?
+ * Deliberately looser by design, not an oversight - Customer Check-ins
+ * is a shared queue any on-duty shopper works from, and the README
+ * documents this exactly: "Any on-duty shopper can also complete a
+ * hand-off directly from Customer Check-ins regardless of who's
+ * currently targeted." The real authorization question here is only
+ * "is this caller actually a shopper at all," not "is it THE shopper."
+ */
+async function handleCompleteArrivalHandoff(databases, caller, payload, log) {
+  const { arrivalId } = payload;
+  if (!arrivalId) {
+    return { status: 400, body: { ok: false, error: 'arrivalId is required' } };
+  }
+
+  const { arrival, order } = await getArrivalAndOrder(databases, arrivalId);
+  if (!arrival) {
+    return { status: 404, body: { ok: false, error: 'Arrival could not be found' } };
+  }
+  if (!order) {
+    return { status: 404, body: { ok: false, error: 'Order could not be found' } };
+  }
+
+  const callerShopperStatus = await getShopperStatusDoc(databases, caller.$id);
+  if (!callerShopperStatus) {
+    return { status: 403, body: { ok: false, error: 'No shopper profile for this account' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, CUSTOMER_ARRIVALS_COLLECTION_ID, arrival.$id, {
+    status: 'completed',
+  });
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, order.$id, { status: 'completed' });
+
+  log(`completeArrivalHandoff: ${arrivalId} completed by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+async function handleHttpAction(databases, payload, log) {
+  const caller = await resolveCaller(payload.jwt);
+  if (!caller) {
+    return { status: 401, body: { ok: false, error: 'Invalid or missing authentication' } };
+  }
+
+  switch (payload.action) {
+    case 'claimOrder':
+      return await handleClaimOrder(databases, caller, payload, log);
+    case 'swapOrder':
+      return await handleSwapOrder(databases, caller, payload, log);
+    case 'acceptArrivalHandoff':
+      return await handleAcceptArrivalHandoff(databases, caller, payload, log);
+    case 'declineArrivalHandoff':
+      return await handleDeclineArrivalHandoff(databases, caller, payload, log);
+    case 'completeArrivalHandoff':
+      return await handleCompleteArrivalHandoff(databases, caller, payload, log);
+    default:
+      return { status: 400, body: { ok: false, error: `Unknown action: ${payload.action}` } };
+  }
+}
+
+// ============================================================
 // ENTRYPOINT
 // ============================================================
 
@@ -515,6 +854,11 @@ export default async ({ req, res, log, error }) => {
     } catch (parseErr) {
       error(`Failed to parse event payload: ${parseErr}`);
       return res.json({ ok: false, error: 'invalid payload' }, 400);
+    }
+
+    if (trigger === 'http') {
+      const result = await handleHttpAction(databases, payload, log);
+      return res.json(result.body, result.status);
     }
 
     // WHY .includes(collectionId) INSTEAD OF THE FULL LEGACY PATH?
@@ -558,6 +902,13 @@ export default async ({ req, res, log, error }) => {
     return res.json({ ok: true });
   } catch (err) {
     error(`Auto-assignment failed for event ${event}: ${err instanceof Error ? err.message : err}`);
+    if (trigger === 'http') {
+      // Unlike the event/schedule case below, an HTTP caller is a real
+      // client waiting on a result - it needs an actual error status to
+      // know the action didn't happen, not a 200-shaped "ok: false" it
+      // has no retry-loop reason to swallow silently.
+      return res.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
+    }
     // Deliberately return 200-shaped success from the function's own
     // perspective (it did run, and logged the failure) rather than
     // retry-looping Appwrite's own event-delivery retries against a

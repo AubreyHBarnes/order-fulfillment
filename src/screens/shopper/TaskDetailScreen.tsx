@@ -61,12 +61,9 @@ import { Text, Icon, Card, Divider, Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
-import { getOrderById, assignOrderToShopper, startShopping } from '../../services/orderService';
-import {
-  assignOrderToShopper as assignOrderInShopperStatus,
-  getShopperStatus,
-  swapCurrentOrder,
-} from '../../services/shopperStatusService';
+import { getOrderById, startShopping } from '../../services/orderService';
+import { getShopperStatus } from '../../services/shopperStatusService';
+import { claimOrder, swapOrder } from '../../services/functionActionService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
 import { getProductById } from '../../services/productService';
 import type { ShopperStackParamList, Order, UserProfile, Product } from '../../types';
@@ -339,17 +336,13 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
     setActionLoading(true);
     try {
       if (action === 'claim') {
-        // Manual claim from the available-tasks list - not an
-        // auto-assignment, so autoAssigned is explicitly false
-        const assignResult = await assignOrderToShopper(order.$id, userProfile.shopperID, false);
-        if (!assignResult.success) {
-          Alert.alert('Error', assignResult.error ?? 'Failed to claim order');
-          return;
-        }
-        await assignOrderInShopperStatus(userProfile.shopperID, order.$id);
-        const startResult = await startShopping(order.$id);
-        if (!startResult.success) {
-          Alert.alert('Error', startResult.error ?? 'Failed to start shopping');
+        // Manual claim from the available-tasks list - verified and
+        // written server-side now (docs/DECISIONS.md's "Permission
+        // tightening" entry), not three separate client writes with no
+        // check the order is still actually unclaimed.
+        const claimResult = await claimOrder(order.$id);
+        if (!claimResult.success) {
+          Alert.alert('Error', claimResult.error ?? 'Failed to claim order');
           return;
         }
         navigation.navigate('Shopping', { orderId: order.$id });
@@ -364,7 +357,11 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
         navigation.navigate('Shopping', { orderId: order.$id });
       } else if (action === 'swap') {
         if (!shopperActiveOrderId) return;
-        const swapResult = await swapCurrentOrder(userProfile.shopperID, shopperActiveOrderId, order.$id);
+        // Verified and written server-side now, same as 'claim' - which
+        // order gets released is derived from the shopper's own
+        // ShopperStatus there, not taken from shopperActiveOrderId
+        // (kept here only to gate the button's visibility).
+        const swapResult = await swapOrder(order.$id);
         if (!swapResult.success) {
           Alert.alert('Error', swapResult.error ?? 'Failed to swap order');
           return;

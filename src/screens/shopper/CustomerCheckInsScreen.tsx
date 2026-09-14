@@ -41,10 +41,11 @@ import {
 import { Text, Icon, Card, Button } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppTheme } from '../../theme';
-import { getActiveArrivals, updateArrivalStatus } from '../../services/arrivalService';
-import { getOrderById, completeOrder } from '../../services/orderService';
+import { getActiveArrivals } from '../../services/arrivalService';
+import { getOrderById } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
 import { subscribeToCustomerArrivals } from '../../services/realtimeService';
+import { completeArrivalHandoff } from '../../services/functionActionService';
 import type { CustomerArrival, Order, UserProfile } from '../../types';
 
 // ============================================================
@@ -195,14 +196,13 @@ const CustomerCheckInsScreen: React.FC = () => {
           onPress: async () => {
             setHandingOffId(arrival.$id);
             try {
-              const arrivalResult = await updateArrivalStatus(arrival.$id, 'completed');
-              const orderResult = await completeOrder(order.$id, 'completed');
-
-              if (!arrivalResult.success || !orderResult.success) {
-                Alert.alert(
-                  'Error',
-                  arrivalResult.error ?? orderResult.error ?? 'Failed to hand off order'
-                );
+              // Verified and written server-side now - one execution
+              // for both writes together (docs/DECISIONS.md's
+              // "Permission tightening" entry), not two separate
+              // unguarded client calls.
+              const result = await completeArrivalHandoff(arrival.$id);
+              if (!result.success) {
+                Alert.alert('Error', result.error ?? 'Failed to hand off order');
                 return;
               }
 

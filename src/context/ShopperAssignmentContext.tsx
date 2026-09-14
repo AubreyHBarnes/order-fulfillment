@@ -81,9 +81,9 @@ import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getShopperStatus, updateShopperAvailability } from '../services/shopperStatusService';
-import { getOrderById, getNextOrderForAssignment, releaseArrivalHandoff } from '../services/orderService';
+import { getOrderById, getNextOrderForAssignment } from '../services/orderService';
 import { getUserProfileById, getCustomerDisplayName } from '../services/userService';
-import { updateArrivalStatus, recordArrivalDecline } from '../services/arrivalService';
+import { acceptArrivalHandoff, declineArrivalHandoff } from '../services/functionActionService';
 import {
   subscribeToOrders,
   subscribeToShopperStatus,
@@ -533,13 +533,16 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    * the physical hand-off ("Hand Off Order") once they've actually
    * brought the order out. Doesn't touch Order.shopperID - accepting
    * keeps this shopper as the one responsible, only declining or timing
-   * out hands it to someone else.
+   * out hands it to someone else. Verified and written server-side now
+   * (docs/DECISIONS.md's "Permission tightening" entry) - the Function
+   * checks the caller is actually the addressed shopper, not just this
+   * context's own local `pendingArrival` filtering.
    */
   const acceptArrival = async (): Promise<void> => {
     if (!pendingArrival) {
       return;
     }
-    const result = await updateArrivalStatus(pendingArrival.arrivalId, 'in_progress');
+    const result = await acceptArrivalHandoff(pendingArrival.arrivalId);
     // WHY TREAT "could not be found" AS A SILENT NO-OP, NOT AN ALERT?
     // The arrival this modal is showing can stop existing out from under
     // it - completed/reassigned/deleted by something else while it was
@@ -564,7 +567,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   /**
    * Decline the arrival hand-off.
    *
-   * WHY releaseArrivalHandoff(orderId) INSTEAD OF
+   * WHY releaseArrivalHandoff-STYLE (shopperID only) INSTEAD OF
    * updateShopperAvailability(shopperId, false) (NewAssignmentModal's
    * decline, and this modal's own "Unavailable" label)?
    * Labeled the same as NewAssignmentModal's decline for the same
@@ -575,36 +578,26 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    * be actively shopping a *different* one right now. Going through
    * updateShopperAvailability would also release that unrelated order
    * (see its own docstring) as a side effect of declining a drop-off -
-   * not the intended behavior. releaseArrivalHandoff only clears this
-   * one order's shopperID, leaving status and everything else about
-   * this shopper's current work untouched; the auto-assignment
-   * Function's `orders` update handler treats that the same way it
-   * treats a released pending order - hands it to the next idle
-   * shopper (see docs/DECISIONS.md's arrival hand-off entry).
+   * not the intended behavior. The Function's declineArrivalHandoff
+   * only clears this one order's shopperID, leaving status and
+   * everything else about this shopper's current work untouched; the
+   * auto-assignment Function's `orders` update handler treats that the
+   * same way it treats a released pending order - hands it to the next
+   * idle shopper (see docs/DECISIONS.md's arrival hand-off entry).
    *
-   * WHY recordArrivalDecline() BEFORE releaseArrivalHandoff(), AND WHY
-   * AT ALL?
-   * Declining doesn't mark this shopper unavailable (see above) - they
-   * can easily still be sitting idle (isAvailable true, currentOrderId
-   * empty) immediately after declining, which is exactly what
-   * getNextAvailableShopper() looks for. Without recording who just
-   * declined, the reassignment search could hand the same arrival
-   * straight back to the same shopper who just said no to it. Recording
-   * it first (awaited before releaseArrivalHandoff runs) guarantees the
-   * auto-assignment Function sees declinedByShopperID already set by
-   * the time the order's shopperID-cleared event reaches it.
+   * declinedByShopperID and the shopperID clear now happen together,
+   * inside one server-side execution - see the WHY-comment on
+   * handleDeclineArrivalHandoff in main.js for why that ordering still
+   * matters (the reassignment search needs to see the exclusion before
+   * it runs), guaranteed here rather than depending on two sequential
+   * client calls landing in order.
    */
   const declineArrival = async (): Promise<void> => {
     if (!pendingArrival) {
       return;
     }
     setDeclineArrivalLoading(true);
-    // Best-effort - if the arrival itself is already gone (see
-    // acceptArrival's comment on the same failure mode), there's
-    // nothing to stamp a decliner onto, but the order-side release
-    // below should still be attempted regardless.
-    await recordArrivalDecline(pendingArrival.arrivalId, shopperId);
-    const result = await releaseArrivalHandoff(pendingArrival.orderId);
+    const result = await declineArrivalHandoff(pendingArrival.arrivalId);
     if (!result.success && !result.error?.includes('could not be found')) {
       Alert.alert('Error', result.error ?? 'Failed to decline arrival');
     }

@@ -40,8 +40,8 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 - 🔍 **Task Detail** - View and work an individual order's items (implemented)
 - 🛍️ **Shopping Workflow** - Claim an order, work a checklist (found / out-of-stock / propose substitute), customer approves substitutions live, mark ready for pickup (implemented)
 - 🔄 **Order Swap & Rush-Order Interrupt** - Swap onto a more urgent pending order, get interrupted for a rush order when every shopper is busy, non-blocking toast when a more urgent order becomes available - all pushed live via Appwrite Realtime (implemented)
-- ⚡ **Auto-Assignment** - Orders can be flagged `autoAssigned` on placement; this is a simple client-side flag today, not yet a ranking/routing algorithm or serverless function
-- 🚗 **Drop-offs / Customer Check-ins / Settings** - Screens exist but are static placeholders, not yet functional
+- ⚡ **Auto-Assignment** - Every assignment (idle hand-off, rush-order interrupt, released-order requeue) is decided server-side by an event-triggered Appwrite Function (`functions/auto-assignment/`), not the client. Started as a client-side `autoAssigned` flag with the decision logic running on whichever device triggered it (no routing algorithm, no atomicity between the read and the write); moved server-side to close the race conditions that design allowed - see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full before/after (implemented)
+- 🚗 **Drop-offs / Customer Check-ins / Settings** - Drop-offs (`out_for_delivery` status, "Mark Delivered"), Customer Check-ins (store-wide arrival queue, hand-off), and Settings (theme, app version) are all implemented. Started as static placeholder screens in the nav; built out in Phase 4 (implemented)
 
 ### Technical Highlights
 - 🔐 **Role-Based Authentication** - Separate customer and shopper access
@@ -360,7 +360,7 @@ npm run ios
 1. **View Dashboard / Available Tasks** - See assigned and available orders
 2. **Open Task Detail** - Claim an order (or accept/decline an auto-assignment), or swap onto a more urgent one
 3. **Fulfill Items, Handle Substitutions, Complete Order** - Work the checklist, propose substitutions for customer approval, mark ready for pickup
-4. **Drop-offs, Customer Check-ins, Settings** - Screens exist in navigation but are static placeholders
+4. **Drop-offs, Customer Check-ins, Settings** - Mark orders delivered, handle customer arrivals from the store-wide queue, adjust theme/settings (originally static placeholder screens, built out in Phase 4)
 
 ---
 
