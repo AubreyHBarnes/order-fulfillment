@@ -33,7 +33,8 @@ import { Text, Card, Button, ActivityIndicator, Divider } from 'react-native-pap
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../theme';
-import { getOrderById, cancelOrder, respondToSubstitution } from '../../services/orderService';
+import { getOrderById } from '../../services/orderService';
+import { cancelOrder, respondToSubstitution } from '../../services/functionActionService';
 import { getProductById, formatPrice } from '../../services/productService';
 import { subscribeToOrders, isUpdateEvent } from '../../services/realtimeService';
 import { parseItemIssues } from '../../utils/orderItems';
@@ -243,14 +244,23 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.itemIssues]);
 
+  /**
+   * Verified and written server-side now (docs/DECISIONS.md's
+   * "Permission tightening" entry) - the action no longer returns the
+   * updated order, so this re-fetches directly via loadOrder() instead
+   * of setOrder(result.data). Same source of truth this screen's own
+   * realtime subscription already reloads from on any update event for
+   * this order, just not waiting on that round trip for an action this
+   * screen itself just triggered.
+   */
   const handleSubstitutionResponse = async (approve: boolean): Promise<void> => {
     if (!order || !pendingSubstitution) return;
 
     setSubstitutionResponding(true);
     try {
       const result = await respondToSubstitution(order.$id, pendingSubstitution.productId, approve);
-      if (result.success && result.data) {
-        setOrder(result.data);
+      if (result.success) {
+        await loadOrder();
       } else {
         Alert.alert('Error', result.error ?? 'Failed to respond to substitution');
       }
@@ -278,6 +288,13 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
     );
   };
 
+  /**
+   * Verified and written server-side now (docs/DECISIONS.md's
+   * "Permission tightening" entry), including a real status check the
+   * old client write never enforced - see handleCancelOrder's own
+   * WHY-comment in main.js. Same loadOrder() re-fetch as
+   * handleSubstitutionResponse above, for the same reason.
+   */
   const confirmCancelOrder = async () => {
     if (!order) return;
 
@@ -285,8 +302,8 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
     try {
       const result = await cancelOrder(order.$id);
 
-      if (result.success && result.data) {
-        setOrder(result.data);
+      if (result.success) {
+        await loadOrder();
         Alert.alert('Order Cancelled', 'Your order has been cancelled.');
       } else {
         Alert.alert('Error', result.error ?? 'Failed to cancel order');

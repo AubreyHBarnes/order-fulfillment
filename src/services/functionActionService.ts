@@ -149,3 +149,102 @@ export const completeOrder = async (
 export const releaseAfterCompletion = async (): Promise<FunctionActionResponse> => {
   return callFunctionAction('releaseAfterCompletion');
 };
+
+/**
+ * Move an already-assigned order from 'assigned' to 'shopping'
+ * (TaskDetailScreen's 'start' action, ShopperDashboardScreen's
+ * current-task tap) - replaces orderService.ts's startShopping (removed
+ * - this was its only remaining set of callers). Verified server-side
+ * that the order actually belongs to the calling shopper. See
+ * docs/DECISIONS.md's "Permission tightening" entry.
+ *
+ * @param orderId - The order's document ID
+ */
+export const startShopping = async (orderId: string): Promise<FunctionActionResponse> => {
+  return callFunctionAction('startShopping', { orderId });
+};
+
+/**
+ * Flip the caller's own on-duty status (ShopperDashboardScreen's status
+ * dropdown, ShopperAssignmentContext's decline-a-fresh-assignment path)
+ * - replaces shopperStatusService.ts's updateShopperAvailability
+ * (removed). No shopperId parameter, unlike the old client function -
+ * always targets the caller's own ShopperStatus, derived server-side
+ * from their resolved identity. See docs/DECISIONS.md's "Permission
+ * tightening" entry.
+ *
+ * @param isAvailable - The new availability status
+ */
+export const toggleAvailability = async (isAvailable: boolean): Promise<FunctionActionResponse> => {
+  return callFunctionAction('toggleAvailability', { isAvailable });
+};
+
+/**
+ * Cancel the caller's own order (OrderDetailScreen's "Cancel Order") -
+ * replaces orderService.ts's cancelOrder (removed - this was its only
+ * remaining set of callers). Verified server-side that the order
+ * belongs to the calling customer and is still in a cancellable status
+ * (`pending`/`assigned`) - a real gate the old client version never
+ * enforced, only its own Cancel button's visibility did. See
+ * docs/DECISIONS.md's "Permission tightening" entry.
+ *
+ * @param orderId - The order's document ID
+ */
+export const cancelOrder = async (orderId: string): Promise<FunctionActionResponse> => {
+  return callFunctionAction('cancelOrder', { orderId });
+};
+
+/**
+ * Record the customer's approve/reject decision on a pending
+ * substitution proposal (OrderDetailScreen's SubstitutionApprovalCard) -
+ * replaces orderService.ts's respondToSubstitution (removed - this was
+ * its only remaining set of callers). Verified server-side that the
+ * order belongs to the calling customer. See docs/DECISIONS.md's
+ * "Permission tightening" entry.
+ *
+ * @param orderId - The order's document ID
+ * @param productId - The product whose substitution is being responded to
+ * @param approve - true to approve the substitute, false to reject it
+ */
+export const respondToSubstitution = async (
+  orderId: string,
+  productId: string,
+  approve: boolean
+): Promise<FunctionActionResponse> => {
+  return callFunctionAction('respondToSubstitution', { orderId, productId, approve });
+};
+
+/**
+ * Update the picked items for an order (ShoppingScreen's `persistPicked`,
+ * fired on every Found/quantity change) - replaces orderService.ts's
+ * updatePickedItems (removed - this was its only remaining set of
+ * callers). Verified server-side that the order is assigned to the
+ * calling shopper. See docs/DECISIONS.md's "Permission tightening" entry.
+ *
+ * @param orderId - The order's document ID
+ * @param pickedItems - Compact "productId:qty,..." string
+ */
+export const updatePickedItems = async (
+  orderId: string,
+  pickedItems: string
+): Promise<FunctionActionResponse> => {
+  return callFunctionAction('updatePickedItems', { orderId, pickedItems });
+};
+
+/**
+ * Update the item issues for an order (ShoppingScreen's `persistIssues`,
+ * fired on out-of-stock/substitute/found-clears-issue) - replaces
+ * orderService.ts's updateItemIssues (removed - this was its only
+ * remaining set of callers). Same shopper-ownership check as
+ * updatePickedItems above. See docs/DECISIONS.md's "Permission
+ * tightening" entry.
+ *
+ * @param orderId - The order's document ID
+ * @param itemIssues - Compact item-issues string (see src/utils/orderItems.ts)
+ */
+export const updateItemIssues = async (
+  orderId: string,
+  itemIssues: string
+): Promise<FunctionActionResponse> => {
+  return callFunctionAction('updateItemIssues', { orderId, itemIssues });
+};

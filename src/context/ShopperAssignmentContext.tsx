@@ -80,10 +80,14 @@ import React, {
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getShopperStatus, updateShopperAvailability } from '../services/shopperStatusService';
+import { getShopperStatus } from '../services/shopperStatusService';
 import { getOrderById, getNextOrderForAssignment } from '../services/orderService';
 import { getUserProfileById, getCustomerDisplayName } from '../services/userService';
-import { acceptArrivalHandoff, declineArrivalHandoff } from '../services/functionActionService';
+import {
+  acceptArrivalHandoff,
+  declineArrivalHandoff,
+  toggleAvailability,
+} from '../services/functionActionService';
 import {
   subscribeToOrders,
   subscribeToShopperStatus,
@@ -568,18 +572,18 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    * Decline the arrival hand-off.
    *
    * WHY releaseArrivalHandoff-STYLE (shopperID only) INSTEAD OF
-   * updateShopperAvailability(shopperId, false) (NewAssignmentModal's
-   * decline, and this modal's own "Unavailable" label)?
+   * toggleAvailability(false) (NewAssignmentModal's decline, and this
+   * modal's own "Unavailable" label)?
    * Labeled the same as NewAssignmentModal's decline for the same
    * reason - "not me right now" - but the underlying action has to be
    * narrower: unlike a fresh assignment (only ever shown to an idle
    * shopper with nothing else in flight), the shopper an arrival is
    * addressed to already finished shopping this order and could easily
    * be actively shopping a *different* one right now. Going through
-   * updateShopperAvailability would also release that unrelated order
-   * (see its own docstring) as a side effect of declining a drop-off -
-   * not the intended behavior. The Function's declineArrivalHandoff
-   * only clears this one order's shopperID, leaving status and
+   * toggleAvailability would also release that unrelated order (see
+   * handleShopperWentUnavailable in main.js) as a side effect of
+   * declining a drop-off - not the intended behavior. The Function's
+   * declineArrivalHandoff only clears this one order's shopperID, leaving status and
    * everything else about this shopper's current work untouched; the
    * auto-assignment Function's `orders` update handler treats that the
    * same way it treats a released pending order - hands it to the next
@@ -620,8 +624,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   /**
    * Decline the pending order.
    *
-   * WHY CALL updateShopperAvailability(shopperId, false) INSTEAD OF NEW
-   * LOGIC?
+   * WHY CALL toggleAvailability(false) INSTEAD OF NEW LOGIC?
    * The shopper's status doc already has currentOrderId set to this
    * order (the auto-assignment Function already wrote it) - flipping
    * isAvailable to false produces the same `shopperStatus` update event
@@ -632,7 +635,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    */
   const declinePendingAssignment = async (): Promise<void> => {
     setDeclineAssignmentLoading(true);
-    const result = await updateShopperAvailability(shopperId, false);
+    const result = await toggleAvailability(false);
 
     if (result.success) {
       lastKnownOrderIdRef.current = null;

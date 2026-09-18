@@ -866,6 +866,298 @@ async function handleReleaseAfterCompletion(databases, caller, log) {
   return { status: 200, body: { ok: true } };
 }
 
+/**
+ * startShopping - the shopper moving an already-assigned order from
+ * 'assigned' to 'shopping' (TaskDetailScreen's 'start' action,
+ * ShopperDashboardScreen's current-task tap for an 'assigned' order).
+ * Replaces orderService.ts's startShopping (now dead code, removed),
+ * which wrote status unconditionally with no check the order actually
+ * belonged to the calling shopper - same gap completeOrder closed for
+ * the later lifecycle transitions.
+ *
+ * WHY NOT ALSO VALIDATE order.status === 'assigned'?
+ * The old client version never did either - both callers only ever
+ * offer this action for an order already known to be 'assigned', and
+ * writing status: 'shopping' over an order already 'shopping' is an
+ * inert no-op, not a corruption risk the way an unchecked ownership
+ * write is.
+ */
+async function handleStartShopping(databases, caller, payload, log) {
+  const { orderId } = payload;
+  if (!orderId) {
+    return { status: 400, body: { ok: false, error: 'orderId is required' } };
+  }
+
+  let order;
+  try {
+    order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (order.shopperID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This order is not assigned to you' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: 'shopping' });
+  log(`startShopping: ${orderId} started by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * toggleAvailability - a shopper flipping their own on-duty status
+ * (ShopperDashboardScreen's status dropdown, and
+ * ShopperAssignmentContext's decline-a-fresh-assignment path, which
+ * reuses "go unavailable" rather than a dedicated decline action - see
+ * that call site's own WHY-comment). Replaces
+ * shopperStatusService.ts's updateShopperAvailability (now dead code,
+ * removed).
+ *
+ * WHY NO shopperId PARAMETER, LIKE releaseAfterCompletion?
+ * Same reasoning - nothing to authorize beyond "is this caller a
+ * shopper at all," so it always targets the caller's own ShopperStatus,
+ * never one taken from the client.
+ *
+ * WHY NO currentOrderId HANDLING HERE?
+ * Unchanged from the client version this replaces - see
+ * shopperStatusService.ts's original file header, still accurate: this
+ * action's only job is the isAvailable write itself. The resulting
+ * `shopperStatus` update event is what the rest of this Function (the
+ * become-available/went-unavailable handlers already above) reacts to
+ * for whatever follows.
+ */
+async function handleToggleAvailability(databases, caller, payload, log) {
+  if (typeof payload.isAvailable !== 'boolean') {
+    return { status: 400, body: { ok: false, error: 'isAvailable (boolean) is required' } };
+  }
+
+  const shopperStatus = await getShopperStatusDoc(databases, caller.$id);
+  if (!shopperStatus) {
+    return { status: 403, body: { ok: false, error: 'No shopper profile for this account' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, SHOPPER_STATUS_COLLECTION_ID, shopperStatus.$id, {
+    isAvailable: payload.isAvailable,
+    lastActiveTimeStamp: nowIso(),
+  });
+
+  log(`toggleAvailability: ${caller.$id} -> isAvailable: ${payload.isAvailable}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * Parse/format the compact `itemIssues` string - a hand-reimplemented
+ * copy of src/utils/orderItems.ts's parseItemIssues/formatItemIssues,
+ * not an import: this Function is plain JS with no build step sharing
+ * code with the TypeScript client (every query/write helper above
+ * already mirrors its client-side counterpart the same way, per this
+ * file's own header comment on getNextAvailableShopper etc.). Format:
+ * "productId:oos" (out of stock, no substitute) or
+ * "productId:sub:subProductId:pending|approved|rejected" (a
+ * substitution proposal and its approval state).
+ */
+function parseItemIssues(itemIssues) {
+  if (!itemIssues) return [];
+  const issues = [];
+  for (const entry of itemIssues.split(',')) {
+    if (!entry) continue;
+    const parts = entry.split(':');
+    const productId = parts[0];
+    const kind = parts[1];
+    if (!productId) continue;
+    if (kind === 'oos') {
+      issues.push({ productId, kind: 'oos' });
+    } else if (kind === 'sub') {
+      const subProductId = parts[2];
+      const status = parts[3];
+      if (subProductId && (status === 'pending' || status === 'approved' || status === 'rejected')) {
+        issues.push({ productId, kind: 'sub', subProductId, status });
+      }
+    }
+  }
+  return issues;
+}
+
+function formatItemIssues(issues) {
+  return issues
+    .map((issue) =>
+      issue.kind === 'oos'
+        ? `${issue.productId}:oos`
+        : `${issue.productId}:sub:${issue.subProductId}:${issue.status}`
+    )
+    .join(',');
+}
+
+/**
+ * cancelOrder - a customer cancelling their own order (OrderDetailScreen's
+ * "Cancel Order"). Replaces orderService.ts's cancelOrder (removed - this
+ * was its only remaining set of callers), and the first action in this
+ * Function authorized against a CUSTOMER caller rather than a shopper -
+ * every prior action's identity check has been `order.shopperID ===
+ * caller.$id` or a ShopperStatus lookup; this one is `order.customerID
+ * === caller.$id` instead, the same `caller.$id` (an Appwrite Auth user
+ * ID) either role's account uses (see the Role.any() primer above for
+ * why Appwrite itself can't tell a shopper from a customer at the
+ * permission layer - this app-level check is the only place that
+ * distinction gets enforced).
+ *
+ * WHY VALIDATE order.status HERE, WHEN completeOrder AND startShopping
+ * DELIBERATELY DON'T VALIDATE STATUS BEYOND A FIXED LIST/NOT-AT-ALL?
+ * Unlike those two, the old client version already had a real
+ * business-logic gate on this exact write - canCancelOrder() in
+ * OrderDetailScreen.tsx only ever shows the Cancel button for a
+ * 'pending' or 'assigned' order - it was just never enforced anywhere
+ * but the UI. A forged call against a 'shopping'/'ready_for_pickup'
+ * order would cancel an order already being actively fulfilled, a real
+ * correctness gap once this is the actual authorization boundary, not
+ * a new restriction invented here.
+ */
+async function handleCancelOrder(databases, caller, payload, log) {
+  const { orderId } = payload;
+  if (!orderId) {
+    return { status: 400, body: { ok: false, error: 'orderId is required' } };
+  }
+
+  let order;
+  try {
+    order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (order.customerID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This order does not belong to you' } };
+  }
+  if (order.status !== 'pending' && order.status !== 'assigned') {
+    return { status: 409, body: { ok: false, error: 'This order can no longer be cancelled' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: 'cancelled' });
+  log(`cancelOrder: ${orderId} cancelled by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * respondToSubstitution - the customer approving/rejecting a pending
+ * substitution proposal (OrderDetailScreen's SubstitutionApprovalCard).
+ * Replaces orderService.ts's respondToSubstitution (removed - this was
+ * its only remaining set of callers). Same customer-ownership check as
+ * cancelOrder, same read-modify-write shape the old client version used
+ * (itemIssues has no partial-field update, the whole compact string
+ * gets read, the matching entry's status flipped in memory, and the
+ * whole string written back).
+ *
+ * WHY NO CHECK THAT A MATCHING PENDING 'sub' ISSUE ACTUALLY EXISTS FOR
+ * productId?
+ * Matches the old client's own behavior exactly - it mapped over every
+ * issue and only touched the one matching kind:'sub' + productId; a
+ * productId with no matching pending substitution was always a silent
+ * no-op (the formatted string comes back unchanged). Not a new gap
+ * introduced here, and adding a stricter check would be new behavior
+ * the client version never had, not just closing an authorization hole.
+ */
+async function handleRespondToSubstitution(databases, caller, payload, log) {
+  const { orderId, productId, approve } = payload;
+  if (!orderId || !productId || typeof approve !== 'boolean') {
+    return { status: 400, body: { ok: false, error: 'orderId, productId, and approve (boolean) are required' } };
+  }
+
+  let order;
+  try {
+    order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (order.customerID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This order does not belong to you' } };
+  }
+
+  const issues = parseItemIssues(order.itemIssues ?? '');
+  const updatedIssues = issues.map((issue) =>
+    issue.kind === 'sub' && issue.productId === productId
+      ? { ...issue, status: approve ? 'approved' : 'rejected' }
+      : issue
+  );
+
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, {
+    itemIssues: formatItemIssues(updatedIssues),
+  });
+  log(`respondToSubstitution: ${orderId} product ${productId} ${approve ? 'approved' : 'rejected'} by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * updatePickedItems - the shopper checking off found items and adjusting
+ * quantities while working the checklist (ShoppingScreen's
+ * `persistPicked`, fired on every Found/quantity change). Replaces
+ * orderService.ts's updatePickedItems (removed - this was its only
+ * remaining set of callers). Back to a shopper-authorized action - same
+ * `order.shopperID === caller.$id` ownership check `completeOrder` and
+ * `startShopping` already use.
+ *
+ * WHY NO VALIDATION OF pickedItems' CONTENTS (e.g. that each productId
+ * is actually on the order, or quantities don't exceed what was
+ * ordered)?
+ * The old client version wrote whatever compact string
+ * `formatPickedItemsString` produced with no server-side check either -
+ * this is the single highest-frequency write in the whole shopping
+ * workflow (fires on every checklist interaction), and adding real
+ * validation here would be new business logic invented for this
+ * migration, not closing an authorization hole. The authorization
+ * boundary (only the assigned shopper can write this order's progress
+ * at all) is the actual gap this action closes.
+ */
+async function handleUpdatePickedItems(databases, caller, payload, log) {
+  const { orderId, pickedItems } = payload;
+  if (!orderId || typeof pickedItems !== 'string') {
+    return { status: 400, body: { ok: false, error: 'orderId and pickedItems (string) are required' } };
+  }
+
+  let order;
+  try {
+    order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (order.shopperID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This order is not assigned to you' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { pickedItems });
+  log(`updatePickedItems: ${orderId} updated by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * updateItemIssues - the shopper marking an item out-of-stock or
+ * proposing a substitute (ShoppingScreen's `persistIssues`, fired from
+ * handleMarkOutOfStock/handleSelectSubstitute/the found-clears-issue
+ * path). Replaces orderService.ts's updateItemIssues (removed - this
+ * was its only remaining set of callers). Same ownership check and same
+ * "no content validation, only the authorization gap closes" reasoning
+ * as updatePickedItems above - the shopper-authored half of the exact
+ * itemIssues field `respondToSubstitution` above writes the
+ * customer-authored half of.
+ */
+async function handleUpdateItemIssues(databases, caller, payload, log) {
+  const { orderId, itemIssues } = payload;
+  if (!orderId || typeof itemIssues !== 'string') {
+    return { status: 400, body: { ok: false, error: 'orderId and itemIssues (string) are required' } };
+  }
+
+  let order;
+  try {
+    order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (order.shopperID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This order is not assigned to you' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { itemIssues });
+  log(`updateItemIssues: ${orderId} updated by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
 async function handleHttpAction(databases, payload, log) {
   const caller = await resolveCaller(payload.jwt);
   if (!caller) {
@@ -887,6 +1179,18 @@ async function handleHttpAction(databases, payload, log) {
       return await handleCompleteOrder(databases, caller, payload, log);
     case 'releaseAfterCompletion':
       return await handleReleaseAfterCompletion(databases, caller, log);
+    case 'startShopping':
+      return await handleStartShopping(databases, caller, payload, log);
+    case 'toggleAvailability':
+      return await handleToggleAvailability(databases, caller, payload, log);
+    case 'cancelOrder':
+      return await handleCancelOrder(databases, caller, payload, log);
+    case 'respondToSubstitution':
+      return await handleRespondToSubstitution(databases, caller, payload, log);
+    case 'updatePickedItems':
+      return await handleUpdatePickedItems(databases, caller, payload, log);
+    case 'updateItemIssues':
+      return await handleUpdateItemIssues(databases, caller, payload, log);
     default:
       return { status: 400, body: { ok: false, error: `Unknown action: ${payload.action}` } };
   }

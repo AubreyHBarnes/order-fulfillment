@@ -496,7 +496,8 @@ npm install
 
 ### Planned 📋
 - [ ] **Phase 6:** Remaining Backend & Polish
-  - [x] Auto-assignment serverless function - an event-triggered Appwrite Function (`functions/auto-assignment/`) now decides every assignment (idle hand-off, rush-order interrupt, released-order requeue), replacing the client-side sorted query; see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full design, the race conditions it closes, and what's deliberately still open (permission tightening was scoped out - Appwrite has no field-level permissions, so full lockdown would mean routing every Orders/ShopperStatus write through Functions, a separate future project)
+  - [x] Auto-assignment serverless function - an event-triggered Appwrite Function (`functions/auto-assignment/`) now decides every assignment (idle hand-off, rush-order interrupt, released-order requeue), replacing the client-side sorted query; see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full design and the race conditions it closes
+  - [x] Permission-tightening write paths - every planned Function action (13/13: `claimOrder`, `swapOrder`, the CustomerArrivals accept/decline/complete trio, `completeOrder`, `releaseAfterCompletion`, `startShopping`, `toggleAvailability`, `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`) is built, deployed, and live-verified - every direct client write to Orders/ShopperStatus/CustomerArrivals now goes through a JWT-authenticated, server-side action instead. The actual permission-removal step (revoking client `update` access now that nothing depends on it) is the one remaining piece, deliberately deferred to its own pass; see `docs/DECISIONS.md`'s "Permission tightening" entries for the full plan and write-path inventory
   - [ ] Live order tracking (a map/ETA view - order status itself already updates live via Realtime)
   - [ ] UI/UX improvements
   - [ ] Performance optimization

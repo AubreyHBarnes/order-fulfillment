@@ -87,10 +87,10 @@ import {
   getAvailableTasksCount,
   getCurrentAssignedOrder,
   getOutForDeliveryCount,
-  startShopping,
 } from '../../services/orderService';
 import { getActiveArrivalsCount } from '../../services/arrivalService';
-import { getShopperStatus, updateShopperAvailability } from '../../services/shopperStatusService';
+import { getShopperStatus } from '../../services/shopperStatusService';
+import { startShopping, toggleAvailability } from '../../services/functionActionService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
 import {
   subscribeToOrders,
@@ -453,18 +453,20 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
   /**
    * Handle status change
    *
-   * Just writes ShopperStatus.isAvailable now - see
-   * shopperStatusService.ts's file header for why. Any resulting
-   * auto-assignment (or release-and-requeue, going the other way)
-   * happens server-side and asynchronously in the auto-assignment
-   * Function; this screen no longer waits on or drives that itself.
+   * Just writes ShopperStatus.isAvailable now, verified and written
+   * server-side (docs/DECISIONS.md's "Permission tightening" entry) -
+   * no shopperId passed, the action always targets the caller's own
+   * status. Any resulting auto-assignment (or release-and-requeue,
+   * going the other way) happens server-side and asynchronously in the
+   * auto-assignment Function; this screen no longer waits on or drives
+   * that itself.
    *
    * WHY NO MORE "if an order was auto-assigned, show NewAssignmentModal"
    * BRANCH HERE?
-   * That depended on `updateShopperAvailability` returning the newly
-   * assigned order synchronously, which it no longer can - the Function
-   * decides and writes that asynchronously, off the `shopperStatus`
-   * update event this call produces. `ShopperAssignmentContext` already
+   * That depended on the old client write returning the newly assigned
+   * order synchronously, which it no longer can - the Function decides
+   * and writes that asynchronously, off the `shopperStatus` update
+   * event this call produces. `ShopperAssignmentContext` already
    * watches for exactly that transition (currentOrderId going from
    * empty to set) via its own realtime subscription, and shows the same
    * NewAssignmentModal - it used to exist only to catch an order landing
@@ -491,7 +493,7 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
     setStatusLoading(true);
 
     const isAvailable = newStatus === 'available';
-    const result = await updateShopperAvailability(userProfile.shopperID, isAvailable);
+    const result = await toggleAvailability(isAvailable);
 
     if (result.success) {
       setShopperStatus(newStatus);

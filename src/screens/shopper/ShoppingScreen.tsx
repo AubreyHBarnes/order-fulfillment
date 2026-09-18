@@ -24,7 +24,8 @@ import { View, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-nati
 import { Text, Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppTheme } from '../../theme';
-import { getOrderById, updatePickedItems, updateItemIssues } from '../../services/orderService';
+import { getOrderById } from '../../services/orderService';
+import { updatePickedItems, updateItemIssues } from '../../services/functionActionService';
 import { getProductById } from '../../services/productService';
 import { subscribeToOrders, isUpdateEvent } from '../../services/realtimeService';
 import {
