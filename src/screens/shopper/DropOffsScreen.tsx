@@ -41,9 +41,10 @@ import { Text, Icon, Card, Button } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
-import { getOutForDeliveryOrdersByShopperId, completeOrder } from '../../services/orderService';
+import { getOutForDeliveryOrdersByShopperId } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
 import { subscribeToOrders } from '../../services/realtimeService';
+import { completeOrder } from '../../services/functionActionService';
 import type { Order, UserProfile } from '../../types';
 
 // ============================================================

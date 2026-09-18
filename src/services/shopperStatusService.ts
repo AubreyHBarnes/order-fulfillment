@@ -241,60 +241,6 @@ export const assignOrderToShopper = async (
   }
 };
 
-/**
- * Clear current order from shopper (when task completes)
- *
- * WHY CLEAR ORDER?
- * - When a shopper completes an order, they should be free for new tasks
- * - Clearing currentOrderId puts them back in the "available + idle"
- *   state the auto-assignment Function's `handleShopperBecameAvailable`
- *   reacts to - if a pending order exists, the Function hands them one
- *   automatically off the back of this write; this function no longer
- *   needs to (and doesn't) trigger that itself.
- *
- * @param shopperId - The shopper's user ID
- * @returns ShopperStatusResponse with updated status
- */
-export const clearCurrentOrder = async (
-  shopperId: string
-): Promise<ShopperStatusResponse> => {
-  try {
-    const statusResult = await getShopperStatus(shopperId);
-    if (!statusResult.success || !statusResult.data) {
-      return {
-        success: false,
-        data: null,
-        error: statusResult.error ?? 'Shopper status not found',
-      };
-    }
-
-    const updatedStatus = await databases.updateDocument<ShopperStatus>(
-      config.databaseId,
-      config.shopperStatusCollectionId,
-      statusResult.data.$id,
-      {
-        currentOrderId: '',
-        lastActiveTimeStamp: new Date().toISOString(),
-      }
-    );
-
-    return {
-      success: true,
-      data: updatedStatus,
-    };
-  } catch (error) {
-    console.error('Error clearing current order:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to clear order';
-
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-    };
-  }
-};
-
 // ============================================================
 // SWAP CURRENT ORDER (manual claim/swap - see file header)
 // ============================================================

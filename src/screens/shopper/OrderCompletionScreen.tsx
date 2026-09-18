@@ -28,8 +28,8 @@ import { Text, Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
-import { getOrderById, completeOrder } from '../../services/orderService';
-import { clearCurrentOrder } from '../../services/shopperStatusService';
+import { getOrderById } from '../../services/orderService';
+import { completeOrder, releaseAfterCompletion } from '../../services/functionActionService';
 import { parseItemsString, parsePickedItemsString, parseItemIssues } from '../../utils/orderItems';
 import CompletionSummary from '../../components/shopper/CompletionSummary';
 import type { ShopperStackParamList, Order } from '../../types';
@@ -90,7 +90,7 @@ const OrderCompletionScreen: React.FC<OrderCompletionScreenProps> = ({ route, na
         return;
       }
 
-      await clearCurrentOrder(userProfile.shopperID);
+      await releaseAfterCompletion();
       // Whether a new order gets auto-assigned off the back of that
       // write is now decided asynchronously by the auto-assignment
       // Function - ShopperAssignmentContext's NewAssignmentModal

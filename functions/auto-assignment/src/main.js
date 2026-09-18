@@ -796,6 +796,76 @@ async function handleCompleteArrivalHandoff(databases, caller, payload, log) {
   return { status: 200, body: { ok: true } };
 }
 
+const COMPLETE_ORDER_STATUSES = ['ready_for_pickup', 'out_for_delivery', 'completed'];
+
+/**
+ * completeOrder - the shopper progressing their order to the next
+ * fulfillment-lifecycle status (OrderCompletionScreen's "Mark Ready
+ * for Pickup"/"Mark Out for Delivery", DropOffsScreen's "Mark
+ * Delivered"). Replaces two separate client call sites
+ * (orderService.ts's completeOrder, now dead code, removed) that both
+ * wrote `status` directly with no check the order actually belonged to
+ * the calling shopper - only that it was already in their own
+ * locally-fetched list, never re-verified against the write itself.
+ *
+ * WHY VALIDATE nextStatus AGAINST A FIXED LIST INSTEAD OF ANY STRING?
+ * Baseline input validation, not a full transition state-machine - the
+ * old client code accepted any string here too (TypeScript's union
+ * type was compile-time only, no runtime check), so this isn't a new
+ * restriction, just the same guarantee finally enforced at the one
+ * place that can actually enforce it.
+ */
+async function handleCompleteOrder(databases, caller, payload, log) {
+  const { orderId, nextStatus } = payload;
+  if (!orderId || !COMPLETE_ORDER_STATUSES.includes(nextStatus)) {
+    return { status: 400, body: { ok: false, error: 'orderId and a valid nextStatus are required' } };
+  }
+
+  let order;
+  try {
+    order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId);
+  } catch {
+    return { status: 404, body: { ok: false, error: 'Order not found' } };
+  }
+  if (order.shopperID !== caller.$id) {
+    return { status: 403, body: { ok: false, error: 'This order is not assigned to you' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: nextStatus });
+  log(`completeOrder: ${orderId} -> ${nextStatus} by ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
+/**
+ * releaseAfterCompletion - frees the caller's own ShopperStatus once
+ * their order reaches a post-shopping status (OrderCompletionScreen,
+ * right after completeOrder - see its own file header for why this is
+ * a separate call, not folded into completeOrder itself: DropOffsScreen
+ * calls completeOrder alone, without this, since that shopper's
+ * currentOrderId was already cleared earlier when the order first
+ * reached out_for_delivery).
+ *
+ * WHY NO orderId PARAMETER, UNLIKE EVERY OTHER ACTION SO FAR?
+ * There's nothing to authorize beyond "is this caller a shopper at
+ * all" - it only ever clears the caller's own currentOrderId, derived
+ * from their own resolved identity, never anyone else's. No parameter
+ * means nothing to forge.
+ */
+async function handleReleaseAfterCompletion(databases, caller, log) {
+  const shopperStatus = await getShopperStatusDoc(databases, caller.$id);
+  if (!shopperStatus) {
+    return { status: 403, body: { ok: false, error: 'No shopper profile for this account' } };
+  }
+
+  await databases.updateDocument(DATABASE_ID, SHOPPER_STATUS_COLLECTION_ID, shopperStatus.$id, {
+    currentOrderId: '',
+    lastActiveTimeStamp: nowIso(),
+  });
+
+  log(`releaseAfterCompletion: ${caller.$id} freed`);
+  return { status: 200, body: { ok: true } };
+}
+
 async function handleHttpAction(databases, payload, log) {
   const caller = await resolveCaller(payload.jwt);
   if (!caller) {
@@ -813,6 +883,10 @@ async function handleHttpAction(databases, payload, log) {
       return await handleDeclineArrivalHandoff(databases, caller, payload, log);
     case 'completeArrivalHandoff':
       return await handleCompleteArrivalHandoff(databases, caller, payload, log);
+    case 'completeOrder':
+      return await handleCompleteOrder(databases, caller, payload, log);
+    case 'releaseAfterCompletion':
+      return await handleReleaseAfterCompletion(databases, caller, log);
     default:
       return { status: 400, body: { ok: false, error: `Unknown action: ${payload.action}` } };
   }

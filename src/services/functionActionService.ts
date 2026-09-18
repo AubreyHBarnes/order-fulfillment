@@ -118,3 +118,34 @@ export const declineArrivalHandoff = async (arrivalId: string): Promise<Function
 export const completeArrivalHandoff = async (arrivalId: string): Promise<FunctionActionResponse> => {
   return callFunctionAction('completeArrivalHandoff', { arrivalId });
 };
+
+/**
+ * Progress an order to the next fulfillment-lifecycle status
+ * (OrderCompletionScreen's "Mark Ready for Pickup"/"Mark Out for
+ * Delivery", DropOffsScreen's "Mark Delivered") - replaces
+ * orderService.ts's completeOrder (removed - this was its only
+ * remaining set of callers). Verified server-side that the order
+ * actually belongs to the calling shopper. See docs/DECISIONS.md's
+ * "Permission tightening" entry.
+ *
+ * @param orderId - The order's document ID
+ * @param nextStatus - The status to progress the order to
+ */
+export const completeOrder = async (
+  orderId: string,
+  nextStatus: 'ready_for_pickup' | 'out_for_delivery' | 'completed'
+): Promise<FunctionActionResponse> => {
+  return callFunctionAction('completeOrder', { orderId, nextStatus });
+};
+
+/**
+ * Free the caller's own ShopperStatus after completing an order -
+ * replaces shopperStatusService.ts's clearCurrentOrder(shopperId). No
+ * shopperId parameter, unlike the old client function - always clears
+ * the caller's own current order, derived server-side from their
+ * resolved identity, never taken from the client. See
+ * docs/DECISIONS.md's "Permission tightening" entry.
+ */
+export const releaseAfterCompletion = async (): Promise<FunctionActionResponse> => {
+  return callFunctionAction('releaseAfterCompletion');
+};

@@ -1041,53 +1041,6 @@ export const updateItemIssues = async (
 };
 
 /**
- * Mark an order complete, branching by fulfillment type
- *
- * WHY A nextStatus PARAM INSTEAD OF TWO FUNCTIONS?
- * - Both branches do the exact same write, just a different status
- *   value - the caller (OrderCompletionScreen) already knows which one
- *   applies from the order's fulfillment type
- *
- * Also reused directly (with nextStatus: 'completed') for the final
- * hand-off step on both fulfillment types - CustomerCheckInsScreen
- * completing a pickup hand-off, DropOffsScreen completing a delivery -
- * rather than adding a dedicated function for a write this one already does.
- *
- * @param orderId - The order's document ID
- * @param nextStatus - 'ready_for_pickup'/'out_for_delivery' when the shopper
- *   finishes shopping (pickup vs delivery), 'completed' for the final hand-off
- * @returns OrderResponse with updated order or error
- */
-export const completeOrder = async (
-  orderId: string,
-  nextStatus: 'ready_for_pickup' | 'out_for_delivery' | 'completed'
-): Promise<OrderResponse> => {
-  try {
-    const updated = await databases.updateDocument<Order>(
-      config.databaseId,
-      config.ordersCollectionId,
-      orderId,
-      { status: nextStatus }
-    );
-
-    return {
-      success: true,
-      data: updated,
-    };
-  } catch (error) {
-    console.error('Error completing order:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to complete order';
-
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-    };
-  }
-};
-
-/**
  * Record the customer's approve/reject decision on a pending
  * substitution proposal.
  *
