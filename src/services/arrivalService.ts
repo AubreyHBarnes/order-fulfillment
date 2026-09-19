@@ -65,7 +65,6 @@ import type {
   CreateArrivalData,
   ArrivalResponse,
   ArrivalListResponse,
-  ArrivalStatus,
 } from '../types';
 
 // ============================================================
@@ -403,130 +402,6 @@ export const getActiveArrivalsCount = async (): Promise<{
     return {
       success: false,
       count: 0,
-      error: errorMessage,
-    };
-  }
-};
-
-// ============================================================
-// UPDATE ARRIVAL STATUS
-// ============================================================
-
-/**
- * Update the status of an arrival (for staff use)
- *
- * WHY THIS FUNCTION?
- * When staff acknowledges or completes an arrival, we need to update
- * the status. This is primarily for the staff/shopper side of the app,
- * but we include it here for completeness.
- *
- * STATUS FLOW (matches the live Appwrite enum - see ArrivalStatus in
- * types/index.ts and docs/DECISIONS.md's status-enum-drift entry, plus
- * the arrival hand-off entry for how 'in_progress' finally got a writer):
- * 'waiting' → 'in_progress' → 'completed'
- *
- * - waiting: Customer just arrived; the currently-targeted shopper
- *   (Order.shopperID) has an ArrivalNotificationModal pending, whether
- *   or not they've seen it yet
- * - in_progress: that shopper tapped "Hand Off Order" on the modal -
- *   acknowledged, on their way to the customer, but hasn't physically
- *   handed anything over yet (that's the separate 'completed' step)
- * - notified: still reserved, no code path writes this - the modal
- *   approach ended up not needing a distinct "seen but not acted on"
- *   state, since notifiedShopperAt (a timestamp, not a status value)
- *   already carries that information for the timeout/reassignment
- *   mechanism (see functions/auto-assignment)
- * - completed: Order has been handed to customer
- *
- * @param arrivalId - The arrival document ID to update
- * @param status - The new status
- * @returns ArrivalResponse with updated arrival or error
- *
- * EXAMPLE USAGE (staff app):
- * ```typescript
- * // Staff completes handoff
- * await updateArrivalStatus(arrival.$id, 'completed');
- * ```
- */
-export const updateArrivalStatus = async (
-  arrivalId: string,
-  status: ArrivalStatus
-): Promise<ArrivalResponse> => {
-  try {
-    /**
-     * WHY updateDocument?
-     * Appwrite's updateDocument only changes specified fields.
-     * Unspecified fields remain unchanged.
-     * This is different from PUT (replace entire document) in REST APIs.
-     */
-    const updated = await databases.updateDocument<CustomerArrival>(
-      config.databaseId,
-      config.customerArrivalsCollectionId,
-      arrivalId,
-      { status }
-    );
-
-    return {
-      success: true,
-      data: updated,
-    };
-  } catch (error) {
-    console.error('Error updating arrival status:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to update arrival';
-
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-    };
-  }
-};
-
-// ============================================================
-// RECORD ARRIVAL DECLINE
-// ============================================================
-
-/**
- * Stamp declinedByShopperID on an arrival when a shopper taps
- * "Unavailable" on ArrivalNotificationModal.
- *
- * WHY A SEPARATE FUNCTION FROM updateArrivalStatus?
- * status stays 'waiting' on a decline (unchanged - the arrival still
- * needs a shopper, same as before) - only declinedByShopperID changes,
- * so this isn't a status transition at all, just an exclusion hint for
- * the auto-assignment Function's reassignStuckArrival() to read. See
- * CustomerArrival.declinedByShopperID's own docstring in types/index.ts
- * for why this exists and its (deliberately narrow) scope.
- *
- * @param arrivalId - The arrival document ID
- * @param shopperId - The shopper who just declined
- * @returns ArrivalResponse with updated arrival or error
- */
-export const recordArrivalDecline = async (
-  arrivalId: string,
-  shopperId: string
-): Promise<ArrivalResponse> => {
-  try {
-    const updated = await databases.updateDocument<CustomerArrival>(
-      config.databaseId,
-      config.customerArrivalsCollectionId,
-      arrivalId,
-      { declinedByShopperID: shopperId }
-    );
-
-    return {
-      success: true,
-      data: updated,
-    };
-  } catch (error) {
-    console.error('Error recording arrival decline:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to record arrival decline';
-
-    return {
-      success: false,
-      data: null,
       error: errorMessage,
     };
   }

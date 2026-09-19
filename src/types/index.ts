@@ -85,9 +85,10 @@ export interface Order extends Models.Document {
   pickedItems: string; // Format: "productId:pickedQty,..." (empty = none picked)
   // Reserved on the Appwrite schema since the project's early scaffolding,
   // unused until the rush-order interrupt feature: when a busy shopper's
-  // order is bumped to make room for a rush order, interruptOrder() (see
-  // orderService.ts) stamps these on the bumped order as it's released
-  // back to pending. null/undefined on every order that was never interrupted.
+  // order is bumped to make room for a rush order, the auto-assignment
+  // Function's release() helper (functions/auto-assignment/src/main.js)
+  // stamps these on the bumped order as it's released back to pending.
+  // null/undefined on every order that was never interrupted.
   interruptedAt?: string | null;
   interruptReason?: string | null;
   // Format: "productId:oos,productId:sub:subProductId:pending|approved|rejected,..."
