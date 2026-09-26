@@ -488,7 +488,12 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
      */
     const handleArrivalEvent = async (event: RealtimeEvent<CustomerArrival>): Promise<void> => {
       const arrival = event.payload;
-      if (arrival.status !== 'waiting') {
+      // declineArrivalHandoff stamps declinedByShopperID before clearing
+      // Order.shopperID, so the realtime event for that first write can
+      // still see this shopper as the order's owner below and re-open
+      // the modal they just declined. The payload itself says who
+      // declined - trust that instead of racing the second write.
+      if (arrival.status !== 'waiting' || arrival.declinedByShopperID === shopperId) {
         return;
       }
       const orderResult = await getOrderById(arrival.orderID);
