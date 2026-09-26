@@ -203,7 +203,7 @@ Create these 7 collections with the specified attributes:
 *Enum values for `status`: pending, assigned, shopping, completed, cancelled, ready_for_pickup, out_for_delivery*
 *Enum values for `fulfillmentType`: delivery, pickup*
 
-**Permissions:** Any - Create, Read, Update
+**Permissions:** Any - Create, Read (no Update - every write after creation goes through the `auto-assignment` Function's JWT-authenticated actions; see `docs/DECISIONS.md`'s "Permission tightening" entries)
 
 ---
 
@@ -217,7 +217,7 @@ Create these 7 collections with the specified attributes:
 | maxConcurrentOrders | Integer | - | Yes | 1 |
 | lastActiveTimestamp | DateTime | - | Yes | - |
 
-**Permissions:** Any - Create, Read, Update
+**Permissions:** Any - Create, Read (no Update - every write after creation goes through the `auto-assignment` Function's JWT-authenticated actions; see `docs/DECISIONS.md`'s "Permission tightening" entries)
 
 ---
 
@@ -235,7 +235,7 @@ Create these 7 collections with the specified attributes:
 
 *Enum values for `status`: waiting, notified, in_progress, completed*
 
-**Permissions:** Any - Create, Read, Update
+**Permissions:** Any - Create, Read (no Update - every write after creation goes through the `auto-assignment` Function's JWT-authenticated actions; see `docs/DECISIONS.md`'s "Permission tightening" entries)
 
 > This table reflects the live schema, confirmed via a direct REST read of the collection. It previously listed `orderId`/`customerId` (wrong casing), a free-text `parkingSpot`, and no `vehicleDescription`/`notes` — see "CustomerArrivals schema drift" in `docs/DECISIONS.md` for the full story of how this collection's schema and the app code drifted apart, and in what order each mismatch was found and fixed.
 
@@ -461,7 +461,7 @@ npm install
 - Verify endpoint URL in `.env` matches your Appwrite region
 - Check Project ID is correct
 - Ensure platform is added in Appwrite (Settings → Platforms)
-- Verify collection permissions are set to "Any: Read/Create/Update"
+- Verify collection permissions match the setup section above (Orders/ShopperStatus/CustomerArrivals are "Any: Create/Read" only - a direct client update to them returning 401 `user_unauthorized` is expected; those writes go through the Function)
 
 ---
 
@@ -497,7 +497,7 @@ npm install
 ### Planned 📋
 - [ ] **Phase 6:** Remaining Backend & Polish
   - [x] Auto-assignment serverless function - an event-triggered Appwrite Function (`functions/auto-assignment/`) now decides every assignment (idle hand-off, rush-order interrupt, released-order requeue), replacing the client-side sorted query; see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full design and the race conditions it closes
-  - [x] Permission-tightening write paths - every planned Function action (13/13: `claimOrder`, `swapOrder`, the CustomerArrivals accept/decline/complete trio, `completeOrder`, `releaseAfterCompletion`, `startShopping`, `toggleAvailability`, `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`) is built, deployed, and live-verified - every direct client write to Orders/ShopperStatus/CustomerArrivals now goes through a JWT-authenticated, server-side action instead. The actual permission-removal step (revoking client `update` access now that nothing depends on it) is the one remaining piece, deliberately deferred to its own pass; see `docs/DECISIONS.md`'s "Permission tightening" entries for the full plan and write-path inventory
+  - [x] Permission tightening - every planned Function action (13/13: `claimOrder`, `swapOrder`, the CustomerArrivals accept/decline/complete trio, `completeOrder`, `releaseAfterCompletion`, `startShopping`, `toggleAvailability`, `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`) is built, deployed, and live-verified, and client `update` access has been removed from Orders/ShopperStatus/CustomerArrivals (2026-09-25) - every write to those three collections after creation now goes through a JWT-authenticated, server-side action, enforced by Appwrite itself rather than by convention; see `docs/DECISIONS.md`'s "Permission tightening" entries for the full plan, write-path inventory, and the permission removal
   - [ ] Live order tracking (a map/ETA view - order status itself already updates live via Realtime)
   - [ ] UI/UX improvements
   - [ ] Performance optimization

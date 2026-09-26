@@ -757,3 +757,36 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 **Verified:** `npx tsc --noEmit` and `npx eslint .` both clean (0 errors, same 15 pre-existing warnings) after the removal - confirms nothing in the app actually referenced any of the six beyond the stale comments now fixed.
 
 **Consequences / left open:** This is purely a local, reversible code change - no live Appwrite state touched. The actual permission flip (the next step) is unblocked by this audit's result (nothing live depends on a direct client write to these three collections) but still not done - see the rollout sequencing (one collection at a time, live-verify after each, rollback via the same REST call) discussed when this step was first scoped out.
+
+---
+
+## Permission tightening complete: client `update` removed from all three collections, one at a time
+
+**Context:** The final rollout step the lockdown plan named and every entry since has deferred: with all 13 actions live and the dead-code re-audit (above) confirming no client code still writes these collections directly, actually remove `update("any")` from `CustomerArrivals`, `Orders`, and `ShopperStatus`. This is the only step in the whole effort that touches live production state in a way that can break the running app, which is why it got its own pass rather than being tacked onto the end of actions 12-13.
+
+**Decision:** All three tables changed from `["create(\"any\")","read(\"any\")","update(\"any\")"]` to `["create(\"any\")","read(\"any\")"]` on 2026-09-25, `rowSecurity: false` unchanged. Done via REST, `PUT /tablesdb/{databaseId}/tables/{tableId}` with body `{name, permissions, rowSecurity: false, enabled: true}`, using the dev key's `tables.write` scope (granted and verified during the planning pass). Nothing about the Function changed - as the plan predicted, its API-key writes bypass Role-based table permissions entirely, so the change was purely subtractive.
+
+**Order, and why:** one table at a time, least-to-most central, each fully verified before starting the next:
+1. **`CustomerArrivals`** first - smallest surface (three actions), and the Function subscribes to no `CustomerArrivals` events, so a mistake there couldn't cascade into assignment behavior.
+2. **`Orders`** second - the most write paths (nine of the thirteen actions touch it).
+3. **`ShopperStatus`** last - a pre-flip `grep` confirmed the client only ever *creates* it (shopper signup in `AuthContext.tsx`) and reads it; everything else is Function-side.
+
+Rollback for each was the same `PUT` with `update(\"any\")` added back - never needed.
+
+**Verified (2026-09-25), two layers per table:**
+- **Server-side enforcement:** a guest `PATCH` that actually changes a field returns 401 `user_unauthorized` and leaves the row unchanged; guest reads still succeed. Fields used: an old completed arrival's `notes` (`CustomerArrivals`), `deliveryNotes` (`Orders`), `location` (`ShopperStatus`).
+- **In-app, dual emulator, no JS errors in any run:**
+  - *CustomerArrivals:* customer check-in (a create, still allowed) → targeted modal → accept (`waiting` → `in_progress`) → complete (arrival and order both `completed`); and decline (`declinedByShopperID` stamped, arrival stays `waiting` in the shared queue).
+  - *Orders:* the full lifecycle - checkout → Function auto-assign → `startShopping` → Substitute (`updateItemIssues`) → customer Approve (`respondToSubstitution`, which also covers the approve branch left unexercised in the actions 10-11 pass) → Mark Ready (`completeOrder` + `releaseAfterCompletion`) → check-in → accept → complete. A second order placed while the shopper was busy stayed `pending` and was cancelled by the customer (`cancelOrder`); a third went through Found (`updatePickedItems`) to a full hand-off.
+  - *ShopperStatus:* `toggleAvailability` in both directions, Function assignment (`currentOrderId` set, realtime `NewAssignmentModal` shown), `releaseAfterCompletion` (`currentOrderId` cleared, shopper stays Available), and a full hand-off.
+
+**One testing gotcha worth recording:** a guest `PATCH` whose body matches the row's current values returns **200 and the row**, not 401 - Appwrite short-circuits a no-op update before the permission check. An enforcement test has to change a value, or it gives a false "still writable" (or, read the other way, false-confidence) result.
+
+**Why this matters beyond the checklist:** before this step, every one of the 13 actions' authorization checks (`order.shopperID === caller.$id`, the customer-ownership checks, the targeted-shopper check on arrival accept) was advisory - any client could skip the Function and write the table directly. Now Appwrite itself rejects that, so the Function's checks are the actual boundary rather than a convention the app happens to follow.
+
+**Consequences / left open:**
+- The permission-tightening effort is complete. The one remaining client `updateDocument` (`AuthContext.tsx`, profile edits) targets `Users`, deliberately out of scope.
+- Not re-run under the lock: `claimOrder`, `swapOrder`, and the `Orders` write inside `declineArrivalHandoff` (decline was verified after the `CustomerArrivals` flip but before the `Orders` one). All three use the same Function-key write path proven by the other actions, so they're expected to work, but that's reasoned, not observed.
+- Still never separately exercised in-app: `DropOffsScreen`'s `completeOrder('completed')` call site (carried over from the actions 6-7 entry).
+- The cosmetic "Unavailable" pill flicker after completion (actions 12-13 entry) is unchanged - unrelated to permissions.
+- Leftover test data: several stale `ready_for_pickup` orders from September remain in the live database.
