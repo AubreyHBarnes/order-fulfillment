@@ -66,6 +66,7 @@ import { getShopperStatus } from '../../services/shopperStatusService';
 import { claimOrder, swapOrder, startShopping } from '../../services/functionActionService';
 import { getUserProfileById, getCustomerDisplayName } from '../../services/userService';
 import { getProductById } from '../../services/productService';
+import OrderClaimedModal from '../../components/shopper/OrderClaimedModal';
 import type { ShopperStackParamList, Order, UserProfile, Product } from '../../types';
 
 // ============================================================
@@ -168,6 +169,12 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  // Set once a manual claim/swap succeeds - holds navigation to
+  // Shopping until the shopper acknowledges OrderClaimedModal.
+  const [claimConfirmation, setClaimConfirmation] = useState<{
+    shortOrderId: string;
+    releasedShortOrderId?: string;
+  } | null>(null);
 
   /**
    * Whether this shopper already has a different order in flight
@@ -345,7 +352,7 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
           Alert.alert('Error', claimResult.error ?? 'Failed to claim order');
           return;
         }
-        navigation.navigate('Shopping', { orderId: order.$id });
+        setClaimConfirmation({ shortOrderId: getShortOrderId(order.$id) });
       } else if (action === 'start') {
         const startResult = await startShopping(order.$id);
         if (!startResult.success) {
@@ -366,7 +373,10 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
           Alert.alert('Error', swapResult.error ?? 'Failed to swap order');
           return;
         }
-        navigation.navigate('Shopping', { orderId: order.$id });
+        setClaimConfirmation({
+          shortOrderId: getShortOrderId(order.$id),
+          releasedShortOrderId: activeOrder ? getShortOrderId(activeOrder.$id) : undefined,
+        });
       }
     } finally {
       setActionLoading(false);
@@ -637,6 +647,16 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
 
       {/* Bottom padding */}
       <View style={styles.bottomPadding} />
+
+      <OrderClaimedModal
+        visible={!!claimConfirmation}
+        shortOrderId={claimConfirmation?.shortOrderId ?? ''}
+        releasedShortOrderId={claimConfirmation?.releasedShortOrderId}
+        onContinue={() => {
+          setClaimConfirmation(null);
+          navigation.navigate('Shopping', { orderId: order.$id });
+        }}
+      />
     </ScrollView>
   );
 };

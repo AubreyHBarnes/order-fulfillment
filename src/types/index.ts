@@ -887,6 +887,21 @@ export interface OrderInterruptedModalProps {
 }
 
 /**
+ * OrderClaimedModal component props
+ *
+ * WHY releasedShortOrderId DOUBLES AS THE CLAIM/SWAP SWITCH?
+ * - A swap is exactly a claim that also released an order - there's no
+ *   swap without one, so a separate mode flag could only ever disagree
+ *   with it.
+ */
+export interface OrderClaimedModalProps {
+  visible: boolean;
+  shortOrderId: string;
+  releasedShortOrderId?: string;
+  onContinue: () => void;
+}
+
+/**
  * UrgentOrderToast component props
  *
  * WHY A SEPARATE, LIGHTER COMPONENT FROM OrderInterruptedModal?

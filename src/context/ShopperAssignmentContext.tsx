@@ -301,13 +301,18 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
      * auto-assignment Function, so this is the one path that catches
      * all of them (see the file header for why there's no longer a
      * separate synchronous path for the toggle case).
+     *
+     * Skips the shopper's own manual claim/swap (the Function writes
+     * autoAssigned: false for those) - they already chose this order,
+     * so an accept/decline prompt would only offer a one-tap way to undo
+     * it. TaskDetailScreen confirms those with OrderClaimedModal instead.
      */
     const checkNewAssignment = async (currentOrderId: string): Promise<void> => {
       if (pendingAssignmentRef.current) {
         return;
       }
       const newOrderResult = await getOrderById(currentOrderId);
-      if (newOrderResult.success && newOrderResult.data) {
+      if (newOrderResult.success && newOrderResult.data?.autoAssigned) {
         const newOrder = newOrderResult.data;
         const customerResult = await getUserProfileById(newOrder.customerID);
         const customerName = getCustomerDisplayName(customerResult.data);

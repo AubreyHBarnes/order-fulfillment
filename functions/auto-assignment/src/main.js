@@ -1259,7 +1259,14 @@ export default async ({ req, res, log, error }) => {
 
     if (isOrdersEvent) {
       if (isCreate) {
-        await handleNewOrderPlacement(databases, payload, log);
+        // Checkout always creates orders pending + unassigned, but Orders
+        // keeps create("any"), so a create can carry any status/shopperID -
+        // only a genuinely new, unclaimed order is ours to place.
+        if (payload.status === 'pending' && !payload.shopperID) {
+          await handleNewOrderPlacement(databases, payload, log);
+        } else {
+          log(`Order ${payload.$id}: created as ${payload.status} (shopper ${payload.shopperID || 'none'}), not a new unclaimed order - skipped`);
+        }
       } else if (isUpdate && payload.status === 'pending' && payload.shopperID === '') {
         await handleOrderReleased(databases, payload, log);
       } else if (isUpdate && payload.status === 'ready_for_pickup' && payload.shopperID === '') {
