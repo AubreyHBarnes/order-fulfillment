@@ -46,7 +46,7 @@
  * only ever marks a shopper unavailable or retries a reassignment
  * search, both idempotent no-ops once nothing stale remains to find.
  */
-import { Client, Databases, Query, Account } from 'node-appwrite';
+import { Client, Databases, TablesDB, Query, Account } from 'node-appwrite';
 
 const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
 const ORDERS_COLLECTION_ID = process.env.APPWRITE_ORDERS_COLLECTION_ID;
@@ -168,14 +168,104 @@ async function resolveCaller(jwt) {
 }
 
 // ============================================================
+// CLAIM LOCKS - see docs/DECISIONS.md's "Race #1 fixed" entry
+// ============================================================
+
+/**
+ * WHY LOCKS AT ALL?
+ * Every assignment decision reads first ("is this shopper idle? is this
+ * order still unclaimed?") and writes later. Appwrite runs executions of
+ * this Function concurrently, so two of them can both pass the same check
+ * before either writes - two orders placed together both picking the one
+ * idle shopper, or two shoppers both claiming the same order.
+ *
+ * HOW THEY WORK:
+ * Orders.claimLock and ShopperStatus.claimLock are 0/1 integer columns.
+ * - An order's lock is 1 while a shopper holds it in the shopping stage
+ *   (assigned/shopping), 0 while it's pending or once it's past shopping.
+ * - A shopper's lock is 1 while their currentOrderId points at something.
+ * Taking a lock is a capped increment (max 1) and giving one up from a
+ * held order is a capped decrement (min 0): the database itself refuses
+ * the second attempt, so exactly one execution wins. Each lock change is
+ * staged in one transaction with the writes it guards, so either all of
+ * it lands or none of it does - which also means a crash can no longer
+ * leave an Order and a ShopperStatus disagreeing about each other.
+ *
+ * WHY NOT A TRANSACTION ALONE?
+ * Verified live (2026-10-01): a row only *read* inside a transaction isn't
+ * conflict-checked at commit, so a transaction by itself doesn't stop two
+ * executions acting on the same stale read. The capped increment is what
+ * turns "both passed the check" into "only one of them can commit".
+ */
+function isLostRace(err) {
+  const type = err?.type ?? '';
+  return type.endsWith('_limit_exceeded') || err?.code === 409;
+}
+
+/**
+ * Stage writes via `stage(tables, transactionId)` and commit them as one.
+ * Returns false when the commit lost a race (another execution got the
+ * lock first) - every caller treats that as "re-read and decide again",
+ * not as an error. Anything else is a real failure and is rethrown.
+ */
+async function runTransaction(databases, stage) {
+  const tables = new TablesDB(databases.client);
+  const tx = await tables.createTransaction();
+  try {
+    await stage(tables, tx.$id);
+    await tables.updateTransaction(tx.$id, true);
+    return true;
+  } catch (err) {
+    await tables.updateTransaction(tx.$id, false, true).catch(() => {});
+    if (isLostRace(err)) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+// ============================================================
 // WRITES - same field set as assignOrderToShopper/unassignOrder/
 // interruptOrder in orderService.ts
 // ============================================================
 
 /**
+ * The Order fields that put an order back in the pending queue - same
+ * shape as unassignOrder() (reason omitted) or interruptOrder() (reason
+ * given).
+ */
+function releasedOrderData(reason) {
+  const data = {
+    shopperID: '',
+    status: 'pending',
+    autoAssigned: false,
+    claimLock: 0,
+  };
+  if (reason) {
+    data.interruptedAt = nowIso();
+    data.interruptReason = reason;
+  }
+  return data;
+}
+
+/**
  * Assign orderId to shopperId: writes both sides of the relationship
- * (Order.shopperID + ShopperStatus.currentOrderId), same two-document
- * shape the client-side version always wrote.
+ * (Order.shopperID + ShopperStatus.currentOrderId) in one transaction,
+ * guarded by both claim locks. Returns false if another execution got the
+ * order or the shopper first - nothing is written in that case.
+ *
+ * OPTIONS:
+ * - autoAssigned / status: what the order is stamped with ('shopping'
+ *   for a manual claim or swap, which start shopping immediately).
+ * - releaseOrderId / releaseReason: the shopper is moving straight off
+ *   another order they hold (a swap, or being bumped for a rush order).
+ *   That order goes back to pending in the same transaction, and its
+ *   capped decrement is the guard instead of the shopper's lock - the
+ *   shopper stays locked throughout, and if two executions try to move
+ *   them off the same order, only one decrement can succeed. It also
+ *   fails if the order has already moved past shopping (its lock is
+ *   cleared then), so a stale read can't drag a ready_for_pickup order
+ *   back to pending.
  *
  * WHY ALSO SET isAvailable: true HERE, EVEN THOUGH EVERY AUTOMATIC
  * CALLER ALREADY REQUIRES isAvailable === true TO FIND A CANDIDATE?
@@ -201,45 +291,86 @@ async function resolveCaller(jwt) {
  * order should read as available/on-duty, matching what every other
  * assignment path in this app already guarantees by construction.
  */
-async function assign(databases, orderId, shopperId, autoAssigned = true) {
-  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, {
-    shopperID: shopperId,
-    status: 'assigned',
-    autoAssigned,
-    interruptedAt: null,
-    interruptReason: null,
-  });
-
+async function assign(databases, orderId, shopperId, options = {}) {
+  const { autoAssigned = true, status = 'assigned', releaseOrderId = null, releaseReason } = options;
   const shopperStatus = await getShopperStatusDoc(databases, shopperId);
-  if (shopperStatus) {
-    await databases.updateDocument(DATABASE_ID, SHOPPER_STATUS_COLLECTION_ID, shopperStatus.$id, {
-      currentOrderId: orderId,
-      isAvailable: true,
-      lastActiveTimeStamp: nowIso(),
-    });
+  if (!shopperStatus) {
+    return false;
   }
+
+  return runTransaction(databases, async (tables, txId) => {
+    await tables.incrementRowColumn(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, 'claimLock', 1, 1, txId);
+    if (releaseOrderId) {
+      await tables.decrementRowColumn(DATABASE_ID, ORDERS_COLLECTION_ID, releaseOrderId, 'claimLock', 1, 0, txId);
+      await tables.updateRow(
+        DATABASE_ID,
+        ORDERS_COLLECTION_ID,
+        releaseOrderId,
+        releasedOrderData(releaseReason),
+        undefined,
+        txId
+      );
+    } else {
+      await tables.incrementRowColumn(
+        DATABASE_ID,
+        SHOPPER_STATUS_COLLECTION_ID,
+        shopperStatus.$id,
+        'claimLock',
+        1,
+        1,
+        txId
+      );
+    }
+    await tables.updateRow(
+      DATABASE_ID,
+      ORDERS_COLLECTION_ID,
+      orderId,
+      { shopperID: shopperId, status, autoAssigned, interruptedAt: null, interruptReason: null },
+      undefined,
+      txId
+    );
+    await tables.updateRow(
+      DATABASE_ID,
+      SHOPPER_STATUS_COLLECTION_ID,
+      shopperStatus.$id,
+      { currentOrderId: orderId, isAvailable: true, lastActiveTimeStamp: nowIso() },
+      undefined,
+      txId
+    );
+  });
 }
 
 /**
- * Release orderId back to the pending queue - same shape as
- * unassignOrder() (reason omitted) or interruptOrder() (reason given).
- * Only touches the Order side; ShopperStatus.currentOrderId is cleared
- * separately by whichever caller already knows to (see
- * handleShopperWentUnavailable below - this function is also called
- * from there, after which it clears currentOrderId itself).
+ * Free a shopper: clears their currentOrderId and lock, and - when
+ * releaseOrderId is given - puts that order back in the pending queue in
+ * the same transaction. Returns false if the order release lost a race
+ * (someone else already released or moved it), in which case nothing was
+ * written and the caller decides what to do about the shopper's pointer.
  */
-async function release(databases, orderId, reason) {
-  const data = {
-    shopperID: '',
-    status: 'pending',
-    autoAssigned: false,
-  };
-  if (reason) {
-    data.interruptedAt = nowIso();
-    data.interruptReason = reason;
-  }
-  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, data);
+async function freeShopper(databases, shopperStatusDocId, releaseOrderId) {
+  return runTransaction(databases, async (tables, txId) => {
+    if (releaseOrderId) {
+      await tables.decrementRowColumn(DATABASE_ID, ORDERS_COLLECTION_ID, releaseOrderId, 'claimLock', 1, 0, txId);
+      await tables.updateRow(DATABASE_ID, ORDERS_COLLECTION_ID, releaseOrderId, releasedOrderData(), undefined, txId);
+    }
+    await tables.updateRow(
+      DATABASE_ID,
+      SHOPPER_STATUS_COLLECTION_ID,
+      shopperStatusDocId,
+      { currentOrderId: '', claimLock: 0, lastActiveTimeStamp: nowIso() },
+      undefined,
+      txId
+    );
+  });
 }
+
+/**
+ * How many times an assignment handler re-reads and tries again after
+ * losing a race. Each loss means another execution just took the shopper
+ * or order it wanted, so a fresh read sees different candidates; a small
+ * number is plenty.
+ */
+const MAX_ASSIGN_ATTEMPTS = 3;
 
 /**
  * Hand a stuck arrival's order off to the next idle shopper: finds the
@@ -331,10 +462,8 @@ async function reassignStuckArrival(databases, order, log) {
  * 'pending'" in handleOrderReleased below, so nothing re-processes it.
  */
 async function handleNewOrderPlacement(databases, order, log) {
-  const idleShopper = await getNextAvailableShopper(databases);
-  if (idleShopper) {
-    await assign(databases, order.$id, idleShopper.shopperID, true);
-    log(`Order ${order.$id}: assigned to idle shopper ${idleShopper.shopperID}`);
+  const outcome = await assignToIdleShopper(databases, order.$id, log);
+  if (outcome !== 'no_shopper') {
     return;
   }
 
@@ -349,15 +478,49 @@ async function handleNewOrderPlacement(databases, order, log) {
     return;
   }
 
-  await release(databases, victimOrder.$id, 'Bumped for a rush order');
-  await assign(databases, order.$id, candidate.shopperID, true);
+  const assigned = await assign(databases, order.$id, candidate.shopperID, {
+    releaseOrderId: victimOrder.$id,
+    releaseReason: 'Bumped for a rush order',
+  });
+  if (!assigned) {
+    log(`Order ${order.$id}: rush interrupt lost a race (order or ${victimOrder.$id} changed) - left pending`);
+    return;
+  }
   log(`Order ${order.$id}: rush-assigned to ${candidate.shopperID}, bumped order ${victimOrder.$id}`);
+}
+
+/**
+ * Hand orderId to the longest-idle available shopper, re-reading and
+ * retrying if another execution takes that shopper (or the order) first.
+ * Returns 'assigned', 'no_shopper' (nobody idle - the caller decides what
+ * happens next), or 'order_taken' (someone else already has the order).
+ */
+async function assignToIdleShopper(databases, orderId, log) {
+  for (let attempt = 1; attempt <= MAX_ASSIGN_ATTEMPTS; attempt++) {
+    const idleShopper = await getNextAvailableShopper(databases);
+    if (!idleShopper) {
+      return 'no_shopper';
+    }
+    if (await assign(databases, orderId, idleShopper.shopperID)) {
+      log(`Order ${orderId}: assigned to idle shopper ${idleShopper.shopperID}`);
+      return 'assigned';
+    }
+
+    const order = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId).catch(() => null);
+    if (!order || order.status !== 'pending' || order.shopperID !== '') {
+      log(`Order ${orderId}: taken by another execution first - nothing to do`);
+      return 'order_taken';
+    }
+    log(`Order ${orderId}: shopper ${idleShopper.shopperID} taken by another execution first - retrying (attempt ${attempt})`);
+  }
+  log(`Order ${orderId}: still losing races after ${MAX_ASSIGN_ATTEMPTS} attempts - left pending`);
+  return 'order_taken';
 }
 
 /**
  * Replaces reassignIfMostUrgent() in shopperStatusService.ts, called on
  * an `orders` update event whose new state is pending+unassigned - which
- * only ever happens right after release() runs (see module docstring:
+ * only ever happens right after an order is released (see module docstring:
  * assigned orders don't match this state, so this only fires on a
  * genuine release, whatever caused it - a shopper going unavailable, an
  * interrupt, or a manual swap). Unlike handleNewOrderPlacement, this
@@ -372,14 +535,10 @@ async function handleOrderReleased(databases, order, log) {
     return;
   }
 
-  const idleShopper = await getNextAvailableShopper(databases);
-  if (!idleShopper) {
+  const outcome = await assignToIdleShopper(databases, order.$id, log);
+  if (outcome === 'no_shopper') {
     log(`Order ${order.$id}: most urgent pending, but no idle shopper - left queued`);
-    return;
   }
-
-  await assign(databases, order.$id, idleShopper.shopperID, true);
-  log(`Order ${order.$id}: most-urgent released order handed to idle shopper ${idleShopper.shopperID}`);
 }
 
 /**
@@ -399,13 +558,25 @@ async function handleOrderReleased(databases, order, log) {
  * caller before this is invoked) no longer matches.
  */
 async function handleShopperBecameAvailable(databases, shopperStatus, log) {
-  const order = await getNextOrderForAssignment(databases);
-  if (!order) {
-    log(`Shopper ${shopperStatus.shopperID}: became available, no pending orders`);
-    return;
+  for (let attempt = 1; attempt <= MAX_ASSIGN_ATTEMPTS; attempt++) {
+    const order = await getNextOrderForAssignment(databases);
+    if (!order) {
+      log(`Shopper ${shopperStatus.shopperID}: became available, no pending orders`);
+      return;
+    }
+    if (await assign(databases, order.$id, shopperStatus.shopperID)) {
+      log(`Shopper ${shopperStatus.shopperID}: auto-assigned order ${order.$id}`);
+      return;
+    }
+
+    const fresh = await getShopperStatusDoc(databases, shopperStatus.shopperID);
+    if (!fresh || !fresh.isAvailable || fresh.currentOrderId !== '') {
+      log(`Shopper ${shopperStatus.shopperID}: no longer idle (another execution got here first) - nothing to do`);
+      return;
+    }
+    log(`Shopper ${shopperStatus.shopperID}: order ${order.$id} taken by another execution first - retrying (attempt ${attempt})`);
   }
-  await assign(databases, order.$id, shopperStatus.shopperID, true);
-  log(`Shopper ${shopperStatus.shopperID}: auto-assigned order ${order.$id}`);
+  log(`Shopper ${shopperStatus.shopperID}: still losing races after ${MAX_ASSIGN_ATTEMPTS} attempts - left idle`);
 }
 
 /**
@@ -420,9 +591,10 @@ async function handleShopperBecameAvailable(databases, shopperStatus, log) {
  * independently.
  *
  * WHY GUARD THE RELEASE STEP ON currentOrderId BEING TRUTHY?
- * release()/updateDocument would fail outright on an empty document ID
- * if called unconditionally - this branch only applies to a shopper who
- * was actually mid-task when they went unavailable.
+ * There's nothing to release or clear otherwise - this branch only
+ * applies to a shopper who was actually mid-task when they went
+ * unavailable, and skipping it avoids a pointless write (and the extra
+ * `shopperStatus` event it would fire).
  *
  * WHAT STOPS THE RELEASE HALF FROM RE-FIRING ITSELF:
  * Clearing currentOrderId here produces one more `shopperStatus` update
@@ -437,7 +609,7 @@ async function handleShopperBecameAvailable(databases, shopperStatus, log) {
 async function handleShopperWentUnavailable(databases, shopperStatus, log) {
   const orderId = shopperStatus.currentOrderId;
   if (orderId) {
-    // WHY FETCH AND CHECK STATUS BEFORE release()-ING, RATHER THAN
+    // WHY FETCH AND CHECK STATUS BEFORE RELEASING, RATHER THAN
     // CALLING IT UNCONDITIONALLY LIKE THE ORIGINAL VERSION DID?
     // currentOrderId is normally cleared the moment an order reaches
     // ready_for_pickup (OrderCompletionScreen's clearCurrentOrder), so
@@ -446,22 +618,28 @@ async function handleShopperWentUnavailable(databases, shopperStatus, log) {
     // (completeOrder() then clearCurrentOrder()), so a crash between
     // them (or any other bug that leaves currentOrderId stale) could
     // leave it pointing at an order that's already moved past shopping.
-    // release() unconditionally forces status back to 'pending' -
+    // Releasing unconditionally forces status back to 'pending' -
     // calling it on a ready_for_pickup/out_for_delivery/completed order
     // would silently corrupt a real, already-progressed order back
     // into looking like a fresh unclaimed one. Only release if the
     // order is actually still at a shopping-stage status; otherwise
     // just clear the stale pointer and leave the order alone entirely.
+    //
+    // The claim lock (see "CLAIM LOCKS" above) now enforces the same rule
+    // at commit time too: if the order moved past shopping or was released
+    // by someone else between this read and the write, the release loses
+    // its race and only the pointer is cleared.
     const currentOrder = await databases.getDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId).catch(() => null);
-    if (currentOrder && (currentOrder.status === 'assigned' || currentOrder.status === 'shopping')) {
-      await release(databases, orderId, undefined);
+    const stillShopping =
+      currentOrder &&
+      currentOrder.shopperID === shopperStatus.shopperID &&
+      (currentOrder.status === 'assigned' || currentOrder.status === 'shopping');
+    if (stillShopping && (await freeShopper(databases, shopperStatus.$id, orderId))) {
       log(`Shopper ${shopperStatus.shopperID}: went unavailable, released order ${orderId}`);
-    } else if (currentOrder) {
-      log(`Shopper ${shopperStatus.shopperID}: currentOrderId pointed at order ${orderId} already past shopping (status: ${currentOrder.status}) - clearing stale pointer only, order left untouched`);
+    } else {
+      await freeShopper(databases, shopperStatus.$id, null);
+      log(`Shopper ${shopperStatus.shopperID}: currentOrderId pointed at order ${orderId}, no longer theirs to release (status: ${currentOrder?.status ?? 'missing'}) - clearing stale pointer only, order left untouched`);
     }
-    await databases.updateDocument(DATABASE_ID, SHOPPER_STATUS_COLLECTION_ID, shopperStatus.$id, {
-      currentOrderId: '',
-    });
   }
 
   const readyOrdersRes = await databases.listDocuments(DATABASE_ID, ORDERS_COLLECTION_ID, [
@@ -581,12 +759,15 @@ async function handleClaimOrder(databases, caller, payload, log) {
     return { status: 409, body: { ok: false, error: 'You already have an active order' } };
   }
 
-  await assign(databases, orderId, caller.$id, false);
   // Manual claim starts shopping immediately (the button reads "Claim &
-  // Start Shopping") - assign() alone only reaches 'assigned', same as
-  // every automatic-assignment path, so a second write bumps it the
-  // rest of the way, matching the client's existing two-call sequence.
-  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: 'shopping' });
+  // Start Shopping"), so the order goes straight to 'shopping' in the
+  // same transaction rather than stopping at 'assigned'. The checks above
+  // give a clear error in the common case; the claim locks are what
+  // actually decide it when two shoppers tap Claim at the same moment.
+  const claimed = await assign(databases, orderId, caller.$id, { autoAssigned: false, status: 'shopping' });
+  if (!claimed) {
+    return { status: 409, body: { ok: false, error: 'Order is no longer available to claim' } };
+  }
 
   log(`claimOrder: ${orderId} claimed by ${caller.$id}`);
   return { status: 200, body: { ok: true } };
@@ -609,17 +790,15 @@ async function handleClaimOrder(databases, caller, payload, log) {
  * which order gets released is always read fresh from the shopper's
  * own server-side ShopperStatus doc, never taken on faith.
  *
- * WHY CLAIM THE NEW ORDER BEFORE RELEASING THE OLD ONE?
- * Same reasoning as the client version this replaces: if claiming the
- * new order fails partway, the shopper still has their original order
- * intact - nothing lost. Releasing first would risk leaving them with
- * neither. It also matters for a second reason specific to this
- * server-side version: assign()'s ShopperStatus write (currentOrderId
- * -> newOrderId) happens first, so by the time release() fires the
- * old order's `orders` update event, this shopper's currentOrderId no
- * longer reads as idle - handleOrderReleased's getNextAvailableShopper
- * query correctly can't hand the just-released order right back to the
- * same shopper who just swapped off it.
+ * WHY CLAIM AND RELEASE IN ONE TRANSACTION?
+ * This used to be three separate writes, claim first, so a failure
+ * partway left the shopper with their original order intact rather than
+ * with neither. One transaction gives that guarantee outright: the
+ * shopper either moves to the new order or stays exactly where they were.
+ * By the time the old order's `orders` update event reaches
+ * handleOrderReleased, this shopper's currentOrderId already points at
+ * the new order, so the just-released order can't be handed straight
+ * back to the shopper who swapped off it.
  */
 async function handleSwapOrder(databases, caller, payload, log) {
   const { newOrderId } = payload;
@@ -649,13 +828,18 @@ async function handleSwapOrder(databases, caller, payload, log) {
     return { status: 409, body: { ok: false, error: 'Order is no longer available to claim' } };
   }
 
-  await assign(databases, newOrderId, caller.$id, false);
   // Same "claim starts shopping immediately" behavior as claimOrder -
   // the button reads "Swap for This Order" and navigates straight to
   // the Shopping screen, so the new order needs to already be past
   // 'assigned' by the time that navigation happens.
-  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, newOrderId, { status: 'shopping' });
-  await release(databases, previousOrderId, undefined);
+  const swapped = await assign(databases, newOrderId, caller.$id, {
+    autoAssigned: false,
+    status: 'shopping',
+    releaseOrderId: previousOrderId,
+  });
+  if (!swapped) {
+    return { status: 409, body: { ok: false, error: 'Order is no longer available to claim' } };
+  }
 
   log(`swapOrder: ${caller.$id} swapped from ${previousOrderId} to ${newOrderId}`);
   return { status: 200, body: { ok: true } };
@@ -724,8 +908,8 @@ async function handleAcceptArrivalHandoff(databases, caller, payload, log) {
  * ordering is naturally guaranteed rather than depending on two
  * sequential client calls landing in order.
  *
- * WHY {shopperID: ''} ONLY, NOT THE SHARED release() HELPER?
- * release() also forces status back to 'pending' - wrong here, this
+ * WHY {shopperID: ''} ONLY, NOT THE SHARED releasedOrderData()?
+ * releasedOrderData() also forces status back to 'pending' - wrong here, this
  * order is ready_for_pickup and stays that way; only who's holding the
  * hand-off changes. Matches releaseArrivalHandoff()'s exact shape in
  * orderService.ts, not unassignOrder()'s.
@@ -831,7 +1015,10 @@ async function handleCompleteOrder(databases, caller, payload, log) {
     return { status: 403, body: { ok: false, error: 'This order is not assigned to you' } };
   }
 
-  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: nextStatus });
+  // Past shopping, so the order's claim lock is cleared - a swap or rush
+  // interrupt working from a stale read can no longer release it back to
+  // pending (see "CLAIM LOCKS" above).
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: nextStatus, claimLock: 0 });
   log(`completeOrder: ${orderId} -> ${nextStatus} by ${caller.$id}`);
   return { status: 200, body: { ok: true } };
 }
@@ -857,10 +1044,9 @@ async function handleReleaseAfterCompletion(databases, caller, log) {
     return { status: 403, body: { ok: false, error: 'No shopper profile for this account' } };
   }
 
-  await databases.updateDocument(DATABASE_ID, SHOPPER_STATUS_COLLECTION_ID, shopperStatus.$id, {
-    currentOrderId: '',
-    lastActiveTimeStamp: nowIso(),
-  });
+  if (!(await freeShopper(databases, shopperStatus.$id, null))) {
+    return { status: 409, body: { ok: false, error: 'Your status changed at the same moment - please try again' } };
+  }
 
   log(`releaseAfterCompletion: ${caller.$id} freed`);
   return { status: 200, body: { ok: true } };
@@ -1030,7 +1216,7 @@ async function handleCancelOrder(databases, caller, payload, log) {
     return { status: 409, body: { ok: false, error: 'This order can no longer be cancelled' } };
   }
 
-  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: 'cancelled' });
+  await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, orderId, { status: 'cancelled', claimLock: 0 });
   log(`cancelOrder: ${orderId} cancelled by ${caller.$id}`);
   return { status: 200, body: { ok: true } };
 }

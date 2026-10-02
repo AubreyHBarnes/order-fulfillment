@@ -199,7 +199,9 @@ Create these 7 collections with the specified attributes:
 | orderDate | DateTime | - | Yes | - |
 | assignedDate | DateTime | - | No | - |
 | completedDate | DateTime | - | No | - |
+| claimLock | Integer (0-1) | - | No | 0 |
 
+*`claimLock` is written only by the `auto-assignment` Function, so two simultaneous assignments can't both win - created by `functions/auto-assignment/scripts/add-claim-locks.js`; see `docs/DECISIONS.md`'s "Race #1 fixed" entry.*
 *Enum values for `status`: pending, assigned, shopping, completed, cancelled, ready_for_pickup, out_for_delivery*
 *Enum values for `fulfillmentType`: delivery, pickup*
 
@@ -216,6 +218,7 @@ Create these 7 collections with the specified attributes:
 | location | String | 100 | No | - |
 | maxConcurrentOrders | Integer | - | Yes | 1 |
 | lastActiveTimestamp | DateTime | - | Yes | - |
+| claimLock | Integer (0-1) | - | No | 0 |
 
 **Permissions:** Any - Create, Read (no Update - every write after creation goes through the `auto-assignment` Function's JWT-authenticated actions; see `docs/DECISIONS.md`'s "Permission tightening" entries)
 
@@ -408,7 +411,7 @@ order-fulfillment/
 ## 🧪 Testing
 
 ```bash
-# Run unit tests (when implemented)
+# Run tests (currently a single render smoke test)
 npm test
 
 # Run with coverage
@@ -498,7 +501,7 @@ npm install
 - [ ] **Phase 6:** Remaining Backend & Polish
   - [x] Auto-assignment serverless function - an event-triggered Appwrite Function (`functions/auto-assignment/`) now decides every assignment (idle hand-off, rush-order interrupt, released-order requeue), replacing the client-side sorted query; see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full design and the race conditions it closes
   - [x] Permission tightening - every planned Function action (13/13: `claimOrder`, `swapOrder`, the CustomerArrivals accept/decline/complete trio, `completeOrder`, `releaseAfterCompletion`, `startShopping`, `toggleAvailability`, `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`) is built, deployed, and live-verified, and client `update` access has been removed from Orders/ShopperStatus/CustomerArrivals (2026-09-25) - every write to those three collections after creation now goes through a JWT-authenticated, server-side action, enforced by Appwrite itself rather than by convention; see `docs/DECISIONS.md`'s "Permission tightening" entries for the full plan, write-path inventory, and the permission removal
-  - [ ] Live order tracking (a map/ETA view - order status itself already updates live via Realtime)
+  - [ ] Proximity check-in + staff lot map - shoppers are notified only once a customer is within 100m of the pickup area (the store sits 356m from the nearest competing pickup lot), decided server-side from background location, with a staff map of customers in the lot. Fully planned, including a testing strategy, but postponed; see `docs/DECISIONS.md`'s "Proximity check-in and the staff lot map" entry (order status itself already updates live via Realtime)
   - [ ] UI/UX improvements
   - [ ] Performance optimization
   - [ ] Comprehensive testing

@@ -814,3 +814,213 @@ Rollback for each was the same `PUT` with `update(\"any\")` added back - never n
 **Also observed, not chased:** the "Unavailable" status-pill flicker from the actions 12-13 entry didn't reproduce this pass. A request made while both emulators were CPU-starved left a stale dev-mode "WebSocket error" LogBox toast (the known reconnect artifact) - dismissed, no functional effect.
 
 **Consequences / left open:** Every write path is now verified under the lock, including the DropOffs call site carried as open since the actions 6-7 entry. Stale `ready_for_pickup` test orders from September are still in the live database. Testing note for next time: to put an order in a non-pending state for a test, create it `pending` and PATCH it afterwards - creating it directly in that state is now (correctly) ignored by the Function, but any shopper who is idle and Available at that moment will get the pending order first, so set them Unavailable before creating it.
+
+---
+
+## Proximity check-in and the staff lot map: plan (not yet built)
+
+**Status (2026-09-26): postponed, by choice.** Planned in full but deliberately set aside - the background-location work alone (native service, permission flow, token refresh, real-device testing) makes this a much larger undertaking than anything else left in Phase 6, and UI/UX improvements come first. Everything below is kept as-is so it can be picked up without re-deriving it; the first steps when resuming are under "When resuming: what needs to happen first" below.
+
+**Context:** Picks up option 2 from "Proximity-based arrival notification: two options weighed, neither built yet" above, reframed by a concrete requirement from the user: this store sits near several other stores that also run online-order pickup, and **shoppers should not be notified that a customer is coming until the customer is within a set distance of this store's pickup area.** A customer driving past, or into, a neighbouring store's pickup lot must not trigger anything. This also replaces the roadmap's vaguer "live order tracking (a map/ETA view)" item with a specific map: staff seeing customers who have actually arrived in the lot. Much of what that earlier entry said was missing now exists: Realtime (the Realtime migration entry), a server-side Function with a cron schedule, and JWT-verified per-action authorization (the Permission tightening entries).
+
+**Choices made up front (user, 2026-09-26):**
+- **Map audience:** shoppers see customers *in the lot*. Nobody on the store side sees a customer who is merely on the way - that's the requirement itself, not just a UI choice.
+- **Background tracking from the start:** location has to keep flowing with the phone in a pocket or dash mount and another app (navigation, music) in front. Foreground-only would have demoed the server logic but wasn't the real use case.
+- **Auto check-in** on entering the zone: no "I've arrived" tap. The manual button stays as the fallback.
+- **MapLibre**, not Google Maps: no API key or billing account to keep out of a public portfolio repo.
+- **Threshold: 100m.** The user measured the real store the demo is based on against its neighbours: the nearest competing pickup store is **356m** away. Shoppers are notified only once the customer is within 100m.
+
+### Decision: the phone is a sensor, the server decides arrival
+
+While a trip is active, the customer's device reports location to a new Function action. The Function holds the store's pickup-zone definition, decides when the customer has arrived, and creates the `CustomerArrival` itself - after which the **existing** targeted hand-off (modal, 60s timeout, reassignment, Customer Check-ins queue) runs completely unchanged.
+
+**Why server-side rather than on-device OS geofencing:**
+1. **The threshold belongs to the store, not the app build.** The zone and buffer distance live in the database - tunable per store without shipping an app update, and one source of truth instead of one per installed copy.
+2. **It continues the permission-tightening story.** Customers can't write `CustomerArrivals` status at all anymore; a client that could just declare "I'm here" would be a step back. With the server deciding, the client can only submit location readings, and the arrival is something the server concludes.
+3. **Google Play policy points the same way.** Transistorsoft's `react-native-background-geolocation` changelog (v5.3.0) notes Google Play's August 2026 policy removes geofencing as an approved use-case for a `location`-type foreground service. User-initiated location sharing and trip/ride tracking remain approved uses on Play's own foreground-service policy page. A customer tapping "On my way" and sharing location for the length of a trip, with an ongoing notification, is squarely the approved kind. OS geofencing would have to run without a foreground service under tighter background limits.
+
+**Honest limit, worth saying out loud in a presentation:** server-side doesn't make the *location* trustworthy - a mocked GPS can still claim to be in the lot. It's the same trust level as today's manual button (the customer could always tap "I've Arrived" from home). What it adds is that the rules for *acting* on a location are server-side and consistent. Cheap plausibility checks are in scope (below); defeating deliberate spoofing is not.
+
+### The pickup zone: why not a simple radius
+
+The earlier entry's warning still stands: consumer GPS in a retail lot is commonly off by 30-100+ ft, and a plain circle around the store risks covering a competitor's lot next door. So:
+- **Zone = a polygon around this store's actual pickup area**, plus a **store-configurable buffer distance** (meters). Notify when the customer is inside the polygon or within the buffer of its edge. The buffer is exactly the dial between "shopper gets a useful heads-up" and "false triggers from the neighbouring lots" - the tradeoff the user described, made explicit and adjustable.
+- **Accuracy gate:** readings whose reported horizontal accuracy is worse than a threshold are recorded but can't trigger arrival.
+- **Hysteresis:** require N consecutive qualifying readings inside the zone (starting point: 2) before arriving, so one noisy fix at the edge doesn't fire the whole hand-off.
+- **Speed gate:** readings faster than a threshold (starting point: ~8 m/s, about 18 mph) don't count toward `insideCount`. Someone pulling in to pick up slows down; someone driving past doesn't. See the threshold check below for why this rule is the one that matters at 100m.
+
+**Checking 100m against the real geometry (the numbers to use in a presentation):**
+- **Sitting in a competitor's lot can't trigger this store.** With the nearest competitor 356m away and a 100m threshold, there are over 250m of separation - roughly 5-25x typical consumer GPS error in a lot (the earlier entry's 30-100+ ft, about 10-30m; call it 50m in a bad spot). The neighbouring-lots risk that shaped the original option 2 is essentially designed out by the distances themselves.
+- **The false trigger that remains is the pass-by:** a customer heading to Albertsons or Target who drives past this store, inside 100m, or waits at a light beside it. Hysteresis alone mostly handles a moving pass-by (at 35 mph a car crosses a 200m-wide zone in about 13s - usually one reading at a ~15s report interval, and two are required). A red light next to the store can produce two, which is what the speed gate is for.
+- **Where the 100m is measured from:** the edge of the pickup-area polygon, so a large lot doesn't eat into the heads-up distance. The 356m figure is store-to-store as the user measured it; the margin shrinks slightly if the competitor's lot edge is closer than its building, which is worth re-measuring on the map once the real polygon is drawn.
+- **Plausibility:** reject readings implying an impossible speed since the previous one, and record Android's mock-location flag on each reading.
+
+### Data model
+
+- **`PickupZones`** (new table, store config): `storeId`, `polygon` (GeoJSON-style `[lng, lat]` ring stored as a JSON string), `bufferMeters` (initially 100), `minAccuracyMeters`, `requiredInsideReadings` (initially 2), `maxQualifyingSpeedMps` (initially ~8). Clients get read access only - the customer map outline and the staff lot map both draw it. Writes only via the console or admin script.
+- **`CustomerTrips`** (new table): `orderID`, `customerID`, `status` (`active` / `arrived` / `ended` / `expired`), latest reading only (`lat`, `lng`, `accuracy`, `reportedAt`, `isMock`), `insideCount`, `startedAt`, `arrivedAt`. **No route history is stored** - only the latest point, overwritten each time.
+- **Row-level security on `CustomerTrips` - the privacy requirement enforced by Appwrite itself, not by UI filtering.** This table gets `rowSecurity: true` and **no** client create/update; every write goes through Function actions, like the three locked tables. The Function sets each row's read permissions: at trip start, only `read(user:<customerID>)`. On arrival, it adds `read(team:shoppers)`. A shopper's app then *cannot* read an approaching customer's location - not "doesn't show it", can't fetch it - and Realtime respects row permissions too, so the staff map's subscription only ever receives arrived customers. This needs an Appwrite **Team** for shoppers (new): membership added server-side at shopper signup (plus a one-time backfill for existing shoppers), since clients shouldn't be able to add themselves to it.
+
+### Function actions (same JWT pattern as the existing 13)
+- **`startTrip(orderId)`** - customer-authorized (`order.customerID === caller.$id`). Creates the trip row with owner-only read. Rejects if a trip is already active for that order.
+- **`reportLocation(tripId, lat, lng, accuracy, isMock)`** - customer-authorized. Plausibility and accuracy checks, point-in-polygon/buffer test, updates `insideCount`. On crossing the threshold: sets `arrived`, grants shopper-team read, and creates the `CustomerArrival` (which triggers the existing targeted modal). After arrival it keeps accepting updates, so the staff map shows where the car actually parked.
+- **`endTrip(tripId)`** - customer cancels sharing ("I'm not coming now"). Also called server-side when the hand-off completes (`completeArrivalHandoff`).
+- **Cron sweep (existing schedule):** expires trips with no reading for N minutes or older than a hard cap, so a forgotten trip can't track indefinitely.
+
+### Client work
+- **Android background location (the biggest single piece of new native work):** a `location`-type foreground service with a persistent "Sharing your location with Fresh Mart" notification, the `ACCESS_FINE_LOCATION` → `ACCESS_BACKGROUND_LOCATION` two-step permission flow Android requires, and `FOREGROUND_SERVICE_LOCATION` in the manifest. **One non-obvious problem to design for:** with the app in the background the JS thread can be suspended, so readings may need to be sent from native code, not JS - and every `reportLocation` needs a JWT, which Appwrite issues with a short lifetime (15 minutes) against a drive that can take longer. The spike below has to settle how the service gets fresh JWTs.
+- **Customer UI:** "On my way" on a pickup order, a sharing banner with distance remaining (straight-line distance, deliberately **not** an ETA - the jumpy ETA that prompted the original proximity discussion is exactly what to avoid), and a stop-sharing control. After arrival: the existing "Staff Has Been Notified" state.
+- **Staff lot map:** a MapLibre map in Customer Check-ins showing the pickup-zone outline and a pin per arrived customer (name, order, vehicle), fed by a Realtime subscription on `CustomerTrips`. The pins complement, and may eventually replace, the free-text parking-spot field.
+
+### Build order (server first, each step verifiable before the next)
+1. **Spike (time-boxed, decides the native approach):** Transistorsoft's library (TurboModule / new-architecture support since v5; debug builds free, **release builds need a paid license**) vs. a small custom Kotlin foreground service using the Fused Location Provider. Also confirm MapLibre React Native v11 on this app's RN 0.82 (v11 is new-architecture-only and lists RN ≥ 0.80), and pick a keyless vector-tile source - OpenStreetMap's own tile servers don't permit app-scale use, so "OSM" here means OSM data from a provider that allows it.
+2. `PickupZones` + `CustomerTrips` tables, the shoppers Team + backfill, the three Function actions, and the test instruments (`TripReadingsLog`, test-mode switch) - verified with REST-simulated readings, the same technique used throughout the permission migration. The zone math is a pure module with layer-1 unit tests (see Testing strategy below).
+3. Android background location + permission flow + JWT handling, verified by replaying a GPS route in the emulator (extended controls / `adb emu geo fix`).
+4. Customer "On my way" UI.
+5. Staff lot map.
+6. The demo: a scripted emulator drive that passes, and pulls into, a neighbouring pickup lot with no notification, then triggers the moment it enters this store's zone - the presentation piece this whole feature is built around. Include a drive-*past* this store at road speed (should not trigger - the speed gate and hysteresis) and a stop at the nearest light, since those are the realistic false triggers at 100m, not the competitor lots.
+
+### Testing strategy
+
+**Principle:** driving to the store is the last check, not the place to find bugs. Each layer below is cheaper and more repeatable than the next and catches things the previous one can't; the field test only confirms numbers the earlier layers already predict.
+
+**A Metro-free build is required for anything away from the laptop.** A debug build loads its JavaScript from Metro on the dev machine (over USB or local Wi-Fi), so once the phone leaves the house it can't reach it and a fresh launch fails with "Unable to load script". Layers 3-4 use a build with the JS bundled in (`npx react-native run-android --mode release`; the project already signs release builds with the debug key), which needs only mobile data to reach Appwrite. If the spike picks Transistorsoft's library, release builds need its license - a 30-day trial exists; a custom Kotlin service has no such constraint.
+
+**Designed in from the start, not bolted on later:**
+- **A per-reading debug log (`TripReadingsLog`, dev-only table):** trip, time, lat/lng, accuracy, speed, distance to the zone edge, `insideCount`, and the decision taken (`ignored-accuracy`, `ignored-speed`, `outside`, `inside`, `arrived`). The execution log alone is too unstructured to reconstruct a drive. **This deliberately contradicts the "no route history" rule above, so it's fenced:** written only when a trip is flagged as a test trip (test accounts, or a config switch), purged automatically after a short retention window, and off in any production configuration. The privacy rule describes what real customers get; the log is a test instrument.
+- **A test-mode switch** that lets mocked locations count, for replaying routes on a real phone (layer 3). Off by default - the mock-location flag stays enforced for real trips.
+- **Movable zone config:** already true by design (the zone is a `PickupZones` row, not app code), which is what makes layer 3 possible.
+
+**Layer 1 - unit tests of the zone logic (Jest, seconds to run).** The arrival decision is pure math - point-in-polygon, distance to the polygon edge, the 100m buffer, the accuracy and speed gates, hysteresis - so it lives in a pure module the Function imports, and gets table-driven tests built from the real geometry. Fixture trips (timestamped point sequences) cover:
+- approach and park → triggers, at ≤100m
+- drive past on the main road at ~35 mph → no trigger
+- stop at the nearest light beside the store → no trigger
+- pull into and park in each competitor's lot → no trigger
+- GPS jitter back and forth across the 100m edge → triggers once, not repeatedly
+- poor-accuracy readings, mocked readings → never counted
+
+This is where "are the rules right" gets proven, and it's the first substantive content for the roadmap's "comprehensive testing" item (this project's single existing Jest test is only a render smoke test - see the Jest primer entry and "Jest runs again" below).
+
+**Layer 2 - emulator end-to-end (dual-emulator setup).** The customer emulator replays a route - Extended Controls → Location → Routes (GPX/KML import with playback speed), or a script feeding timed `adb emu geo fix` points - with the app in the background, while the shopper emulator should show the targeted modal at the right moment. Proves the whole pipeline: background service, reporting, the server's decision, Realtime, the hand-off. Repeatable, and the same setup records the demo video. The same fixture trips from layer 1 can be exported as GPX so the two layers test identical routes. A REST-only variant (posting fixtures straight to `reportLocation`) needs a real customer JWT from a script - this failed during the permission-tightening spike; the server SDK's ability to create a session for a user may solve it and is to be confirmed in the spike.
+
+**Layer 3 - the real phone, near home.** Point a test `PickupZones` row at a nearby street and walk or drive around the block. Catches what an emulator can't: real GPS noise, Android throttling or killing the background service (varies a lot between phone makers - battery-optimization and "sleeping apps" settings), the real permission prompts, and battery drain per trip. Route replay on the real device is also possible with a mock-location app selected in Developer Options, with the test-mode switch on.
+
+**Layer 4 - field test at the real store.** Confirms the real numbers with the real zone. Runs:
+- a normal pickup approach and park
+- driving past at road speed without stopping
+- waiting at the nearest light
+- pulling into each competitor lot
+- phone in a pocket, screen off, another app (navigation) in front
+
+After each run, review the `TripReadingsLog` for that trip on a map rather than watching the phone. The shopper side needn't be at the store: the shopper emulator at home, or the log itself, shows when the notification fired. **Safety:** the trip starts before pulling out; nothing on the phone is touched while driving - the server-side log is exactly what makes that possible.
+
+**What "effective" means - the acceptance criteria, and the numbers for a presentation:**
+- **Zero false triggers** across the pass-by, red-light and competitor-lot runs.
+- **Every real arrival triggers.**
+- **Trigger distance** consistently close to (and not beyond) 100m.
+- **Latency** from crossing 100m to the shopper's modal - short enough that the heads-up is still useful.
+- **Battery and data cost per trip** - readings per trip, drain on a typical 15-minute drive.
+
+### When resuming: what needs to happen first
+
+1. **Work on a branch** (e.g. `spike/proximity-location`) - spike code is disposable and shouldn't reach `main` until the choices are made.
+2. **Connect a real Android phone early**, not at layer 3 - the largest unknown is whether the OS keeps a background location service alive, which varies most by phone maker and which emulators don't show. Developer Options + USB debugging, confirm it in `adb devices`, then install a Metro-free build once (`npx react-native run-android --mode release`; release is already signed with the debug key in `android/app/build.gradle`) and confirm it reaches Appwrite over mobile data.
+3. **Run the spike** - time-boxed, output is decisions, not features:
+   - **Background location:** Transistorsoft vs. a minimal custom Kotlin service, each at its smallest, judged on the real phone - do readings keep arriving with the screen off and another app in front? How does each get a fresh JWT on a drive longer than Appwrite's 15-minute JWT lifetime?
+   - **Map:** MapLibre React Native v11 renders on RN 0.82, with a keyless tile source.
+   - **Appwrite:** the plan supports Teams and row-level security; the Function execution quota fits ~60 executions per trip; and a script can obtain a test customer's JWT (failed during the permission-tightening spike - try the server SDK's create-session-for-user).
+   - Record the outcome as its own DECISIONS entry, as the caller-identity spike was.
+4. **Choose the demo zone's location** (needed by build step 2, not the spike): real store coordinates committed, real coordinates kept in config only, or the same geometry at a stand-in location. Then draw the pickup-area polygon and re-check the 356m figure against the nearest competitor's *lot edge*.
+
+**Alternatives considered:**
+- **On-device OS geofencing** (`GeofencingClient` / `CLCircularRegion`) - most battery-efficient, but puts the threshold in the client, can't cleanly express a polygon-plus-buffer (Android geofences are circles), and is the use-case Google Play's 2026 policy moves away from foreground services.
+- **Streaming raw location to a table the Function listens on** instead of an HTTP action - would need client `update` on that table, reopening exactly what permission tightening closed.
+- **Radius-only zone** - simpler, but the thing the neighbouring-lots requirement rules out.
+
+**Consequences / left open:**
+- **iOS is out of scope for now** - this machine can't build iOS. The design is platform-neutral (server-side decision), but iOS background location ("Always" permission, significant-change / region APIs) would be its own pass.
+- **Mock-location spoofing** is detected and recorded, not prevented.
+- **Order not ready when the customer arrives:** v1 still creates the arrival (staff see a waiting customer). This intersects the existing multi-order gaps (#2 consolidation, #3 warn-before-arriving in the ready-for-pickup entry) - still open.
+- **Execution volume:** roughly one Function execution per reading. At one every ~15s, a 15-minute drive is about 60 executions - fine at demo scale, and one of the dials (report interval vs. responsiveness) worth naming for a production conversation.
+- **Real coordinates for the demo zone:** the geometry (100m threshold, nearest competitor at 356m) comes from a real store and its real neighbours. Whether its exact coordinates get committed to a public repo is a separate choice - they'd identify a specific real location - versus keeping them in `.env`/console-only config, or shifting the same geometry to a stand-in location for the published demo.
+
+---
+
+## Open issues from a system-design review (not yet addressed)
+
+**Context (2026-09-27):** With permission tightening done and the post-lock pass verified, the architecture was reviewed as a whole: not "does each action work" (every one was live-verified), but what happens under concurrency, partial failure, and a caller who doesn't use the app. Testing so far has been one action at a time, with one shopper and one customer on two emulators, which by construction can't surface most of what's below. Nothing here has been fixed yet. It's recorded so the gaps are named rather than unknown, and ordered roughly by how much each would matter in a real deployment.
+
+**1. Check-then-act races in assignment and claim.** *(Fixed in code for assignment, claim, swap, rush interrupt and release; live verification pending - see "Race #1 fixed" below. Arrival reassignment is not covered yet.)* `handleClaimOrder` reads the order, checks `status === 'pending' && shopperID === ''`, then writes. Appwrite runs Function executions concurrently, and nothing makes the read and the write one step, so two executions can both pass the check before either writes:
+- Two shoppers tap Claim on the same order at the same moment. Both pass, the Order ends with whichever write lands last, and *both* `ShopperStatus.currentOrderId`s point at it.
+- Two orders are placed together. Both `orders.create` events call `getNextAvailableShopper`, both get the same idle shopper, and that shopper is assigned twice - one order silently lost from their view.
+
+The same shape exists wherever a handler reads state and then acts on it (swap, arrival reassignment, the interrupt path). *Options:* Appwrite TablesDB transactions, if this instance's version supports them (to confirm); optimistic concurrency - a write that only succeeds if the row is still in the state that was read; or funnelling every assignment decision through a single serialized writer. A good first step is a small script that fires two `claimOrder` calls at once, to reproduce it before fixing it.
+
+**2. Multi-row writes aren't atomic.** `assign()` writes the Order, then looks up and writes the ShopperStatus as a separate call. `reassignStuckArrival`, `handleSwapOrder`, and the unavailable-release path do the same across two or three rows. A timeout, crash, or thrown error between those writes leaves the rows disagreeing - e.g. an order that says `assigned` to a shopper whose `currentOrderId` is still empty, so the Function will happily give them a second order. *Options:* transactions (as above), or a **reconciliation sweep**: a periodic job that finds rows that contradict each other and repairs them. The existing every-minute cron is the natural home for it.
+
+**3. Missed events leave work stuck, with no retry.** The design assumes every `orders`/`shopperStatus` event reaches the Function and succeeds. A failed execution logs an error and stops - nothing retries it. The scheduled sweep only covers stale *arrivals*; a `pending` order whose create event failed just waits until some shopper's status changes and triggers a new search. The general rule is that events will occasionally be lost or delivered twice, so handlers should be idempotent (safe to run twice) and backed by a periodic "is anything stuck?" check. *Option:* extend the cron sweep to also look for pending unassigned orders while an idle available shopper exists, which is the same safety-net pattern the arrival timeout already uses.
+
+**4. The client still supplies values the server should own.**
+- **Order contents and price.** `Orders` keeps `create("any")` - including guests - and `totalAmount` is computed on the phone (`getCartTotal()` in `CheckoutScreen.tsx`). A direct API call can create an order for any total. Finding 2 of the post-lock pass stopped the Function from *acting on* crafted orders in the wrong state, but not from them existing. *Option:* move order creation into a Function action that takes product IDs and quantities and computes prices from the `Products` table, then remove client `create` from `Orders` like `update` was removed.
+- **Timestamps.** `arrivedAt` and `notifiedShopperAt` on a new arrival come from the customer's phone clock (`arrivalService.ts`), and the 60s hand-off timeout is measured from `notifiedShopperAt`. A phone clock a few minutes off makes the timeout fire immediately or much later than it should. *Option:* the Function (or Appwrite's own `$createdAt`) sets the time; the client's clock is never trusted for anything the server compares against.
+
+**5. Reads are wide open - this exposes personal data.** Permission tightening removed `update` but left `read("any")` on `Orders`, `CustomerArrivals` and `ShopperStatus`, with `rowSecurity: false`. Any guest, logged in or not, can list every customer's delivery address, vehicle description and order history. The app's screens only *display* the signed-in user's own data, but that's UI filtering, not enforcement. In a real deployment this would be the most serious item here. *Option:* the same approach already planned for `CustomerTrips` in the proximity check-in plan - `rowSecurity: true`, with the Function setting each row's read permissions (the customer, plus a shoppers Team), since Realtime respects row permissions too.
+
+**6. Smaller items.**
+- **No automated tests for the Function's rules.** Every behaviour was verified live, which is thorough but slow, and bugs like the `isAvailable` revert (the `claimOrder` entry) were only found that way. The assignment and authorization rules in `main.js` are testable without the app, with the `databases` object mocked, and would be the highest-value tests to add.
+- **Single store assumed.** Every shopper and order query is global; there's no `storeId`. Fine for the demo; partitioning by store would be the first structural change as this grew.
+- **Hard-coded query limits.** `getInterruptCandidateShopper` only considers the first 50 busy shoppers (`Query.limit(50)`), and the sweep only the first 100 stale arrivals, with no paging - the rest are silently ignored.
+
+**Consequences / left open:** All of the above is open. For a portfolio walkthrough, items 1, 2 and 5 are the ones most worth being able to explain even unfixed - "claim is check-then-act, here's the race, here's how I'd close it" demonstrates the understanding either way. Item 1 is the best candidate to actually fix first: it's small, reproducible with a script, and a first hands-on concurrency exercise.
+
+---
+
+## Jest runs again: the two setup steps the template test was missing
+
+**Context (2026-09-27):** Ahead of presenting the project, `npm test` was the one thing flagged as worth fixing first - the repo is public, and a failing test run is the first thing a technical reviewer is likely to see. The Jest primer entry above diagnosed the first failure (`AsyncStorage is null`) and named the fix, but left it unapplied.
+
+**Decision:** Two standard React Native test-setup steps, no app code changed:
+1. **Mock AsyncStorage.** New `jest.setup.js`, registered via `setupFiles` in `jest.config.js`, swaps the native module for the JS mock the library ships (`@react-native-async-storage/async-storage/jest/async-storage-mock`) - exactly the fix the primer described.
+2. **Transform ES-module dependencies.** With AsyncStorage fixed, the next failure was `SyntaxError: Unexpected token 'export'` from `@react-navigation/native`. Jest skips transforming anything in `node_modules` by default, but several of this app's libraries (React Navigation, React Native Paper, the vector icons, Appwrite) ship modern `import`/`export` syntax that Node can't run directly. A `transformIgnorePatterns` entry lets Babel transform those specific packages.
+
+`jest.setup.js` also carries `/* eslint-env jest */`, since ESLint otherwise flags the `jest` global as undefined.
+
+**Result:** `npm test` passes (1 suite, 1 test). `npx tsc --noEmit` clean; `npx eslint .` still 0 errors and the same 15 pre-existing warnings.
+
+**Consequences / left open:**
+- The one test is still the template's render smoke test - it proves the whole app tree can mount without crashing, which is worth having, but asserts nothing about behaviour. The pure-logic candidates the primer named, and the Function's assignment/authorization rules (see "Open issues from a system-design review"), are still the real testing work.
+- Rendering `<App />` runs `AuthContext`'s mount-time `account.get()`, which makes a real network call to whatever `.env` points at (it fails as unauthenticated and is handled, so the test passes). For a clean, offline test, the Appwrite client should be mocked too - not done here.
+- Node prints a harmless `--localstorage-file was provided without a valid path` warning at startup; it comes from the Node/Jest environment, not this project.
+
+---
+
+## Race #1 fixed: claim locks, decided by the database
+
+**Context (2026-10-01):** Item 1 of the system-design review above. Every assignment decision in the auto-assignment Function reads first ("is this shopper idle? is this order still unclaimed?") and writes later, and Appwrite runs executions concurrently, so two executions can both pass the same check before either writes. The user's own experience with a production store app framed it: one order offered to one shopper at a time, others unable to touch it. That exclusive-offer-with-timeout model was considered and deliberately left out of this pass (scope: the race fix only). Fair rotation needed no change - `getNextAvailableShopper` already picks the longest-idle shopper (`orderAsc('lastActiveTimeStamp')`), and finishing an order resets that timestamp, so the same person doesn't get back-to-back orders while others are free.
+
+**Spike first - which Appwrite primitives are actually atomic?** A throwaway-table script (Appwrite 2.3.0, `node-appwrite` 21) tested four candidates live:
+
+| Test | Result |
+|---|---|
+| A. Read a row inside a transaction, change it outside, then stage a write and commit | Commit **succeeded** - a row that's only *read* isn't conflict-checked, so a transaction alone does **not** close check-then-act |
+| B. Two transactions each stage "increment `lock` by 1, max 1", commit together | One commit `400 attribute_limit_exceeded`, the other ok, final `lock = 1` - safe |
+| C. 10 concurrent plain `incrementRowColumn(max 1)` | 1 of 10 succeeded (`column_limit_exceeded` for the rest) |
+| D. 10 concurrent `createRow` with the same custom ID | 1 of 10 succeeded (`409 row_already_exists`) |
+
+**Decision:** B. `Orders` and `ShopperStatus` each get a `claimLock` integer column (0-1, default 0), written only by the Function:
+- An order's lock is 1 while a shopper holds it in the shopping stage (`assigned`/`shopping`), 0 while pending and once it moves past shopping (`completeOrder`, `cancelOrder`).
+- A shopper's lock is 1 while their `currentOrderId` points at something.
+
+`assign()` now stages, in one transaction: a capped increment of the order's lock, a capped increment of the shopper's lock, and both relationship writes. Whichever execution commits second is refused by the database, rolls back, and gets `false`; callers re-read and decide again (`assignToIdleShopper`, `handleShopperBecameAvailable`, up to 3 attempts), or return `409` to the app (`claimOrder`, `swapOrder`). Swap and rush interrupt move a shopper straight from one order to another, so instead of the shopper's lock (which stays 1), the guard is a capped *decrement* of the order being left - only one execution can release it, and it also fails if that order has already moved past shopping, so a stale read can no longer drag a `ready_for_pickup` order back to `pending`. Releasing a shopper (`freeShopper`, used by going unavailable and `releaseAfterCompletion`) is transactional the same way.
+
+**Why this over D (lock rows with a fixed ID):** D needs a separate table, and a crash between "create lock" and "write assignment" leaves a lock behind that needs an expiry and a cleanup job. With B the lock lives on the row it protects and is committed in the same transaction as the writes, so there's no state where one exists without the other. As a side effect this also closes item 2 (non-atomic multi-row writes) for every path that goes through `assign()`/`freeShopper()`, and makes those handlers safe against a duplicated event (item 3's idempotency point) - a repeated assignment attempt just loses the lock.
+
+**Migration:** `functions/auto-assignment/scripts/add-claim-locks.js` creates both columns and backfills them from current state (held orders and busy shoppers start at 1). It has to run before the new Function version is deployed.
+
+**Verification:** *Pending.* Both scripts live in `functions/auto-assignment/scripts/race-test/` (`spike-atomic.js` produced the table above; `repro-race.js` is the reproduction). Plan: run the migration, deploy, then reproduce with `repro-race.js`, which creates two pending orders at the same instant while exactly one shopper is idle (before the fix: both may land on that shopper, one orphaned; after: one assigned, one left pending), plus a dual-emulator pass over claim, swap, completion, going unavailable, and a rush interrupt to confirm the transaction-committed writes still fire the events and Realtime updates the app relies on.
+
+**Consequences / left open:**
+- `reassignStuckArrival` (arrival hand-off reassignment) still reads then writes without a lock - two executions could hand the same arrival to two shoppers. Same fix shape, not done in this pass.
+- `cancelOrder` on an `assigned` order still leaves the shopper's `currentOrderId` pointing at the cancelled order (a pre-existing gap, not introduced here). The order's lock is cleared, so a swap from it now fails with `409` instead of silently reviving the cancelled order as `pending`, but the shopper still has to go Unavailable/Available to clear it.
+- `Orders` keeps `create("any")`, so a crafted create could set `claimLock: 1` and make that order unassignable. Harmless beyond that order, and covered by item 4's proposed fix (server-side order creation).
+- The Function's API key scopes are unchanged (`databases.*`, `documents.*`). If transactions turn out to need another scope, the first live execution will say so in its error.
