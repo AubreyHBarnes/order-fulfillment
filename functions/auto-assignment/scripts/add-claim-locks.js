@@ -81,7 +81,10 @@ async function backfill(tableId, shouldBeLocked) {
   let changed = 0;
   for (const row of await allRows(tableId)) {
     const want = shouldBeLocked(row) ? 1 : 0;
-    if ((row.claimLock ?? 0) !== want) {
+    // Strict compare, not `?? 0`: rows that predate the column hold null (Appwrite
+    // doesn't apply the default to them), and a capped increment on null is a silent
+    // no-op - the lock never engages. Null must be rewritten to an explicit 0.
+    if (row.claimLock !== want) {
       await tables.updateRow(DB, tableId, row.$id, { claimLock: want });
       changed++;
     }

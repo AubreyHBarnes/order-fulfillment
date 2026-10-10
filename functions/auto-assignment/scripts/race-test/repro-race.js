@@ -24,14 +24,14 @@ async function cleanup() {
   for (const o of tests.rows) {
     if (o.shopperID) shopperIds.add(o.shopperID);
     if (o.status !== 'cancelled') {
-      await db.updateRow(DB, ORDERS, o.$id, { status: 'cancelled', shopperID: '' });
+      await db.updateRow(DB, ORDERS, o.$id, { status: 'cancelled', shopperID: '', claimLock: 0 });
       console.log(`cancelled ${o.$id}`);
     }
   }
   for (const shopperId of shopperIds) {
     const s = (await db.listRows(DB, SHOPPERS, [Query.equal('shopperID', shopperId), Query.limit(1)])).rows[0];
     if (s && s.currentOrderId && tests.rows.some((o) => o.$id === s.currentOrderId)) {
-      await db.updateRow(DB, SHOPPERS, s.$id, { currentOrderId: '' });
+      await db.updateRow(DB, SHOPPERS, s.$id, { currentOrderId: '', claimLock: 0 });
       console.log(`freed shopper ${shopperId}`);
     }
   }
