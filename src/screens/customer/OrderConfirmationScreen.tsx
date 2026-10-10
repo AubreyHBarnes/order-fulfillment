@@ -295,7 +295,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
           {/* Still show success since order was placed */}
           <Text style={[styles.successIcon, dynamicStyles.successIcon]}>✓</Text>
           <Text style={[styles.title, dynamicStyles.title]}>Order Placed!</Text>
-          <Text style={[styles.orderId, dynamicStyles.orderId]}>Order #{orderId.slice(0, 8)}...</Text>
+          <Text style={[styles.orderId, dynamicStyles.orderId]}>Order #{orderId.slice(-8).toUpperCase()}</Text>
           <Text style={[styles.errorText, dynamicStyles.errorText]}>
             {error ?? 'Could not load order details'}
           </Text>
@@ -334,12 +334,13 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({
 
         {/* ===== ORDER ID ===== */}
         <Text style={[styles.orderId, dynamicStyles.orderId]}>
-          Order #{orderId.slice(0, 8).toUpperCase()}
+          Order #{orderId.slice(-8).toUpperCase()}
         </Text>
         {/**
          * WHY SLICE AND UPPERCASE?
          * - Full Appwrite ID is long
-         * - First 8 chars is unique enough for display
+         * - Last 8 chars is unique enough for display (the leading chars are
+         *   timestamp-based, so they collide; matches every other screen)
          * - Uppercase looks more like order number
          */}
 

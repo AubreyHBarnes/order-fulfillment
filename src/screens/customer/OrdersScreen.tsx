@@ -18,6 +18,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../theme';
 import { getOrdersByCustomerId } from '../../services/orderService';
+import { subscribeToOrders } from '../../services/realtimeService';
 import OrderCard from '../../components/customer/OrderCard';
 import type { MainStackParamList, Order } from '../../types';
 
@@ -70,6 +71,16 @@ const OrdersScreen: React.FC<OrdersScreenProps> = ({ navigation }) => {
     };
     load();
   }, [loadOrders]);
+
+  // Keep badges live: any event on one of this customer's orders refetches.
+  useEffect(() => {
+    if (!user?.$id) return;
+    return subscribeToOrders((event) => {
+      if (event.payload.customerID === user.$id) {
+        loadOrders();
+      }
+    });
+  }, [user?.$id, loadOrders]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
