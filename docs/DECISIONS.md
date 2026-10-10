@@ -1030,3 +1030,54 @@ The same shape exists wherever a handler reads state and then acts on it (swap, 
 - `cancelOrder` on an `assigned` order still leaves the shopper's `currentOrderId` pointing at the cancelled order (a pre-existing gap, not introduced here). The order's lock is cleared, so a swap from it now fails with `409` instead of silently reviving the cancelled order as `pending`, but the shopper still has to go Unavailable/Available to clear it.
 - `Orders` keeps `create("any")`, so a crafted create could set `claimLock: 1` and make that order unassignable. Harmless beyond that order, and covered by item 4's proposed fix (server-side order creation).
 - The Function's API key scopes are unchanged (`databases.*`, `documents.*`). If transactions turn out to need another scope, the first live execution will say so in its error.
+
+## Issue #5, smallest slice: who can read an order (Orders only)
+
+*Status 2026-10-10: designed, spike passed (step 1 done), not built. Scope chosen with the user: Orders only; `CustomerArrivals` and `ShopperStatus` follow the same recipe in later passes once this one is proven. Client-computed totals are kept for now, so the price half of item 4 stays open.*
+
+### The problem, in plain terms
+
+Today every row in `Orders` is readable by anyone, including people who aren't logged in. The app only *shows* you your own orders, but that's the app being polite - anyone calling the database directly could list every customer's delivery address and order history. That is a privacy gap that matters in any real deployment.
+
+### What we want
+
+Each order should be readable by exactly two groups: the customer who placed it, and shoppers (who need to see pending orders to pick them). Appwrite can stamp a "who may read this row" list onto each individual row (this is **row-level security**, `rowSecurity: true`). Two things make it less simple than it sounds:
+
+1. **Appwrite doesn't know what a "shopper" is.** "Shopper" is just a `role` field in this app's own `Users` table; Appwrite's permission engine can't see it. To Appwrite every account is only a user ID. Stamping "readable by shoppers" on a row therefore needs something Appwrite *does* understand.
+2. **That something is a Team.** A Team is Appwrite's built-in named group of accounts - a membership list. We create a Team called `shoppers`; a row can then say "readable by the `shoppers` Team", and Appwrite checks the membership list for us on every read (including Realtime subscriptions). Without a Team we'd have to stamp every shopper's individual ID on every order, and rewrite old orders each time a shopper joined.
+
+### Why membership has to be added server-side
+
+If the phone app added accounts to the Team, any user could add themselves to `shoppers` and read everyone's orders - the lock would be decorative. So the add must come from the backend: the Function, running with the project's secret API key, which clients can't tamper with. Flow: someone signs up as a shopper in the app (as today) -> the app asks the Function to finish setup -> the Function adds that account to the Team. A customer can't trigger it, because the Function checks the caller's JWT and their `Users.role` before acting. Existing shopper accounts are added once by a backfill script.
+
+### Why order *creation* has to move into the Function too
+
+When a client creates a row in a table with row security on and doesn't specify permissions, Appwrite gives the **creator** read, update and delete on it. A customer could then edit their own order's status or total directly - quietly undoing the permission-tightening lockdown. And a crafted create could stamp any permissions it liked. So `createOrder` becomes the next Function action (the 14th, same JWT pattern as the existing 13): it verifies the caller, writes the row with exactly `read(user:<customerID>)` + `read(team:shoppers)` and nothing else, and the client's `create("any")` on `Orders` is removed. *(The "creator gets default permissions" behaviour is from the Appwrite docs and should be confirmed with a small throwaway spike before relying on it - same method as the transaction spikes in the race #1 entry.)*
+
+This also closes the last open consequence of race #1 (a crafted create setting `claimLock: 1`), because the Function chooses the initial field values, not the client.
+
+### Plan (server first, each step verifiable on its own)
+
+1. Throwaway spike on a scratch table: confirm the default-creator-permissions behaviour, that a `read(team:...)` row is readable by a Team member and not by a non-member, and that **Realtime** honours row permissions (the customer's and the shopper's subscriptions are the part most likely to surprise us).
+2. Create the `shoppers` Team; add the `joinShoppersTeam` step (new shopper signup) and a backfill script for existing shoppers.
+3. `createOrder` action; cut the app's checkout over to it while `create("any")` and `read("any")` still exist, so a bug degrades to "doesn't work" and is easy to revert.
+4. Backfill script: rewrite permissions on existing `Orders` rows (customer + Team), idempotent.
+5. Flip `Orders`: `rowSecurity: true`, table permissions down to nothing for clients. Rollback is the same PUT with `read("any")` and `create("any")` added back (the technique from the permission-tightening entry).
+6. Verify live: guest and wrong-customer reads get nothing; each customer sees only their own orders; shoppers still see pending and active orders; Pick Tasks, Drop Offs, Customer Check-ins, order detail and the live My Orders list all keep updating on both emulators.
+
+### Spike results (2026-10-10, `scripts/race-test/spike-rowsec.js`, throwaway table/team/user, all cleaned up)
+
+- **Creator defaults confirmed.** A client-created row with no permissions given came back with `read/update/delete` for the creator, and the creator could update it. So creation really must move into the Function.
+- **Row and Team reads work.** On a server-made row with `read(user:customer)` + `read(team)`: the owner and a Team member could `get` and `list` it; a different user and a guest got 404 and saw 0 rows; the customer's update attempt was refused (401).
+- **Realtime honours row permissions.** One update to the row reached the customer (1 event) and the Team member (1 event) and not the outsider (0). (Node needed a `window` shim for the SDK's heartbeat; that is a spike-harness detail, not an app issue.)
+- Scopes needed on the dev key: `users.read`, `users.write`, `teams.read`, `teams.write`, `sessions.write`. The Function's own key will need at least `teams.write` for the join step.
+
+### Things to watch
+
+- Other tables that expose order-linked data (e.g. anything carrying the same address or customer name) are not covered by this slice; check the `Users` table's read permission before calling #5 closed.
+- The Realtime channels are shared and today filter client-side ("no server-side filtering" note in `realtimeService.ts`). Row permissions make the server do that filtering, which is better, but it changes which events each device receives - hence step 6.
+- Orders created before the backfill have no row permissions, so the backfill must run *before* the flip.
+
+### The portfolio story
+
+*A privacy gap found by reviewing my own system, fixed the way a production system would be.* The interesting part is not "add a permission" - it's seeing that the obvious fix (turn on row security) is unsafe on its own, because of who owns the row at creation time, and that the real fix is architectural: **the client never writes rows it can later control; the server owns creation, permissions and group membership.** Concretely: row-level security, Teams as an access-control primitive for roles the platform doesn't natively model, server-owned membership so users can't self-promote, a staged rollout that stays reversible until the final flip, and live verification from both sides (the person who should see the data and the person who shouldn't). It builds directly on the earlier work - the JWT-verified Function actions, the permission lockdown and the live dual-emulator verification method - so it reads as one coherent security story rather than a one-off patch.
