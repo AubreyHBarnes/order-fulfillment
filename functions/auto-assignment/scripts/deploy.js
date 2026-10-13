@@ -51,6 +51,8 @@ const {
   APPWRITE_ORDERS_COLLECTION_ID,
   APPWRITE_SHOPPER_STATUS_COLLECTION_ID,
   APPWRITE_CUSTOMER_ARRIVALS_COLLECTION_ID,
+  APPWRITE_PICKUP_ZONES_COLLECTION_ID,
+  APPWRITE_CUSTOMER_TRIPS_COLLECTION_ID,
 } = env;
 
 const FUNCTION_ID = 'auto-assignment';
@@ -129,6 +131,9 @@ async function ensureVariables() {
     APPWRITE_ORDERS_COLLECTION_ID,
     APPWRITE_SHOPPER_STATUS_COLLECTION_ID,
     APPWRITE_CUSTOMER_ARRIVALS_COLLECTION_ID,
+    // proximity check-in tables; skipped until they exist (see trips.js)
+    ...(APPWRITE_PICKUP_ZONES_COLLECTION_ID && { APPWRITE_PICKUP_ZONES_COLLECTION_ID }),
+    ...(APPWRITE_CUSTOMER_TRIPS_COLLECTION_ID && { APPWRITE_CUSTOMER_TRIPS_COLLECTION_ID }),
   };
   const existing = await functions.listVariables({ functionId: FUNCTION_ID });
   for (const [key, value] of Object.entries(required)) {

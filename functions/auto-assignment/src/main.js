@@ -47,6 +47,13 @@
  * search, both idempotent no-ops once nothing stale remains to find.
  */
 import { Client, Databases, TablesDB, Query, Account, Teams } from 'node-appwrite';
+import {
+  handleStartTrip,
+  handleReportLocation,
+  handleEndTrip,
+  endTripsForOrder,
+  expireStaleTrips,
+} from './trips.js';
 
 const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
 const ORDERS_COLLECTION_ID = process.env.APPWRITE_ORDERS_COLLECTION_ID;
@@ -669,6 +676,7 @@ async function handleShopperWentUnavailable(databases, shopperStatus, log) {
  *   an already-unavailable shopper.
  */
 async function handleScheduledSweep(databases, log) {
+  await expireStaleTrips(databases, log);
   const cutoff = new Date(Date.now() - ARRIVAL_TIMEOUT_MS).toISOString();
   const staleRes = await databases.listDocuments(DATABASE_ID, CUSTOMER_ARRIVALS_COLLECTION_ID, [
     Query.equal('status', 'waiting'),
@@ -976,6 +984,7 @@ async function handleCompleteArrivalHandoff(databases, caller, payload, log) {
     status: 'completed',
   });
   await databases.updateDocument(DATABASE_ID, ORDERS_COLLECTION_ID, order.$id, { status: 'completed' });
+  await endTripsForOrder(databases, order.$id, log);
 
   log(`completeArrivalHandoff: ${arrivalId} completed by ${caller.$id}`);
   return { status: 200, body: { ok: true } };
@@ -1402,6 +1411,12 @@ async function handleHttpAction(databases, payload, log) {
       return await handleUpdateItemIssues(databases, caller, payload, log);
     case 'joinShoppersTeam':
       return await handleJoinShoppersTeam(databases, caller, log);
+    case 'startTrip':
+      return await handleStartTrip(databases, caller, payload, log);
+    case 'reportLocation':
+      return await handleReportLocation(databases, caller, payload, log);
+    case 'endTrip':
+      return await handleEndTrip(databases, caller, payload, log);
     default:
       return { status: 400, body: { ok: false, error: `Unknown action: ${payload.action}` } };
   }
