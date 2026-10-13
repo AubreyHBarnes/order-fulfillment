@@ -23,6 +23,8 @@ const FUNCTION_ID = 'auto-assignment';
 export interface FunctionActionResponse {
   success: boolean;
   error?: string;
+  /** The Function's full response body, for actions that return more than ok (e.g. startTrip's tripId). */
+  data?: Record<string, unknown>;
 }
 
 async function callFunctionAction(
@@ -42,7 +44,7 @@ async function callFunctionAction(
     if (!body.ok) {
       return { success: false, error: body.error ?? 'Action failed' };
     }
-    return { success: true };
+    return { success: true, data: body };
   } catch (error) {
     console.error(`Error calling function action "${action}":`, error);
     const errorMessage = error instanceof Error ? error.message : 'Action failed';
@@ -256,4 +258,36 @@ export const updateItemIssues = async (
  */
 export const joinShoppersTeam = async (): Promise<FunctionActionResponse> => {
   return callFunctionAction('joinShoppersTeam');
+};
+
+/**
+ * Proximity check-in (docs/DECISIONS.md's "Proximity check-in and the staff
+ * lot map"): the phone only reports location, the server decides arrival.
+ * startTrip returns the new trip's id in `data.tripId`; reportLocation's
+ * `data` carries { decision, distanceMeters, arrived }.
+ */
+export const startTrip = async (orderId: string): Promise<FunctionActionResponse> => {
+  return callFunctionAction('startTrip', { orderId });
+};
+
+export interface LocationReading {
+  lat: number;
+  lng: number;
+  /** Horizontal accuracy in meters. */
+  accuracy: number;
+  /** Device-reported speed in m/s, when available. */
+  speed?: number;
+  /** Android's mock-location flag. */
+  isMock?: boolean;
+}
+
+export const reportLocation = async (
+  tripId: string,
+  reading: LocationReading
+): Promise<FunctionActionResponse> => {
+  return callFunctionAction('reportLocation', { tripId, ...reading });
+};
+
+export const endTrip = async (tripId: string): Promise<FunctionActionResponse> => {
+  return callFunctionAction('endTrip', { tripId });
 };
