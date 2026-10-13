@@ -841,6 +841,16 @@ While a trip is active, the customer's device reports location to a new Function
 
 **Honest limit, worth saying out loud in a presentation:** server-side doesn't make the *location* trustworthy - a mocked GPS can still claim to be in the lot. It's the same trust level as today's manual button (the customer could always tap "I've Arrived" from home). What it adds is that the rules for *acting* on a location are server-side and consistent. Cheap plausibility checks are in scope (below); defeating deliberate spoofing is not.
 
+### Update 2026-10-13: foreground-only first, server side drafted (branch `feature/proximity-foreground`)
+
+**Decision:** build the foreground-only version first - same server-decides design, but the phone reports location only while the app is open, so there's no Android foreground service, no `ACCESS_BACKGROUND_LOCATION` flow, no Transistorsoft licence and no 15-minute JWT-vs-drive problem. The honest limit: a locked phone or another app in front stops readings, so it demonstrates the design rather than working in daily use. The location source is injected (`LocationSource` in `tripReporter.ts`) so a background service can replace it later without touching the rest.
+
+**Drafted and unit-tested (no Appwrite needed):** `functions/auto-assignment/src/zone.js` (polygon + buffer, accuracy/speed/mock/plausibility gates, hysteresis), `trips.js` (`startTrip` / `reportLocation` / `endTrip`, hand-off-completion and cron-sweep cleanup, wired into `main.js`), client wrappers in `functionActionService.ts`, and `tripReporter.ts`. Tests: `zone.test.js` (fixture trips on a stand-in geography), `trips.test.js` (against an in-memory fake of the Appwrite client), `tripReporter.test.ts`.
+
+**Found while writing the tests - the plan's red-light claim doesn't hold:** a car *stopped* at a light inside the buffer has speed ~0, which passes the speed gate (it only rejects *fast* readings), so it arrives after two readings. The speed gate does stop a drive-past at road speed. Mitigations are geometric - a tighter buffer, or a polygon drawn tight to the lot - and there's a test showing a 20m buffer fixes the same trip. Worth stating plainly in a presentation. A dwell-time rule wouldn't help (a light and a parking space both last a minute or more).
+
+**Not done, needs the live project:** the `PickupZones` and `CustomerTrips` tables (fields trips.js expects: orderID, customerID, status, insideCount, startedAt, arrivedAt, lat, lng, accuracy, reportedAt, distanceMeters; rowSecurity on; no client create/update), env vars `APPWRITE_PICKUP_ZONES_COLLECTION_ID` / `APPWRITE_CUSTOMER_TRIPS_COLLECTION_ID` in `.env` (deploy.js picks them up), the `shoppers` Team (`setup-shoppers-team.js`, not confirmed run), Function deploy, and REST-simulated live verification. Also not done: a location library choice, the "On my way" screen, the staff map, `TripReadingsLog`.
+
 ### The pickup zone: why not a simple radius
 
 The earlier entry's warning still stands: consumer GPS in a retail lot is commonly off by 30-100+ ft, and a plain circle around the store risks covering a competitor's lot next door. So:
