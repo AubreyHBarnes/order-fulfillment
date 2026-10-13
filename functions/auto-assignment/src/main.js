@@ -46,12 +46,13 @@
  * only ever marks a shopper unavailable or retries a reassignment
  * search, both idempotent no-ops once nothing stale remains to find.
  */
-import { Client, Databases, TablesDB, Query, Account } from 'node-appwrite';
+import { Client, Databases, TablesDB, Query, Account, Teams } from 'node-appwrite';
 
 const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
 const ORDERS_COLLECTION_ID = process.env.APPWRITE_ORDERS_COLLECTION_ID;
 const SHOPPER_STATUS_COLLECTION_ID = process.env.APPWRITE_SHOPPER_STATUS_COLLECTION_ID;
 const CUSTOMER_ARRIVALS_COLLECTION_ID = process.env.APPWRITE_CUSTOMER_ARRIVALS_COLLECTION_ID;
+const SHOPPERS_TEAM_ID = 'shoppers';
 
 // How long a shopper has to respond to ArrivalNotificationModal before
 // being marked unavailable and having the hand-off reassigned - see
@@ -1344,6 +1345,28 @@ async function handleUpdateItemIssues(databases, caller, payload, log) {
   return { status: 200, body: { ok: true } };
 }
 
+/**
+ * joinShoppersTeam - adds the caller to the `shoppers` Team, which is what
+ * lets row-level read permissions say "readable by shoppers" (issue #5,
+ * docs/DECISIONS.md). Membership is added here, with the Function's API key,
+ * so a user can't add themselves from the client. The check is "caller has
+ * a ShopperStatus row" - the same shopper test toggleAvailability uses.
+ * ponytail: ShopperStatus is client-created at signup, so anyone can still
+ * self-register as a shopper; real fix is staff-provisioned shoppers.
+ */
+async function handleJoinShoppersTeam(databases, caller, log) {
+  if (!(await getShopperStatusDoc(databases, caller.$id))) {
+    return { status: 403, body: { ok: false, error: 'No shopper profile for this account' } };
+  }
+  try {
+    await new Teams(databases.client).createMembership(SHOPPERS_TEAM_ID, ['member'], undefined, caller.$id);
+  } catch (err) {
+    if (err.code !== 409) throw err; // already a member
+  }
+  log(`joinShoppersTeam: ${caller.$id}`);
+  return { status: 200, body: { ok: true } };
+}
+
 async function handleHttpAction(databases, payload, log) {
   const caller = await resolveCaller(payload.jwt);
   if (!caller) {
@@ -1377,6 +1400,8 @@ async function handleHttpAction(databases, payload, log) {
       return await handleUpdatePickedItems(databases, caller, payload, log);
     case 'updateItemIssues':
       return await handleUpdateItemIssues(databases, caller, payload, log);
+    case 'joinShoppersTeam':
+      return await handleJoinShoppersTeam(databases, caller, log);
     default:
       return { status: 400, body: { ok: false, error: `Unknown action: ${payload.action}` } };
   }

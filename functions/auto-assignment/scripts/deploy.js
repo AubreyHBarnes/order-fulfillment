@@ -92,7 +92,7 @@ async function ensureFunction() {
       logging: true,
       entrypoint: 'src/main.js',
       commands: 'npm install',
-      scopes: ['databases.read', 'databases.write', 'documents.read', 'documents.write'],
+      scopes: ['databases.read', 'databases.write', 'documents.read', 'documents.write', 'teams.write'],
       // Open to any caller - this Appwrite plan has no way to scope
       // execute to "logged-in users" (confirmed live: Role.users() is
       // rejected, only any/guests are allowed - see docs/DECISIONS.md's
@@ -117,7 +117,7 @@ async function ensureFunction() {
       logging: true,
       entrypoint: 'src/main.js',
       commands: 'npm install',
-      scopes: ['databases.read', 'databases.write', 'documents.read', 'documents.write'],
+      scopes: ['databases.read', 'databases.write', 'documents.read', 'documents.write', 'teams.write'],
       execute: [Role.any()],
     });
   }
