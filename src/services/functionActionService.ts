@@ -248,3 +248,12 @@ export const updateItemIssues = async (
 ): Promise<FunctionActionResponse> => {
   return callFunctionAction('updateItemIssues', { orderId, itemIssues });
 };
+
+/**
+ * Add the caller to the `shoppers` Team (server-side, so users can't add
+ * themselves). Called once, right after a shopper's signup. See
+ * docs/DECISIONS.md's issue #5 entry.
+ */
+export const joinShoppersTeam = async (): Promise<FunctionActionResponse> => {
+  return callFunctionAction('joinShoppersTeam');
+};

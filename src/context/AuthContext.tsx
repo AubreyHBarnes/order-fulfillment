@@ -15,6 +15,7 @@ import React, {
 } from 'react';
 import { account, databases, config, Query } from '../services/appwrite';
 import { ID, Models } from 'appwrite';
+import { joinShoppersTeam } from '../services/functionActionService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   AuthContextType,
@@ -145,6 +146,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             );
             throw shopperStatusErr;
           }
+          // Best effort: a miss is repaired by scripts/setup-shoppers-team.js
+          const joined = await joinShoppersTeam();
+          if (!joined.success) console.warn('joinShoppersTeam failed:', joined.error);
         }
 
         // Get the full user object after session creation
