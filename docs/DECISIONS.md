@@ -851,6 +851,27 @@ While a trip is active, the customer's device reports location to a new Function
 
 **Not done, needs the live project:** the `PickupZones` and `CustomerTrips` tables (fields trips.js expects: orderID, customerID, status, insideCount, startedAt, arrivedAt, lat, lng, accuracy, reportedAt, distanceMeters; rowSecurity on; no client create/update), env vars `APPWRITE_PICKUP_ZONES_COLLECTION_ID` / `APPWRITE_CUSTOMER_TRIPS_COLLECTION_ID` in `.env` (deploy.js picks them up), the `shoppers` Team (`setup-shoppers-team.js`, not confirmed run), Function deploy, and REST-simulated live verification. Also not done: a location library choice, the "On my way" screen, the staff map, `TripReadingsLog`.
 
+### Update 2026-10-20: live setup done and verified end to end
+
+**Done since the list above:** `PickupZones` (one row, the real 4-point lot polygon) and `CustomerTrips` (rowSecurity on, no table permissions) created, env vars set, `shoppers` Team created with all 4 shoppers, Function redeployed.
+
+**Verified live** with `functions/auto-assignment/scripts/verify-proximity.js` (runs as `rush.tester` via session -> JWT -> Function, against a real `ready_for_pickup` order; deletes the trip and the arrival it creates). Readings due north of the zone, 100 m buffer:
+
+| Reading | Decision |
+|---|---|
+| 400 / 250 / 150 m | `outside` |
+| 90 m (fast, driving past) | `ignored-speed` |
+| 60 m | `inside` (count 1) |
+| 40 m | `arrived` -> one `CustomerArrival` (waiting, "Auto check-in") |
+
+A shopper could not read the trip before arrival (`hidden`) and could after (`READABLE`), so the owner-only-then-`team:shoppers` rowSecurity works as designed. The 90 m row is the competitor-lot demo in miniature: inside the buffer but moving at road speed, so no notification.
+
+**Bug found by the live run:** the stored `polygon` was invalid JSON. A line-wrapped paste had put newlines inside the numbers and split one coordinate (`...615` / `8`), so `JSON.parse` in `trips.js` would have thrown on every `reportLocation`. The unit tests never saw it because they use fixture polygons. Fixed in place by stripping whitespace; no coordinates changed. Lesson: the polygon is a free-text column with no schema check, so anything that writes it should parse it first (a future zone-editing script should `JSON.parse` before saving).
+
+**Also hit:** the Appwrite project had auto-paused for inactivity (403 `project_paused`) until restored in the console - worth knowing before any demo.
+
+**Still not done:** location library choice, the "On my way" screen, the staff map, `TripReadingsLog`.
+
 ### The pickup zone: why not a simple radius
 
 The earlier entry's warning still stands: consumer GPS in a retail lot is commonly off by 30-100+ ft, and a plain circle around the store risks covering a competitor's lot next door. So:
