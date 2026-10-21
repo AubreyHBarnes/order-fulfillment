@@ -41,6 +41,7 @@ import { parseItemIssues } from '../../utils/orderItems';
 import OrderTimeline from '../../components/customer/OrderTimeline';
 import OrderStatusBadge from '../../components/customer/OrderStatusBadge';
 import ArrivalNotificationCard from '../../components/customer/ArrivalNotificationCard';
+import OnMyWayCard from '../../components/customer/OnMyWayCard';
 import SubstitutionApprovalCard from '../../components/customer/SubstitutionApprovalCard';
 import type { MainStackParamList, Order, Product } from '../../types';
 
@@ -107,6 +108,8 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [cancelling, setCancelling] = useState<boolean>(false);
+  // Bumped when the server auto-checks the customer in, so the arrival card remounts and re-reads it.
+  const [arrivalKey, setArrivalKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -441,7 +444,11 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
         - Prominent position for easy access when arriving
       */}
       {isPickup && order.status === 'ready_for_pickup' && user?.$id && (
+        <OnMyWayCard orderId={order.$id} onArrived={() => setArrivalKey((k) => k + 1)} />
+      )}
+      {isPickup && order.status === 'ready_for_pickup' && user?.$id && (
         <ArrivalNotificationCard
+          key={arrivalKey}
           orderId={order.$id}
           customerId={user.$id}
           /**

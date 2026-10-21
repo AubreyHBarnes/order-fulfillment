@@ -872,6 +872,38 @@ A shopper could not read the trip before arrival (`hidden`) and could after (`RE
 
 **Still not done:** location library choice, the "On my way" screen, the staff map, `TripReadingsLog`.
 
+### Update 2026-10-20 (later): client built, emulator route verified, real-phone checklist for the foreground-only version
+
+**Built:** `@react-native-community/geolocation` (foreground `watchPosition`, only `ACCESS_FINE_LOCATION`), `geolocationSource.ts` (the injected `LocationSource`), and `OnMyWayCard.tsx` above the existing "I've Arrived" card on ready pickup orders. On auto check-in the arrival card remounts and shows "Staff Has Been Notified". Leaving the screen ends the trip.
+
+**Emulator run (layer 2):** `adb emu geo fix` readings, 16 s apart (the reporter's 15 s throttle), due north of the zone. Run 1 had no velocity (the app reports speed 0, so the 90 m reading counted as inside) and arrived on the second inside reading (54 m, accuracy 5 m). Run 2 set velocity - `adb emu geo fix <lng> <lat> <alt> <sats> <knots>`, e.g. `... 0 8 25` (25 knots ~ 12.9 m/s, above the ~8 m/s gate): fast leg 400/150/80/55/30 m at 25 kn left the trip `active` with `insideCount` 0 even though 80/55/30 m are inside the 100 m buffer, then a slow leg 40 m and 35 m at 0 kn counted inside once and arrived on the second (`insideCount` 2) and created one "Auto check-in" arrival; the app showed "Staff Has Been Notified". **So the drive-past-without-triggering behaviour is now demonstrated in the app, not only in `verify-proximity.js`.** Not yet watched: the shopper emulator receiving the hand-off modal from an auto check-in. Test trip and arrival rows were deleted after each run (the hand-off cron would otherwise reassign/time out the arrival). Test order used: an old `ready_for_pickup` pickup order for `rush.tester` (`AF9CACD8`; many such old test orders exist, and the My Orders list is long - scroll to find one).
+
+**Real-phone field test (foreground-only): checklist.** Layers 3-4 above assumed background tracking; this is the version that applies now. Everything is done with the screen on and the app in front - a locked screen or another app stops readings by design, so the pocket/screen-off and navigation-in-front runs are expected to FAIL and should be recorded as the known limit, not as bugs.
+
+*Before leaving the house*
+1. Release build on the phone (`npx react-native run-android --mode release`) - a debug build can't reach Metro away from the laptop. The phone needs mobile data for Appwrite.
+2. Appwrite project is not paused (console); if idle for days it auto-pauses (403 `project_paused`).
+3. A test order for the test customer in `ready_for_pickup`, pickup type. Shopper emulator (or the Appwrite console) available to see the hand-off.
+4. Phone: location on, app permission "While using the app" + Precise, Developer options "Stay awake" while charging for walk-throughs near a charger; otherwise just keep the screen on. Battery saver off.
+5. Real zone row is the production polygon. For a trial near home, edit the `pickupzones` row's `polygon` (a JSON `[lng,lat]` ring - run it through `JSON.parse` before saving, a wrapped paste has already corrupted it once) and **write the original polygon down first so it can be restored**. Restore it afterwards and re-run `verify-proximity.js`.
+
+*Runs (note the time of each so the Function's execution log can be matched to it)*
+| Run | Expected |
+|---|---|
+| Approach and park inside the polygon | arrives; card flips to "Staff Has Been Notified" |
+| Drive past on the road at normal speed, no stop | no arrival |
+| Stop at the nearest light inside the buffer | KNOWN: may arrive (speed ~0 passes the gate); record the distance |
+| Pull into each competitor lot (356 m is the nearest measured) | no arrival |
+| Walk up to the zone slowly from 200 m | arrives at roughly 100 m |
+| Tap "Stop sharing" mid-approach | no arrival; trip ends |
+| Lock the screen for a minute mid-approach, then unlock | readings pause, then resume; record whether it still arrives |
+
+*Record per run:* did it arrive, approximate trigger distance, time from crossing 100 m to the shopper's modal, accuracy values seen (the arrival row/trip row only keeps the last reading), phone model and Android version, battery % before/after.
+
+*After:* delete the test trip and arrival rows (the hand-off cron will otherwise reassign/time out the arrival), restore the real polygon, note results below.
+
+**Gaps this checklist works around:** there is no `TripReadingsLog` (so per-reading decisions and accuracy/speed can't be reviewed after a drive - only the last reading survives on the trip row, and the Function execution logs are the fallback) and no test-mode switch for mocked locations on a real phone. Building `TripReadingsLog` is the thing that would make runs 2-4 reviewable without a second person watching.
+
 ### The pickup zone: why not a simple radius
 
 The earlier entry's warning still stands: consumer GPS in a retail lot is commonly off by 30-100+ ft, and a plain circle around the store risks covering a competitor's lot next door. So:
