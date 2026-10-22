@@ -80,48 +80,55 @@ const client = new Client()
 const functions = new Functions(client);
 
 async function ensureFunction() {
+  const config = {
+    functionId: FUNCTION_ID,
+    name: FUNCTION_NAME,
+    runtime: Runtime.Node22,
+    events: EVENTS,
+    schedule: SCHEDULE,
+    timeout: 15,
+    enabled: true,
+    logging: true,
+    entrypoint: 'src/main.js',
+    commands: 'npm install',
+    scopes: ['databases.read', 'databases.write', 'documents.read', 'documents.write', 'teams.write'],
+    // Open to any caller - this Appwrite plan has no way to scope
+    // execute to "logged-in users" (confirmed live: Role.users() is
+    // rejected, only any/guests are allowed - see docs/DECISIONS.md's
+    // "Permission tightening" entry). Every HTTP action authenticates
+    // its own caller via a JWT it verifies internally
+    // (resolveCaller() in main.js) - that check, not this permission,
+    // is the real authorization boundary.
+    execute: [Role.any()],
+  };
+
+  // The project's plan stopped allowing cron schedules (found 2026-10-22:
+  // the live schedule had been cleared to '' on 2026-10-19). Rather than
+  // block every deploy on that, fall back to no schedule - which is what
+  // production already has - and say so loudly, since the stuck-arrival
+  // and stale-trip sweeps don't run without it.
+  const withScheduleFallback = async (call) => {
+    try {
+      return await call(config);
+    } catch (err) {
+      if (err.type !== 'billing_feature_unsupported') throw err;
+      console.warn(
+        `WARNING: plan rejected cron schedule "${SCHEDULE}" - deploying with NO schedule.\n` +
+          '  The scheduled sweeps (stuck arrival hand-offs, stale trips) will not run.'
+      );
+      return call({ ...config, schedule: '' });
+    }
+  };
+
   try {
     const existing = await functions.get({ functionId: FUNCTION_ID });
     console.log(`Function ${FUNCTION_ID} already exists - updating config (events/runtime).`);
-    await functions.update({
-      functionId: FUNCTION_ID,
-      name: FUNCTION_NAME,
-      runtime: Runtime.Node22,
-      events: EVENTS,
-      schedule: SCHEDULE,
-      timeout: 15,
-      enabled: true,
-      logging: true,
-      entrypoint: 'src/main.js',
-      commands: 'npm install',
-      scopes: ['databases.read', 'databases.write', 'documents.read', 'documents.write', 'teams.write'],
-      // Open to any caller - this Appwrite plan has no way to scope
-      // execute to "logged-in users" (confirmed live: Role.users() is
-      // rejected, only any/guests are allowed - see docs/DECISIONS.md's
-      // "Permission tightening" entry). Every HTTP action authenticates
-      // its own caller via a JWT it verifies internally
-      // (resolveCaller() in main.js) - that check, not this permission,
-      // is the real authorization boundary.
-      execute: [Role.any()],
-    });
+    await withScheduleFallback((c) => functions.update(c));
     return existing;
   } catch (err) {
     if (err.code !== 404) throw err;
     console.log(`Creating function ${FUNCTION_ID}...`);
-    return functions.create({
-      functionId: FUNCTION_ID,
-      name: FUNCTION_NAME,
-      runtime: Runtime.Node22,
-      events: EVENTS,
-      schedule: SCHEDULE,
-      timeout: 15,
-      enabled: true,
-      logging: true,
-      entrypoint: 'src/main.js',
-      commands: 'npm install',
-      scopes: ['databases.read', 'databases.write', 'documents.read', 'documents.write', 'teams.write'],
-      execute: [Role.any()],
-    });
+    return withScheduleFallback((c) => functions.create(c));
   }
 }
 
