@@ -211,7 +211,9 @@ async function deploy() {
   }
 
   console.log(`Deployment ${current.$id} is READY and active.`);
-  console.log(`Function ${FUNCTION_ID} is now listening for:\n  - ${EVENTS.join('\n  - ')}\n  - schedule: ${SCHEDULE}`);
+  // Read back rather than echo SCHEDULE - the plan fallback above may have dropped it.
+  const live = await functions.get({ functionId: FUNCTION_ID });
+  console.log(`Function ${FUNCTION_ID} is now listening for:\n  - ${live.events.join('\n  - ')}\n  - schedule: ${live.schedule || '(none)'}`);
 }
 
 deploy().catch((err) => {
