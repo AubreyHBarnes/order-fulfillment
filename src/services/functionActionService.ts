@@ -40,11 +40,11 @@ async function callFunctionAction(
       method: ExecutionMethod.POST,
     });
 
-    const body = JSON.parse(execution.responseBody || '{}');
-    if (!body.ok) {
-      return { success: false, error: body.error ?? 'Action failed' };
+    const { ok, error: actionError, ...rest } = JSON.parse(execution.responseBody || '{}');
+    if (!ok) {
+      return { success: false, error: actionError ?? 'Action failed' };
     }
-    return { success: true, data: body };
+    return { success: true, data: rest };
   } catch (error) {
     console.error(`Error calling function action "${action}":`, error);
     const errorMessage = error instanceof Error ? error.message : 'Action failed';
@@ -290,4 +290,37 @@ export const reportLocation = async (
 
 export const endTrip = async (tripId: string): Promise<FunctionActionResponse> => {
   return callFunctionAction('endTrip', { tripId });
+};
+
+/**
+ * Data CheckoutScreen collects for a new order - everything except the
+ * fields the Function now decides itself (customerID, shopperID, status,
+ * autoAssigned, orderDate, claimLock). See createOrder below.
+ */
+export interface NewOrderData {
+  items: string;
+  totalAmount: number;
+  deliveryAddress: string;
+  deliveryNotes?: string;
+  priority: number;
+  scheduledReadyTime: string;
+}
+
+/**
+ * Place a new order (CheckoutScreen's "Place Order") - replaces
+ * orderService.ts's createOrder (removed - this was its only remaining
+ * set of callers). Verified server-side, not taken from the client:
+ * customerID (the caller's own identity), shopperID, status,
+ * autoAssigned, orderDate and claimLock. See docs/DECISIONS.md's issue
+ * #5 entry, step 3.
+ *
+ * @param orderData - The order's customer-facing fields
+ * @returns The created order's ID in `orderId` on success
+ */
+export const createOrder = async (
+  orderData: NewOrderData
+): Promise<FunctionActionResponse & { orderId?: string }> => {
+  const result = await callFunctionAction('createOrder', { ...orderData });
+  const orderId = result.data?.orderId;
+  return { ...result, orderId: typeof orderId === 'string' ? orderId : undefined };
 };

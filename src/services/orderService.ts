@@ -17,12 +17,11 @@
  * FOLLOWS PATTERN FROM: productService.ts
  */
 
-import { ID, Query } from 'appwrite';
+import { Query } from 'appwrite';
 import { databases, config } from './appwrite';
 import type {
   Order,
   OrderStatus,
-  CreateOrderData,
   OrderResponse,
   OrderListResponse,
   PickupLocation,
@@ -213,75 +212,11 @@ export const formatDeliveryAddress = (
 // ============================================================
 // ORDER CREATION
 // ============================================================
-
-/**
- * Create a new order in the database
- *
- * WHY RETURN OrderResponse?
- * - Consistent with service pattern (success/error handling)
- * - Caller can check success before proceeding
- * - Error message available for display
- *
- * WHY GENERATE ID HERE?
- * - Appwrite ID.unique() creates unique document ID
- * - Consistent with Appwrite patterns
- * - Could use custom ID format if needed
- *
- * @param orderData - Order data to create
- * @returns OrderResponse with created order or error
- */
-export const createOrder = async (
-  orderData: CreateOrderData
-): Promise<OrderResponse> => {
-  try {
-    /**
-     * WHY createDocument?
-     * - Appwrite SDK method for creating documents
-     * - Takes database ID, collection ID, document ID, and data
-     * - Returns the created document
-     */
-    const order = await databases.createDocument<Order>(
-      config.databaseId,
-      config.ordersCollectionId,
-      ID.unique(),
-      orderData
-    );
-
-    /**
-     * WHY LOG SUCCESS?
-     * - Debugging aid during development
-     * - Can verify order creation in console
-     * - Remove or change to analytics in production
-     */
-    console.log('Order created successfully:', order.$id);
-
-    return {
-      success: true,
-      data: order,
-    };
-  } catch (error) {
-    /**
-     * WHY CATCH AND RETURN?
-     * - Don't crash the app on order failure
-     * - Provide meaningful error to user
-     * - Log for debugging
-     *
-     * WHY CHECK instanceof Error?
-     * - TypeScript error type is 'unknown'
-     * - Need to check before accessing .message
-     * - Fallback for non-Error exceptions
-     */
-    console.error('Error creating order:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to create order';
-
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-    };
-  }
-};
+//
+// createOrder moved server-side into the auto-assignment Function
+// (functionActionService.ts) - issue #5 step 3, docs/DECISIONS.md.
+// The client can no longer be trusted to set its own customerID,
+// shopperID, status, autoAssigned, orderDate or claimLock.
 
 /**
  * Get order by ID

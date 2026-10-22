@@ -1096,7 +1096,7 @@ The same shape exists wherever a handler reads state and then acts on it (swap, 
 
 ## Issue #5, smallest slice: who can read an order (Orders only)
 
-*Status 2026-10-10: designed, spike passed (step 1 done), not built. Scope chosen with the user: Orders only; `CustomerArrivals` and `ShopperStatus` follow the same recipe in later passes once this one is proven. Client-computed totals are kept for now, so the price half of item 4 stays open.*
+*Status 2026-10-22: steps 1-4 done (spike, Team/`joinShoppersTeam`, `createOrder` action, backfill). Steps 5-6 (the `rowSecurity` flip, live verification) not started - `Orders` table permissions are still `create("any")`/`read("any")` as of this date, confirmed live. Scope chosen with the user: Orders only; `CustomerArrivals` and `ShopperStatus` follow the same recipe in later passes once this one is proven. Client-computed totals are kept for now, so the price half of item 4 stays open.*
 
 ### The problem, in plain terms
 
@@ -1121,12 +1121,12 @@ This also closes the last open consequence of race #1 (a crafted create setting 
 
 ### Plan (server first, each step verifiable on its own)
 
-1. Throwaway spike on a scratch table: confirm the default-creator-permissions behaviour, that a `read(team:...)` row is readable by a Team member and not by a non-member, and that **Realtime** honours row permissions (the customer's and the shopper's subscriptions are the part most likely to surprise us).
-2. Create the `shoppers` Team; add the `joinShoppersTeam` step (new shopper signup) and a backfill script for existing shoppers.
-3. `createOrder` action; cut the app's checkout over to it while `create("any")` and `read("any")` still exist, so a bug degrades to "doesn't work" and is easy to revert.
-4. Backfill script: rewrite permissions on existing `Orders` rows (customer + Team), idempotent.
-5. Flip `Orders`: `rowSecurity: true`, table permissions down to nothing for clients. Rollback is the same PUT with `read("any")` and `create("any")` added back (the technique from the permission-tightening entry).
-6. Verify live: guest and wrong-customer reads get nothing; each customer sees only their own orders; shoppers still see pending and active orders; Pick Tasks, Drop Offs, Customer Check-ins, order detail and the live My Orders list all keep updating on both emulators.
+1. ✅ Throwaway spike on a scratch table: confirm the default-creator-permissions behaviour, that a `read(team:...)` row is readable by a Team member and not by a non-member, and that **Realtime** honours row permissions (the customer's and the shopper's subscriptions are the part most likely to surprise us).
+2. ✅ Create the `shoppers` Team; add the `joinShoppersTeam` step (new shopper signup) and a backfill script for existing shoppers.
+3. ✅ `createOrder` action; cut the app's checkout over to it while `create("any")` and `read("any")` still exist, so a bug degrades to "doesn't work" and is easy to revert.
+4. ✅ Backfill script: rewrite permissions on existing `Orders` rows (customer + Team), idempotent.
+5. ⬜ Flip `Orders`: `rowSecurity: true`, table permissions down to nothing for clients. Rollback is the same PUT with `read("any")` and `create("any")` added back (the technique from the permission-tightening entry).
+6. ⬜ Verify live: guest and wrong-customer reads get nothing; each customer sees only their own orders; shoppers still see pending and active orders; Pick Tasks, Drop Offs, Customer Check-ins, order detail and the live My Orders list all keep updating on both emulators.
 
 ### Spike results (2026-10-10, `scripts/race-test/spike-rowsec.js`, throwaway table/team/user, all cleaned up)
 
@@ -1134,6 +1134,20 @@ This also closes the last open consequence of race #1 (a crafted create setting 
 - **Row and Team reads work.** On a server-made row with `read(user:customer)` + `read(team)`: the owner and a Team member could `get` and `list` it; a different user and a guest got 404 and saw 0 rows; the customer's update attempt was refused (401).
 - **Realtime honours row permissions.** One update to the row reached the customer (1 event) and the Team member (1 event) and not the outsider (0). (Node needed a `window` shim for the SDK's heartbeat; that is a spike-harness detail, not an app issue.)
 - Scopes needed on the dev key: `users.read`, `users.write`, `teams.read`, `teams.write`, `sessions.write`. The Function's own key will need at least `teams.write` for the join step.
+
+### Step 3 done (2026-10-22): `createOrder` as a Function action
+
+`createOrder` is now the 15th action in `handleHttpAction` (after `joinShoppersTeam`), following the exact shape of every other action: `resolveCaller()` verifies the JWT, then the Function writes the row with its own API key. `CheckoutScreen` now calls `functionActionService.createOrder`; the old client-side `orderService.createOrder` had no other callers and was removed, along with the `CreateOrderData` type it was the only user of.
+
+The Function now owns every identity/integrity field, never taken from the caller: `customerID` (the caller's own `$id`, not whatever the client sends), `shopperID` (`''`), `status` (`'pending'`), `autoAssigned` (`false`), `claimLock` (`0` - closes the "crafted create sets `claimLock: 1`" gap the race-fix entry flagged and left for this step), and `orderDate` (server's own clock - a client-supplied value here would let a crafted call backdate an order to jump `getAvailableTasks`'s FIFO queue, a gap the old client version actually had). `items`, `totalAmount`, `deliveryAddress`/`deliveryNotes`, `priority`, and `scheduledReadyTime` stay client-supplied business data (`totalAmount`'s trust is the price half of item 4, still deliberately open). The row is written with exactly `read(user:<customerID>)` + `read(team:shoppers)`, nothing else - no update/delete, since every later write to an order goes through another Function action with the Function's own key.
+
+**Deliberately not done in this step** (per the plan): `Orders` table permissions still have `create("any")`/`read("any")`. Until the step 5 flip, an old/forged direct write is still possible against the table - a real but narrow window, accepted so a bug in the new path degrades to "checkout doesn't work," not a new security regression on top of what already existed.
+
+### Step 4 done (2026-10-22): backfill
+
+`functions/auto-assignment/scripts/backfill-order-permissions.js` paginates every row in `Orders` (`Query.limit(100)` + `cursorAfter`, same cursor pattern as the race-test scripts) and rewrites each one's permissions to exactly `read(user:<customerID>)` + `read(team:shoppers)`, skipping any row that already matches. Run live against the 71 pre-existing orders: `71 updated, 0 already correct, 0 failed`. Re-run immediately after to confirm idempotency: `0 updated, 71 already correct, 0 failed`. No `customerID`-less rows were found, so the "SKIP (no customerID)" branch never fired. `rowSecurity` is still `false`, so this had no behavioural effect on the running app yet - it only matters once step 5 flips it.
+
+One environment snag, not a code bug: the sandbox's default `node` (v26.8.1) failed every Appwrite SDK call with `TypeError: fetch failed` / `InvalidArgumentError: invalid onError method` from undici - some incompatibility between that Node build's fetch and `node-appwrite`'s HTTP layer, not a project issue. Every script under `functions/auto-assignment/scripts/` (this one and the race-test spikes) needs to run under the nvm-managed `v22.18.0` (`~/.nvm/versions/node/v22.18.0/bin/node <script>`), not whatever `node` resolves to by default.
 
 ### Things to watch
 

@@ -45,14 +45,15 @@ import TimeSlotSelector from '../../components/customer/TimeSlotSelector';
 import RushOrderToggle from '../../components/customer/RushOrderToggle';
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
 import {
-  createOrder,
   formatDeliveryAddress,
   getPickupLocations,
   getAvailableTimeSlots,
   getRushReadyTime,
 } from '../../services/orderService';
+import { createOrder } from '../../services/functionActionService';
+import type { NewOrderData } from '../../services/functionActionService';
 import { formatPrice } from '../../services/productService';
-import type { MainStackParamList, FulfillmentType, CreateOrderData } from '../../types';
+import type { MainStackParamList, FulfillmentType } from '../../types';
 
 // ============================================================
 // STORE HOURS CONSTANTS
@@ -449,30 +450,13 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
         }
       }
 
-      const orderData: CreateOrderData = {
-        customerID: user!.$id,
+      const orderData: NewOrderData = {
         /**
-         * WHY user!.$id?
-         * - TypeScript knows user could be null
-         * - We validated user exists above
-         * - Non-null assertion is safe here
-         *
-         * WHY customerID (uppercase ID)?
-         * - Matches Appwrite collection schema
-         * - Consistent with UserProfile.userID pattern
-         */
-        shopperID: '',
-        /**
-         * WHY EMPTY STRING?
-         * - No shopper assigned yet for new orders
-         * - Will be populated when shopper accepts order
-         * - Appwrite requires this field (not optional)
-         */
-        status: 'pending',
-        /**
-         * WHY 'pending'?
-         * - New orders start as pending
-         * - Will be updated to 'assigned' when shopper accepts
+         * WHY NO customerID/shopperID/status HERE ANYMORE?
+         * - Issue #5 step 3 (docs/DECISIONS.md): createOrder moved
+         *   server-side, into the Function - it derives customerID from
+         *   the caller's own verified identity and sets shopperID/status
+         *   itself, rather than trusting whatever the client sends
          */
         items: compactItems,
         totalAmount: getCartTotal(),
@@ -487,12 +471,6 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * - Stores the location name for display purposes
          */
         deliveryNotes: fulfillmentType === 'delivery' ? deliveryNotes : undefined,
-        autoAssigned: false,
-        /**
-         * WHY autoAssigned: false?
-         * - Order not yet assigned to shopper
-         * - Will be true when system auto-assigns
-         */
         priority: isRushOrder ? 1 : 0,
         /**
          * WHY REUSE priority AS THE RUSH FLAG?
@@ -501,13 +479,6 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * - 1 = rush, 0 = normal
          * - Rush orders also naturally sort first in shopper auto-assignment
          *   since scheduledReadyTime is soonest, so no assignment logic needed
-         */
-        orderDate: new Date().toISOString(),
-        /**
-         * WHY ISO STRING?
-         * - Standard date format
-         * - Sortable
-         * - Works across timezones
          */
         scheduledReadyTime,
         /**
@@ -518,21 +489,14 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * - Rush orders (future): can allow non-hour times
          * - After-hours orders: scheduled for next day at 8 AM
          */
-        pickedItems: '',
-        /**
-         * WHY EMPTY STRING?
-         * - No items picked yet for new orders
-         * - Will be updated as shopper picks items
-         * - Format: "productId:pickedQty,..."
-         */
       };
 
       /**
-       * CREATE ORDER IN DATABASE
+       * CREATE ORDER - verified and written server-side (issue #5 step 3)
        */
       const result = await createOrder(orderData);
 
-      if (result.success && result.data) {
+      if (result.success && result.orderId) {
         /**
          * GETTING THE ORDER TO A SHOPPER
          *
@@ -563,7 +527,7 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
          * - Standard e-commerce pattern
          */
         navigation.replace('OrderConfirmation', {
-          orderId: result.data.$id,
+          orderId: result.orderId,
         });
       } else {
         /**
