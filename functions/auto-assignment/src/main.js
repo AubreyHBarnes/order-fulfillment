@@ -46,7 +46,7 @@
  * only ever marks a shopper unavailable or retries a reassignment
  * search, both idempotent no-ops once nothing stale remains to find.
  */
-import { Client, Databases, TablesDB, Query, Account, Teams } from 'node-appwrite';
+import { Client, Databases, TablesDB, Query, Account, Teams, ID, Permission, Role } from 'node-appwrite';
 
 const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
 const ORDERS_COLLECTION_ID = process.env.APPWRITE_ORDERS_COLLECTION_ID;
@@ -1367,6 +1367,76 @@ async function handleJoinShoppersTeam(databases, caller, log) {
   return { status: 200, body: { ok: true } };
 }
 
+/**
+ * createOrder - a customer placing a new order (CheckoutScreen's "Place
+ * Order"). Replaces orderService.ts's createOrder (removed - this was
+ * its only remaining set of callers) and is issue #5 step 3
+ * (docs/DECISIONS.md): the spike confirmed a client-created row
+ * defaults to creator-owned permissions, so creation has to move
+ * server-side before row security can be turned on safely. The
+ * Function now owns every identity/integrity field - customerID,
+ * shopperID, status, autoAssigned, orderDate and claimLock are never
+ * taken from the caller, closing the "crafted create sets claimLock: 1"
+ * gap the race-fix entry left open for this step. items, totalAmount,
+ * deliveryAddress/deliveryNotes, priority and scheduledReadyTime stay
+ * client-supplied business data (totalAmount's trust is the price half
+ * of item 4, deliberately left open).
+ *
+ * WHY orderDate FROM THE SERVER, WHEN THE OLD CLIENT VERSION SET IT
+ * ITSELF?
+ * getAvailableTasks sorts the shopper queue FIFO by orderDate - a
+ * client-supplied timestamp would let a crafted call backdate an order
+ * to always jump that queue. Nothing else needs the client's clock.
+ *
+ * WHY read(team:shoppers) ON EVERY ORDER, EVEN ONES NOT YET PENDING?
+ * Shoppers need to see an order to pick it up as a task and keep
+ * watching it through pickup/delivery (Pick Tasks, Drop Offs, order
+ * detail) - there's no later point where that read access should be
+ * revoked, so it's granted once, at creation, same as the customer's.
+ * No update/delete permission for either - every further write to this
+ * order goes through another Function action, which writes with the
+ * Function's own API key and so never needs row permissions at all.
+ */
+async function handleCreateOrder(databases, caller, payload, log) {
+  const { items, totalAmount, deliveryAddress, deliveryNotes, priority, scheduledReadyTime } = payload;
+  if (
+    typeof items !== 'string' || !items ||
+    typeof totalAmount !== 'number' ||
+    typeof deliveryAddress !== 'string' || !deliveryAddress ||
+    typeof scheduledReadyTime !== 'string' || !scheduledReadyTime
+  ) {
+    return {
+      status: 400,
+      body: { ok: false, error: 'items, totalAmount, deliveryAddress, and scheduledReadyTime are required' },
+    };
+  }
+
+  const data = {
+    customerID: caller.$id,
+    shopperID: '',
+    status: 'pending',
+    items,
+    totalAmount,
+    deliveryAddress,
+    autoAssigned: false,
+    priority: typeof priority === 'number' ? priority : 0,
+    orderDate: nowIso(),
+    scheduledReadyTime,
+    pickedItems: '',
+    claimLock: 0,
+  };
+  if (typeof deliveryNotes === 'string') {
+    data.deliveryNotes = deliveryNotes;
+  }
+
+  const order = await databases.createDocument(DATABASE_ID, ORDERS_COLLECTION_ID, ID.unique(), data, [
+    Permission.read(Role.user(caller.$id)),
+    Permission.read(Role.team(SHOPPERS_TEAM_ID)),
+  ]);
+  log(`createOrder: ${order.$id} created by ${caller.$id}`);
+  return { status: 200, body: { ok: true, orderId: order.$id } };
+}
+
 async function handleHttpAction(databases, payload, log) {
   const caller = await resolveCaller(payload.jwt);
   if (!caller) {
@@ -1402,6 +1472,8 @@ async function handleHttpAction(databases, payload, log) {
       return await handleUpdateItemIssues(databases, caller, payload, log);
     case 'joinShoppersTeam':
       return await handleJoinShoppersTeam(databases, caller, log);
+    case 'createOrder':
+      return await handleCreateOrder(databases, caller, payload, log);
     default:
       return { status: 400, body: { ok: false, error: `Unknown action: ${payload.action}` } };
   }

@@ -97,30 +97,6 @@ export interface Order extends Models.Document {
 }
 
 /**
- * Data required to create a new order
- *
- * WHY SEPARATE FROM Order?
- * - Order has Appwrite document fields ($id, $createdAt, etc.)
- * - CreateOrderData only has user-provided fields
- * - Prevents accidentally passing document fields to create
- */
-export interface CreateOrderData {
-  customerID: string;
-  shopperID: string;
-  status: OrderStatus;
-  items: string;
-  totalAmount: number;
-  deliveryAddress: string;
-  deliveryNotes?: string;
-  autoAssigned: boolean;
-  priority: number;
-  orderDate: string;
-  scheduledReadyTime: string;
-  pickedItems: string;
-  itemIssues?: string;
-}
-
-/**
  * Pickup location for store pickup orders
  *
  * WHY THIS STRUCTURE?
