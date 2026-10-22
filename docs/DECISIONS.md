@@ -1125,8 +1125,8 @@ This also closes the last open consequence of race #1 (a crafted create setting 
 2. ✅ Create the `shoppers` Team; add the `joinShoppersTeam` step (new shopper signup) and a backfill script for existing shoppers.
 3. ✅ `createOrder` action; cut the app's checkout over to it while `create("any")` and `read("any")` still exist, so a bug degrades to "doesn't work" and is easy to revert.
 4. ✅ Backfill script: rewrite permissions on existing `Orders` rows (customer + Team), idempotent.
-5. ⬜ Flip `Orders`: `rowSecurity: true`, table permissions down to nothing for clients. Rollback is the same PUT with `read("any")` and `create("any")` added back (the technique from the permission-tightening entry).
-6. ⬜ Verify live: guest and wrong-customer reads get nothing; each customer sees only their own orders; shoppers still see pending and active orders; Pick Tasks, Drop Offs, Customer Check-ins, order detail and the live My Orders list all keep updating on both emulators.
+5. ✅ Flip `Orders`: `rowSecurity: true`, table permissions down to nothing for clients. Rollback is the same PUT with `read("any")` and `create("any")` added back (the technique from the permission-tightening entry).
+6. ◐ Verify live (server side done, in-app dual-emulator pass still to do): guest and wrong-customer reads get nothing; each customer sees only their own orders; shoppers still see pending and active orders; Pick Tasks, Drop Offs, Customer Check-ins, order detail and the live My Orders list all keep updating on both emulators.
 
 ### Spike results (2026-10-10, `scripts/race-test/spike-rowsec.js`, throwaway table/team/user, all cleaned up)
 
@@ -1136,6 +1136,8 @@ This also closes the last open consequence of race #1 (a crafted create setting 
 - Scopes needed on the dev key: `users.read`, `users.write`, `teams.read`, `teams.write`, `sessions.write`. The Function's own key will need at least `teams.write` for the join step.
 
 ### Step 3 done (2026-10-22): `createOrder` as a Function action
+
+> **Correction (later the same day):** this step was committed on `main` but **not deployed** - the live Function was still the Oct 17 build from `feature/proximity-foreground`, which had no `createOrder` case, so checkout on `main` would have failed against production. Found during step 5's pre-flight (by downloading the active deployment and diffing it against the repo). See "Deploy gap and the lost cron schedule" below.
 
 `createOrder` is now the 15th action in `handleHttpAction` (after `joinShoppersTeam`), following the exact shape of every other action: `resolveCaller()` verifies the JWT, then the Function writes the row with its own API key. `CheckoutScreen` now calls `functionActionService.createOrder`; the old client-side `orderService.createOrder` had no other callers and was removed, along with the `CreateOrderData` type it was the only user of.
 
@@ -1148,6 +1150,27 @@ The Function now owns every identity/integrity field, never taken from the calle
 `functions/auto-assignment/scripts/backfill-order-permissions.js` paginates every row in `Orders` (`Query.limit(100)` + `cursorAfter`, same cursor pattern as the race-test scripts) and rewrites each one's permissions to exactly `read(user:<customerID>)` + `read(team:shoppers)`, skipping any row that already matches. Run live against the 71 pre-existing orders: `71 updated, 0 already correct, 0 failed`. Re-run immediately after to confirm idempotency: `0 updated, 71 already correct, 0 failed`. No `customerID`-less rows were found, so the "SKIP (no customerID)" branch never fired. `rowSecurity` is still `false`, so this had no behavioural effect on the running app yet - it only matters once step 5 flips it.
 
 One environment snag, not a code bug: the sandbox's default `node` (v26.8.1) failed every Appwrite SDK call with `TypeError: fetch failed` / `InvalidArgumentError: invalid onError method` from undici - some incompatibility between that Node build's fetch and `node-appwrite`'s HTTP layer, not a project issue. Every script under `functions/auto-assignment/scripts/` (this one and the race-test spikes) needs to run under the nvm-managed `v22.18.0` (`~/.nvm/versions/node/v22.18.0/bin/node <script>`), not whatever `node` resolves to by default.
+
+### Deploy gap and the lost cron schedule (found 2026-10-22, during step 5 pre-flight)
+
+**The live Function wasn't built from `main`.** The active deployment (Oct 17) had been deployed from `feature/proximity-foreground` - it had the trip actions (`startTrip`/`reportLocation`/`endTrip`, plus `expireStaleTrips`/`endTripsForOrder` hooks) but not `createOrder`. Deploying `main` as-is would have silently removed the trip actions from production; not deploying meant step 5 would break checkout. Resolved by merging `main` into `feature/proximity-foreground` and deploying from there (deployment `6ada3f4c91398c537277`). Two conflicts: `main.js` kept both sides of the action switch; `callFunctionAction` kept the branch's `{ success, data }` shape (the trip reporter reads `data.tripId`/`data.arrived`), with the `createOrder` wrapper lifting `data.orderId` so `CheckoutScreen` didn't change. **Lesson:** "done" for a Function change means deployed *and* exercised live, and deploys should come from one agreed branch - check the active deployment against the repo before any step that depends on it.
+
+**The Appwrite plan no longer allows cron schedules.** The first deploy attempt failed with `403 billing_feature_unsupported` ("Your current plan doesn't support cron schedules. Use an interval instead..."). The live schedule had already been cleared to `''` on 2026-10-19 - so since then the every-minute sweep (stuck arrival hand-off reassignment/timeout, stale-trip expiry) has **not been running in production**. Event-triggered and HTTP-action paths are unaffected. `deploy.js` now falls back to no schedule with a loud warning when the plan rejects cron, and reports the live schedule rather than echoing the requested one. **Open:** restore the sweep (plan upgrade, Appwrite's interval option - not yet investigated - or an external trigger). Matters for the proximity demo: an unanswered auto check-in now waits forever instead of being reassigned.
+
+**Step 3 verified live after deploying:** a script minted a real test customer's JWT (server SDK `users.createSession` -> `account.createJWT`), called `createOrder` with forged `customerID`/`status: completed`/`claimLock: 1`/`orderDate: 2000-01-01`, and got back an order with the caller's own `customerID`, `status: pending`, `claimLock: 0`, a server-clock `orderDate`, and exactly `read(user:<customer>)` + `read(team:shoppers)`. Cleaned up through `cancelOrder` (the real path). Every shopper had a current order at the time, so the test order couldn't be auto-assigned. Not yet done: a real checkout tap in the app.
+
+### Step 5 done (2026-10-22): the flip
+
+`Orders` changed from `rowSecurity: false`, `["create(\"any\")","read(\"any\")"]` to `rowSecurity: true`, `[]`, via the dev key's `updateTable` (same operation as the permission-tightening REST `PUT`). The flip ran in one script with checks right after and an automatic rollback to the recorded `before` state if any failed. All passed:
+
+- Guest: `listRows` -> 0 rows; `getRow` on a real order -> 404.
+- Customer (session for a test customer): sees exactly their own 64 of 72 orders; `getRow` on another customer's order -> 404; `updateRow` on their own -> 401; direct `createRow` -> 401 (so the creator-defaults hole from the spike is closed).
+- Shopper (Team member): sees all 72 orders.
+- "Shopper sees pending orders" passed only vacuously (0 of 0 - there were no pending orders at the time) - the in-app pass must cover it with a real pending order.
+
+Rollback if the app turns out to depend on something missed: the same `updateTable` with `rowSecurity: false` and `["create(\"any\")","read(\"any\")"]`.
+
+**Still to do (step 6, in-app):** dual-emulator pass - checkout tap (creates via `createOrder`, appears pending to shoppers), Pick Tasks, Drop Offs, Customer Check-ins, order detail, and the live My Orders list all updating via Realtime now that the server filters events by row permissions.
 
 ### Things to watch
 
