@@ -31,15 +31,39 @@ export const getAllProducts = async (
   queries: string[] = []
 ): Promise<ProductListResponse> => {
   try {
-    const response = await databases.listDocuments<Product>(
-      config.databaseId,
-      config.productsCollectionId,
-      queries
-    );
+    // Appwrite returns only 25 documents when no limit is given, so callers
+    // that don't paginate themselves get every page fetched here.
+    if (queries.some((q) => q.startsWith('limit('))) {
+      const response = await databases.listDocuments<Product>(
+        config.databaseId,
+        config.productsCollectionId,
+        queries
+      );
+      return {
+        success: true,
+        data: response.documents,
+        total: response.total,
+      };
+    }
+
+    const pageSize = 100;
+    const documents: Product[] = [];
+    let total = 0;
+    do {
+      const response = await databases.listDocuments<Product>(
+        config.databaseId,
+        config.productsCollectionId,
+        [...queries, Query.limit(pageSize), Query.offset(documents.length)]
+      );
+      documents.push(...response.documents);
+      total = response.total;
+      if (response.documents.length === 0) break;
+    } while (documents.length < total);
+
     return {
       success: true,
-      data: response.documents,
-      total: response.total,
+      data: documents,
+      total,
     };
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -164,11 +188,10 @@ export const getCategories = async (): Promise<CategoriesResponse> => {
     // WHY this approach?
     // - Simple for small datasets (your 30 products)
     // - In production with 10,000+ products, you'd want a Categories collection
-    const response = await databases.listDocuments<Product>(
-      config.databaseId,
-      config.productsCollectionId,
-      [Query.limit(100)] // Get enough to find all categories
-    );
+    const response = await getAllProducts([Query.select(['category'])]);
+    if (!response.success) {
+      throw new Error(response.error);
+    }
 
     // Extract unique categories using Set
     // WHY Set?
@@ -176,7 +199,7 @@ export const getCategories = async (): Promise<CategoriesResponse> => {
     // - O(1) lookup time
     // - Clean, readable code
     const categories = [
-      ...new Set(response.documents.map((p) => p.category)),
+      ...new Set(response.data.map((p) => p.category)),
     ];
 
     return {

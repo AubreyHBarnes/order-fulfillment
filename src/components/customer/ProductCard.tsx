@@ -16,6 +16,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, Button, Badge } from 'react-native-paper';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../services/productService';
+import ProductImage from '../common/ProductImage';
 import { useAppTheme } from '../../theme';
 import type { ProductCardProps } from '../../types';
 
@@ -26,6 +27,8 @@ import type { ProductCardProps } from '../../types';
  * - Cleaner, less boilerplate
  * - Better for performance optimization
  */
+const CARD_WIDTH = 160;
+
 const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
   const { addToCart, isInCart, getCartItem } = useCart();
   const theme = useAppTheme();
@@ -92,6 +95,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
         accessibilityLabel={`${product.name}, ${formatPrice(product.price)}`}
         accessibilityHint="Double tap to view product details"
       >
+        <ProductImage product={product} size={CARD_WIDTH} />
         <Card.Content style={styles.content}>
           {/* Product Name */}
           <View style={styles.header}>
@@ -243,7 +247,8 @@ const styles = StyleSheet.create({
      * - Consistent card sizing
      * - Better visual rhythm
      */
-    width: 160,
+    width: CARD_WIDTH,
+    overflow: 'hidden',
   },
   content: {
     paddingVertical: 16,

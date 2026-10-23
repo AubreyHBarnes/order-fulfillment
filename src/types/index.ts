@@ -24,7 +24,11 @@ export interface Product extends Models.Document {
   inStock: boolean;
   aisle?: string;
   description?: string;
-  imageUrl?: string;
+  imageURL?: string;
+  // Unsplash credit for imageURL, shown behind the image's info badge
+  imagePhotographer?: string;
+  imagePhotographerUrl?: string;
+  imageUnsplashId?: string;
 }
 
 // ============================================================
