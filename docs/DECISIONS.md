@@ -116,7 +116,7 @@ It exists for two reasons: to keep a real record while the project is being acti
 
 **Alternatives considered:** A single emulator with logout/login switching between customer and shopper accounts was the fallback, but it can't show simultaneity — by the time you'd switched accounts to check the shopper's screen, you'd have lost the ability to tell whether an update was "live" versus "just refreshed."
 
-**Consequences / left open:** Two emulator instances is noticeably heavier on the dev machine (RAM/CPU) than one — fine on the current 12-core/30GB machine, but worth knowing as a cost if this pattern gets reused for a machine with less headroom.
+**Consequences / left open:** Two emulator instances is noticeably heavier on the dev machine (RAM/CPU) than one — fine on the current 12-core/30GB machine, but worth knowing as a cost if this pattern gets reused for a machine with less headroom. That cost was hit in practice: running both emulators on a 14-core/15GB machine crashed it, so the dual-emulator setup is reserved for the 12-core/30GB PC. On lower-RAM machines, use a single emulator, or pair one emulator with a physical device over `adb` for the second role.
 
 ---
 
