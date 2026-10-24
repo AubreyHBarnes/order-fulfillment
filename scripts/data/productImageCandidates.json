@@ -1,13 +1,13 @@
 {
   "69348066c35cca694cfb": {
     "name": "Organic Apples",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "oo3kSFZ7uHk",
         "url": "https://images.unsplash.com/photo-1590005354167-6da97870c757?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8T3JnYW5pYyUyMEFwcGxlc3xlbnwxfDJ8fHwxNzkyNjk2MzEyfDA&ixlib=rb-4.1.0",
         "alt": "A whole green apple and several sliced pieces on a bright orange background",
-        "photographer": "Estúdio Bloom",
+        "photographer": "Est\u00fadio Bloom",
         "photographerUrl": "https://unsplash.com/@estudiobloom?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/oo3kSFZ7uHk/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8T3JnYW5pYyUyMEFwcGxlc3xlbnwxfDJ8fHwxNzkyNjk2MzEyfDA"
       },
@@ -93,7 +93,7 @@
   },
   "693480675208b68f71ea": {
     "name": "Baby Carrots",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "jqXmOb69Flg",
@@ -185,7 +185,7 @@
   },
   "69348067c8ffbffadd8a": {
     "name": "Large Eggs",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "UQawLoFS4uM",
@@ -231,7 +231,7 @@
   },
   "693480680648fe8debcd": {
     "name": "Cheddar Cheese",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "PJ5Axj2fgxA",
@@ -269,7 +269,7 @@
         "id": "hgdxFmye2GM",
         "url": "https://images.unsplash.com/photo-1707730583937-1add20f8287e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Q2hlZGRhciUyMENoZWVzZXxlbnwxfDJ8fHwxNzkyNjk2MzE0fDA&ixlib=rb-4.1.0",
         "alt": "shredded cheese in a red bowl on a black background",
-        "photographer": "Mustafa akın",
+        "photographer": "Mustafa ak\u0131n",
         "photographerUrl": "https://unsplash.com/@msaimakin?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/hgdxFmye2GM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Q2hlZGRhciUyMENoZWVzZXxlbnwxfDJ8fHwxNzkyNjk2MzE0fDA"
       }
@@ -323,7 +323,7 @@
   },
   "6934806852e5f0403bac": {
     "name": "Butter",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "zRZxs9tDha0",
@@ -369,7 +369,7 @@
   },
   "69348068780200025bd2": {
     "name": "Ground Beef",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "VqkJRiXP-W8",
@@ -461,7 +461,7 @@
   },
   "69348068d1d335d279fa": {
     "name": "Salmon Fillet",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "Js78KIYnwrg",
@@ -507,7 +507,7 @@
   },
   "693480690156be4fc829": {
     "name": "Whole Wheat Bread",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "QnQSxrXFgnw",
@@ -553,7 +553,7 @@
   },
   "6934806937179f281b76": {
     "name": "Bagels",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "4xCroQgmehc",
@@ -599,7 +599,7 @@
   },
   "6934806967e379143d8b": {
     "name": "Chocolate Chip Cookies",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "tVy3x2Vu_z4",
@@ -645,7 +645,7 @@
   },
   "69348069965390036ab7": {
     "name": "Frozen Pizza",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "CbNAuxSZTFo",
@@ -691,13 +691,13 @@
   },
   "69348069d399eeba5f8f": {
     "name": "Ice Cream",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "3sl9_ubYIno",
         "url": "https://images.unsplash.com/photo-1505394033641-40c6ad1178d7?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8SWNlJTIwQ3JlYW18ZW58MXwyfHx8MTc5MjY5NjMxN3ww&ixlib=rb-4.1.0",
         "alt": "Pink raspberry popsicles with fresh berries on a white marble surface",
-        "photographer": "Daniel Öberg",
+        "photographer": "Daniel \u00d6berg",
         "photographerUrl": "https://unsplash.com/@artic_studios?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/3sl9_ubYIno/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8SWNlJTIwQ3JlYW18ZW58MXwyfHx8MTc5MjY5NjMxN3ww"
       },
@@ -737,7 +737,7 @@
   },
   "6934806a042a51a07b61": {
     "name": "Frozen Vegetables",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "iU2urUHYQZI",
@@ -783,7 +783,7 @@
   },
   "6934806a29034b5b1135": {
     "name": "Pasta",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "flFd8L7_B3g",
@@ -967,7 +967,7 @@
   },
   "6934806abd1b76f561d4": {
     "name": "Canned Tomatoes",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "Gu6OPE7mDO4",
@@ -1005,7 +1005,7 @@
         "id": "hIGK63bV5I0",
         "url": "https://images.unsplash.com/photo-1783328122149-c71818f4033c?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Q2FubmVkJTIwVG9tYXRvZXN8ZW58MXwyfHx8MTc5MjY5NjMxOXww&ixlib=rb-4.1.0",
         "alt": "Fresh, ripe red tomatoes in a bowl",
-        "photographer": "Trương Tuyết Ly",
+        "photographer": "Tr\u01b0\u01a1ng Tuy\u1ebft Ly",
         "photographerUrl": "https://unsplash.com/@liliantruong2603?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/hIGK63bV5I0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Q2FubmVkJTIwVG9tYXRvZXN8ZW58MXwyfHx8MTc5MjY5NjMxOXww"
       }
@@ -1013,7 +1013,7 @@
   },
   "6934806ae2f2d18398a3": {
     "name": "Orange Juice",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "ZBXPPacUsVs",
@@ -1059,7 +1059,7 @@
   },
   "6934806b229b56ec6a2d": {
     "name": "Coffee",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "FzdEbrA3Qj0",
@@ -1081,7 +1081,7 @@
         "id": "ZtGJ5g4n17g",
         "url": "https://images.unsplash.com/photo-1644340271490-c115f7aacfb3?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Q29mZmVlfGVufDF8Mnx8fDE3OTI2OTYzMjB8MA&ixlib=rb-4.1.0",
         "alt": "a close up of a yellow and white substance",
-        "photographer": "Bernd 📷 Dittrich",
+        "photographer": "Bernd \ud83d\udcf7 Dittrich",
         "photographerUrl": "https://unsplash.com/@hdbernd?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/ZtGJ5g4n17g/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Q29mZmVlfGVufDF8Mnx8fDE3OTI2OTYzMjB8MA"
       },
@@ -1105,7 +1105,7 @@
   },
   "6934806b6e5aafaaecc5": {
     "name": "Bottled Water",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "727xRkA3t1s",
@@ -1151,7 +1151,7 @@
   },
   "6934806ba4df874c32ae": {
     "name": "Soda",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "qbGauEOjoAs",
@@ -1197,7 +1197,7 @@
   },
   "6934806bd342e2c89fa8": {
     "name": "Potato Chips",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "nXjvUlE8418",
@@ -1243,7 +1243,7 @@
   },
   "6934806c095f84345870": {
     "name": "Pretzels",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "o139oBiW6ZA",
@@ -1289,7 +1289,7 @@
   },
   "6934806c2fce3880731e": {
     "name": "Granola Bars",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "xtpXtRHNt9g",
@@ -1335,7 +1335,7 @@
   },
   "6ada5fb173d8e97d8618": {
     "name": "Avocados",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "EUEWT74ImEU",
@@ -1381,7 +1381,7 @@
   },
   "6ada5fb1b0cf20033d5e": {
     "name": "Strawberries",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "ipBx_F8U3J8",
@@ -1427,7 +1427,7 @@
   },
   "6ada5fb2129dee944cb0": {
     "name": "Blueberries",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "979iL7WAjyI",
@@ -1473,7 +1473,7 @@
   },
   "6ada5fb282468595ab7d": {
     "name": "Broccoli",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "q7BJL1qZ1Bw",
@@ -1519,7 +1519,7 @@
   },
   "6ada5fb2a90b192d2665": {
     "name": "Yellow Onions",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "bC1fXU1v98U",
@@ -1565,7 +1565,7 @@
   },
   "6ada5fb2d11a03e4b52c": {
     "name": "Russet Potatoes",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "jJUuF4hqCQM",
@@ -1579,7 +1579,7 @@
         "id": "xxSWZwlmB3g",
         "url": "https://images.unsplash.com/photo-1659177652084-c4a7c4e0bf28?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8UnVzc2V0JTIwUG90YXRvZXN8ZW58MXwyfHx8MTc5MjY5NjMyM3ww&ixlib=rb-4.1.0",
         "alt": "a pile of baked goods",
-        "photographer": "Jossuha Théophile",
+        "photographer": "Jossuha Th\u00e9ophile",
         "photographerUrl": "https://unsplash.com/@nunchakouy?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/xxSWZwlmB3g/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8UnVzc2V0JTIwUG90YXRvZXN8ZW58MXwyfHx8MTc5MjY5NjMyM3ww"
       },
@@ -1611,7 +1611,7 @@
   },
   "6ada5fb301dddf84493a": {
     "name": "Bell Peppers",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "BapCHLuLe9Q",
@@ -1749,7 +1749,7 @@
   },
   "6ada5fb3e00a6a003f65": {
     "name": "Sour Cream",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "NTNxQer6RsU",
@@ -1763,7 +1763,7 @@
   },
   "6ada5fb4351af3328fec": {
     "name": "Cream Cheese",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "TcpYjs6qF9o",
@@ -1809,7 +1809,7 @@
   },
   "6ada5fb48b6612ce9727": {
     "name": "Cottage Cheese",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "vuT3EHWDW5g",
@@ -1901,7 +1901,7 @@
   },
   "6ada5fb528abba55d158": {
     "name": "Bacon",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "Ov17i1UtCCU",
@@ -1993,7 +1993,7 @@
   },
   "6ada5fb5d5acde15c5f7": {
     "name": "Ribeye Steak",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "RZoNMrC13KU",
@@ -2085,7 +2085,7 @@
   },
   "6ada5fb4629dc9c93247": {
     "name": "Heavy Cream",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "2Btb7jGaTFU",
@@ -2131,7 +2131,7 @@
   },
   "6ada5fb6336337b293fd": {
     "name": "Ground Turkey",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "qT8nRJ3apLg",
@@ -2253,7 +2253,7 @@
         "id": "VjCZol95Ss0",
         "url": "https://images.unsplash.com/photo-1552404571-4f1d8866d31c?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Qmx1ZWJlcnJ5JTIwTXVmZmluc3xlbnwxfDJ8fHwxNzkyNzYzMzY2fDA&ixlib=rb-4.1.0",
         "alt": "cupcakes in white wrappers",
-        "photographer": "Daniela Díaz",
+        "photographer": "Daniela D\u00edaz",
         "photographerUrl": "https://unsplash.com/@eladiary?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/VjCZol95Ss0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Qmx1ZWJlcnJ5JTIwTXVmZmluc3xlbnwxfDJ8fHwxNzkyNzYzMzY2fDA"
       },
@@ -2269,7 +2269,7 @@
   },
   "6ada5fb6ced744c507c0": {
     "name": "Hamburger Buns",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "srgUfZqoXPw",
@@ -2283,7 +2283,7 @@
         "id": "MDIng-OpkaM",
         "url": "https://images.unsplash.com/photo-1563844090-0f9e3f93232e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8SGFtYnVyZ2VyJTIwQnVuc3xlbnwxfDJ8fHwxNzkyNzYzMzY2fDA&ixlib=rb-4.1.0",
         "alt": "burger lot",
-        "photographer": "Filip Baotić",
+        "photographer": "Filip Baoti\u0107",
         "photographerUrl": "https://unsplash.com/@filipbaotic?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/MDIng-OpkaM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8SGFtYnVyZ2VyJTIwQnVuc3xlbnwxfDJ8fHwxNzkyNzYzMzY2fDA"
       },
@@ -2315,7 +2315,7 @@
   },
   "6ada5fb709853d06efa5": {
     "name": "Sourdough Loaf",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "U9-0JVdjCVo",
@@ -2361,7 +2361,7 @@
   },
   "6ada5fb76672451473a9": {
     "name": "Cinnamon Rolls",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "iEtcPCvEMDI",
@@ -2407,7 +2407,7 @@
   },
   "6ada5fb7d1adfa84147e": {
     "name": "Frozen Broccoli",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "q7BJL1qZ1Bw",
@@ -2483,7 +2483,7 @@
         "id": "CXdJUw1GqRQ",
         "url": "https://images.unsplash.com/photo-1767560134995-59c7a9a79837?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8RnJvemVuJTIwQmVycmllc3xlbnwxfDJ8fHwxNzkyNzYzMzY3fDA&ixlib=rb-4.1.0",
         "alt": "A black bird eats red berries in snow",
-        "photographer": "Jari Hytönen",
+        "photographer": "Jari Hyt\u00f6nen",
         "photographerUrl": "https://unsplash.com/@jarispics?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/CXdJUw1GqRQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8RnJvemVuJTIwQmVycmllc3xlbnwxfDJ8fHwxNzkyNzYzMzY3fDA"
       },
@@ -2499,7 +2499,7 @@
   },
   "6ada5fb8442695cf570b": {
     "name": "Frozen French Fries",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "nXjvUlE8418",
@@ -2545,7 +2545,7 @@
   },
   "6ada5fb871987a441e2f": {
     "name": "Chicken Nuggets",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "jxumN2kpScM",
@@ -2575,7 +2575,7 @@
         "id": "AYuXmYgdHxM",
         "url": "https://images.unsplash.com/photo-1791914387939-74e6b4550edb?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Q2hpY2tlbiUyME51Z2dldHN8ZW58MXwyfHx8MTc5Mjc2MzM2OHww&ixlib=rb-4.1.0",
         "alt": "People walking and sitting on stools outside a fast food restaurant at night",
-        "photographer": "Igor Pavlović",
+        "photographer": "Igor Pavlovi\u0107",
         "photographerUrl": "https://unsplash.com/@mr_iggy?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/AYuXmYgdHxM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Q2hpY2tlbiUyME51Z2dldHN8ZW58MXwyfHx8MTc5Mjc2MzM2OHww"
       }
@@ -2583,7 +2583,7 @@
   },
   "6ada5fb899794902ce5d": {
     "name": "Frozen Waffles",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "S8Aroj0Y4TA",
@@ -2629,7 +2629,7 @@
   },
   "6ada5fb8ebfc557e2cef": {
     "name": "Ice Cream Sandwiches",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "p6vLJCyCcLM",
@@ -2675,7 +2675,7 @@
   },
   "6ada5fb91f8e35c0d14e": {
     "name": "Strawberry Jam",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "OdE9bKLNhQs",
@@ -2697,7 +2697,7 @@
         "id": "Ah4PHwLKS1g",
         "url": "https://images.unsplash.com/photo-1588433236301-730c84293ae8?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8U3RyYXdiZXJyeSUyMEphbXxlbnwxfDJ8fHwxNzkyNzYzMzY5fDA&ixlib=rb-4.1.0",
         "alt": "strawberries on white ceramic bowl",
-        "photographer": "Meral Avdanlı",
+        "photographer": "Meral Avdanl\u0131",
         "photographerUrl": "https://unsplash.com/@meralavd?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/Ah4PHwLKS1g/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8U3RyYXdiZXJyeSUyMEphbXxlbnwxfDJ8fHwxNzkyNzYzMzY5fDA"
       },
@@ -2767,7 +2767,7 @@
   },
   "6ada5fb98aec878ac7b2": {
     "name": "Canned Black Beans",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "MHLaCsKTUGU",
@@ -2789,7 +2789,7 @@
         "id": "hJ43iOt19qs",
         "url": "https://images.unsplash.com/photo-1599249478506-ae175f801b1e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Q2FubmVkJTIwQmxhY2slMjBCZWFuc3xlbnwxfDJ8fHwxNzkyNzYzMzcwfDA&ixlib=rb-4.1.0",
         "alt": "assorted cookies with chocolate and strawberry on top",
-        "photographer": "Ivan Dostál",
+        "photographer": "Ivan Dost\u00e1l",
         "photographerUrl": "https://unsplash.com/@ivan_dostal?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/hJ43iOt19qs/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Q2FubmVkJTIwQmxhY2slMjBCZWFuc3xlbnwxfDJ8fHwxNzkyNzYzMzcwfDA"
       },
@@ -2813,7 +2813,7 @@
   },
   "6ada5fb9d2b347a744d3": {
     "name": "Chicken Broth",
-    "chosen": 0,
+    "chosen": 3,
     "candidates": [
       {
         "id": "QgxvrpCBAp4",
@@ -2859,7 +2859,7 @@
   },
   "6ada5fba265f8f32c7eb": {
     "name": "Rolled Oats",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "e5kpflVTiuk",
@@ -2905,7 +2905,7 @@
   },
   "6ada5fba783ddcf6f22a": {
     "name": "Granulated Sugar",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "LO1zRWDCCEo",
@@ -2951,7 +2951,7 @@
   },
   "6ada5fbac7166248ff3a": {
     "name": "Popcorn",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "CkgqmxCRh5g",
@@ -3043,7 +3043,7 @@
   },
   "6ada5fbb35e3ee5a6b58": {
     "name": "Almonds",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "auHN-_HBc8Q",
@@ -3089,7 +3089,7 @@
   },
   "6ada5fbb751fbbe49437": {
     "name": "Dark Chocolate Bar",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "I1CkORYYz6s",
@@ -3103,7 +3103,7 @@
         "id": "7dyabaBBeLM",
         "url": "https://images.unsplash.com/photo-1600070306429-8b21d175d44d?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA&ixlib=rb-4.1.0",
         "alt": "black computer keyboard on blue textile",
-        "photographer": "Rūta Celma",
+        "photographer": "R\u016bta Celma",
         "photographerUrl": "https://unsplash.com/@turutututuu?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/7dyabaBBeLM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA"
       },
@@ -3111,7 +3111,7 @@
         "id": "mv5ToYacKnQ",
         "url": "https://images.unsplash.com/photo-1600070338156-c39c9b594cd1?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA&ixlib=rb-4.1.0",
         "alt": "brown chocolate bar on brown wooden table",
-        "photographer": "Rūta Celma",
+        "photographer": "R\u016bta Celma",
         "photographerUrl": "https://unsplash.com/@turutututuu?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/mv5ToYacKnQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA"
       },
@@ -3119,7 +3119,7 @@
         "id": "nBASk6NUYiU",
         "url": "https://images.unsplash.com/photo-1600070360386-b5377405efa8?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA&ixlib=rb-4.1.0",
         "alt": "chocolate cake on blue and white ceramic round plate",
-        "photographer": "Rūta Celma",
+        "photographer": "R\u016bta Celma",
         "photographerUrl": "https://unsplash.com/@turutututuu?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/nBASk6NUYiU/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA"
       },
@@ -3127,7 +3127,7 @@
         "id": "tFghtCGu3_I",
         "url": "https://images.unsplash.com/photo-1600070323130-9084bab14be8?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA&ixlib=rb-4.1.0",
         "alt": "brown wooden house miniature on brown wooden table",
-        "photographer": "Rūta Celma",
+        "photographer": "R\u016bta Celma",
         "photographerUrl": "https://unsplash.com/@turutututuu?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/tFghtCGu3_I/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8RGFyayUyMENob2NvbGF0ZSUyMEJhcnxlbnwxfDJ8fHwxNzkyNzYzMzczfDA"
       }
@@ -3135,7 +3135,7 @@
   },
   "6ada5fbb9fb00eee1ebd": {
     "name": "Crackers",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "0KhCraOo2SU",
@@ -3181,7 +3181,7 @@
   },
   "6ada5fbbcf886243231c": {
     "name": "Gummy Bears",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "571ysEZSMFU",
@@ -3227,7 +3227,7 @@
   },
   "6ada5fbc1a6342823e3d": {
     "name": "Sparkling Water",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "EB_fVeA20EE",
@@ -3273,7 +3273,7 @@
   },
   "6ada5fbc4f1ee2ec09f2": {
     "name": "Cold Brew Coffee",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "aPeyLdY2Pvo",
@@ -3365,13 +3365,13 @@
   },
   "6ada5fbcd085c0c2e34d": {
     "name": "Lemonade",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "t261fCT-lEc",
         "url": "https://images.unsplash.com/photo-1602104623433-2dd8b8b35548?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8TGVtb25hZGV8ZW58MXwyfHx8MTc5Mjc2MzM3NXww&ixlib=rb-4.1.0",
         "alt": "yellow fruit lot on white surface",
-        "photographer": "Angélica Echeverry",
+        "photographer": "Ang\u00e9lica Echeverry",
         "photographerUrl": "https://unsplash.com/@angelicaecheverry?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/t261fCT-lEc/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8TGVtb25hZGV8ZW58MXwyfHx8MTc5Mjc2MzM3NXww"
       },
@@ -3433,7 +3433,7 @@
   },
   "6ada5fbd4f55dcc394f8": {
     "name": "Sliced Turkey Breast",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "hJnJQ-iwCZI",
@@ -3479,7 +3479,7 @@
   },
   "6ada5fbd882ab93ab82f": {
     "name": "Sliced Ham",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "Ov17i1UtCCU",
@@ -3525,7 +3525,7 @@
   },
   "6ada5fbdb1b844feedf2": {
     "name": "Swiss Cheese Slices",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "4gBr9rpaxWk",
@@ -3539,7 +3539,7 @@
         "id": "6ClCpSH1mD4",
         "url": "https://images.unsplash.com/photo-1708335008164-54a4ce81e83a?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8U3dpc3MlMjBDaGVlc2UlMjBTbGljZXN8ZW58MXwyfHx8MTc5Mjc2MzM3Nnww&ixlib=rb-4.1.0",
         "alt": "a red bowl filled with chopped cheese on a black background",
-        "photographer": "Mustafa akın",
+        "photographer": "Mustafa ak\u0131n",
         "photographerUrl": "https://unsplash.com/@msaimakin?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/6ClCpSH1mD4/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8U3dpc3MlMjBDaGVlc2UlMjBTbGljZXN8ZW58MXwyfHx8MTc5Mjc2MzM3Nnww"
       },
@@ -3571,7 +3571,7 @@
   },
   "6ada5fbe16c3f45fc5e0": {
     "name": "Hummus",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "dfxFLyLylRQ",
@@ -3655,7 +3655,7 @@
   },
   "6ada5fbe6736b0cce951": {
     "name": "Potato Salad",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "Xa7lB_Q6E7I",
@@ -3701,13 +3701,13 @@
   },
   "6ada5fbe8d8d6b6824e2": {
     "name": "Guacamole",
-    "chosen": 0,
+    "chosen": -1,
     "candidates": [
       {
         "id": "D8YWzfJ8d4w",
         "url": "https://images.unsplash.com/photo-1609525313344-a56b96f20718?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8R3VhY2Ftb2xlfGVufDF8Mnx8fDE3OTI3NjMzNzd8MA&ixlib=rb-4.1.0",
         "alt": "person holding bread with sliced of fruits on white ceramic plate",
-        "photographer": "WØM | Creative Studio",
+        "photographer": "W\u00d8M | Creative Studio",
         "photographerUrl": "https://unsplash.com/@womcreativestudio?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/D8YWzfJ8d4w/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8R3VhY2Ftb2xlfGVufDF8Mnx8fDE3OTI3NjMzNzd8MA"
       },
@@ -3793,7 +3793,7 @@
   },
   "6ada5fbee2e6843f1640": {
     "name": "Toilet Paper",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "aywpvJcmw1I",
@@ -3823,7 +3823,7 @@
   },
   "6ada5fbf1d23933c8428": {
     "name": "Dish Soap",
-    "chosen": 0,
+    "chosen": 4,
     "candidates": [
       {
         "id": "f8hdkJz-m5w",
@@ -3915,7 +3915,7 @@
   },
   "6ada5fbf953504a31591": {
     "name": "All-Purpose Cleaner",
-    "chosen": 0,
+    "chosen": 1,
     "candidates": [
       {
         "id": "0rMtRwXgOuA",
@@ -3983,7 +3983,7 @@
   },
   "6ada5fc008fba55fba17": {
     "name": "Sponges",
-    "chosen": 0,
+    "chosen": 2,
     "candidates": [
       {
         "id": "TRSxEJukgZM",
@@ -4008,6 +4008,588 @@
         "photographer": "Ela De Pure",
         "photographerUrl": "https://unsplash.com/@eladepure?utm_source=GroceryFulfillmentApp&utm_medium=referral",
         "downloadLocation": "https://api.unsplash.com/photos/lcb1NnqFC8U/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8U3Bvbmdlc3xlbnwxfDJ8fHwxNzkyNzYzMzc5fDA"
+      }
+    ]
+  },
+  "6ada5fc056a8a85c2df3": {
+    "name": "Paper Plates",
+    "chosen": -1,
+    "candidates": [
+      {
+        "id": "puYMaD160_A",
+        "url": "https://images.unsplash.com/photo-1671572576802-3264725a715a?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8UGFwZXIlMjBQbGF0ZXN8ZW58MXwyfHx8MTc5Mjc3MjA0NXww&ixlib=rb-4.1.0",
+        "alt": "a pizza sitting on top of a metal pan on a table",
+        "photographer": "Parker Hilton",
+        "photographerUrl": "https://unsplash.com/@philton88?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/puYMaD160_A/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8UGFwZXIlMjBQbGF0ZXN8ZW58MXwyfHx8MTc5Mjc3MjA0NXww"
+      },
+      {
+        "id": "x6FqSKS6Gho",
+        "url": "https://images.unsplash.com/photo-1671572576802-4365d3f5384a?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8UGFwZXIlMjBQbGF0ZXN8ZW58MXwyfHx8MTc5Mjc3MjA0NXww&ixlib=rb-4.1.0",
+        "alt": "a pepperoni pizza on a plate next to a salt shaker",
+        "photographer": "Parker Hilton",
+        "photographerUrl": "https://unsplash.com/@philton88?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/x6FqSKS6Gho/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8UGFwZXIlMjBQbGF0ZXN8ZW58MXwyfHx8MTc5Mjc3MjA0NXww"
+      },
+      {
+        "id": "_c1fn5i80qA",
+        "url": "https://images.unsplash.com/photo-1671572576990-65546b1f3157?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8UGFwZXIlMjBQbGF0ZXN8ZW58MXwyfHx8MTc5Mjc3MjA0NXww&ixlib=rb-4.1.0",
+        "alt": "a pizza sitting on top of a pan on top of a stove",
+        "photographer": "Parker Hilton",
+        "photographerUrl": "https://unsplash.com/@philton88?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/_c1fn5i80qA/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8UGFwZXIlMjBQbGF0ZXN8ZW58MXwyfHx8MTc5Mjc3MjA0NXww"
+      }
+    ]
+  },
+  "6ada5fc097756a4e0946": {
+    "name": "Toothpaste",
+    "chosen": 0,
+    "candidates": [
+      {
+        "id": "WdJRLZrWAvQ",
+        "url": "https://images.unsplash.com/photo-1610216690558-4aee861f4ab3?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "colgate toothpaste on white ceramic sink",
+        "photographer": "Jonathan Cooper",
+        "photographerUrl": "https://unsplash.com/@theshuttervision?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/WdJRLZrWAvQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "VexumLYChx0",
+        "url": "https://images.unsplash.com/photo-1763048819607-ea55217cff34?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "Orange toothbrush with green toothpaste on yellow background",
+        "photographer": "Tosan Dudun",
+        "photographerUrl": "https://unsplash.com/@babadudu19?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/VexumLYChx0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "WP8VCQrlkYc",
+        "url": "https://images.unsplash.com/photo-1593010997571-7ebe6c593d8e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "silver flute with green background",
+        "photographer": "Stephen Crowther",
+        "photographerUrl": "https://unsplash.com/@oraly?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/WP8VCQrlkYc/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "iRkV3uZgJx0",
+        "url": "https://images.unsplash.com/photo-1607612919430-43301d1ade15?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "person holding white cigarette stick",
+        "photographer": "The Humble Co.",
+        "photographerUrl": "https://unsplash.com/@thehumbleco?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/iRkV3uZgJx0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "-S_fW3vxotY",
+        "url": "https://images.unsplash.com/photo-1607612919394-d9c0d7e508dd?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "person holding white and green labeled can",
+        "photographer": "The Humble Co.",
+        "photographerUrl": "https://unsplash.com/@thehumbleco?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/-S_fW3vxotY/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8VG9vdGhwYXN0ZXxlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      }
+    ]
+  },
+  "6ada5fc0bc1dc85fd529": {
+    "name": "Shampoo",
+    "chosen": 1,
+    "candidates": [
+      {
+        "id": "t1jlLrsMpjc",
+        "url": "https://images.unsplash.com/flagged/photo-1580820258381-20c91a156841?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "woman in black tank top standing beside leafless tree during daytime",
+        "photographer": "Adrian Fern\u00e1ndez",
+        "photographerUrl": "https://unsplash.com/@zepolvisualarts?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/t1jlLrsMpjc/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "K1k8M_bb2bM",
+        "url": "https://images.unsplash.com/photo-1747858989102-cca0f4dc4a11?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "Moisturizing shampoo bottle on a neutral background",
+        "photographer": "Ela De Pure",
+        "photographerUrl": "https://unsplash.com/@eladepure?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/K1k8M_bb2bM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "y-fZQRwjLVw",
+        "url": "https://images.unsplash.com/photo-1700709678035-b6606373aa52?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "a bottle of soap sitting on top of a piece of driftwood",
+        "photographer": "Taitopia Render",
+        "photographerUrl": "https://unsplash.com/@taitopiarender?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/y-fZQRwjLVw/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "yZviQtYoP08",
+        "url": "https://images.unsplash.com/photo-1581318694548-0fb6e47fe59b?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "woman in gray sweater standing near white wall",
+        "photographer": "Katsiaryna Endruszkiewicz",
+        "photographerUrl": "https://unsplash.com/@endka_1?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/yZviQtYoP08/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      },
+      {
+        "id": "NNcQPOxjJcE",
+        "url": "https://images.unsplash.com/photo-1704307068094-c2c88c467014?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA&ixlib=rb-4.1.0",
+        "alt": "a bottle of lotion sitting on top of a table",
+        "photographer": "shashank singh",
+        "photographerUrl": "https://unsplash.com/@mrsagartech?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/NNcQPOxjJcE/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8U2hhbXBvb3xlbnwxfDJ8fHwxNzkyNzcyMDQ2fDA"
+      }
+    ]
+  },
+  "6ada5fc0ef5384c8d3f2": {
+    "name": "Body Wash",
+    "chosen": 0,
+    "candidates": [
+      {
+        "id": "cVVsQExJ9fc",
+        "url": "https://images.unsplash.com/photo-1724085339140-531fe39625f7?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "A bottle of soap sitting on top of a table",
+        "photographer": "DongHoon Lee",
+        "photographerUrl": "https://unsplash.com/@koala_goon?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/cVVsQExJ9fc/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "_gV9MaUKaGI",
+        "url": "https://images.unsplash.com/photo-1772442934379-21275cb79134?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "Hand holding a bottle of hibiscus body lotion",
+        "photographer": "The Good Hygiene Co.",
+        "photographerUrl": "https://unsplash.com/@thegoodhygieneco?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/_gV9MaUKaGI/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "z_8mIi2m3Jw",
+        "url": "https://images.unsplash.com/photo-1772037533346-203fc4d2dca0?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "Three pump bottles on a red background",
+        "photographer": "andrew davies",
+        "photographerUrl": "https://unsplash.com/@arny231104?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/z_8mIi2m3Jw/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "zTmGfbgR6T0",
+        "url": "https://images.unsplash.com/photo-1766239303344-732125c9bbb4?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "Autumn themed body wash display with candles and leaves",
+        "photographer": "Stacy",
+        "photographerUrl": "https://unsplash.com/@stacysuxx?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/zTmGfbgR6T0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "DXKJd34Z_ZY",
+        "url": "https://images.unsplash.com/photo-1772689697061-16d7e8a045de?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "Woman holding a bottle of hibiscus milk lotion",
+        "photographer": "The Good Hygiene Co.",
+        "photographerUrl": "https://unsplash.com/@thegoodhygieneco?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/DXKJd34Z_ZY/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Qm9keSUyMFdhc2h8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      }
+    ]
+  },
+  "6ada5fc11f8e32c47916": {
+    "name": "Hand Soap",
+    "chosen": 0,
+    "candidates": [
+      {
+        "id": "IXT2w2ilKyE",
+        "url": "https://images.unsplash.com/photo-1591713406730-2da3545ae8c6?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "person holding white plastic pump bottle",
+        "photographer": "Jamin Eyes",
+        "photographerUrl": "https://unsplash.com/@jaminseye?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/IXT2w2ilKyE/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "mQ-RCaADQxs",
+        "url": "https://images.unsplash.com/photo-1611861317409-7dcc62856a8a?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "person holding white plastic pump bottle",
+        "photographer": "Jonathan Cooper",
+        "photographerUrl": "https://unsplash.com/@theshuttervision?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/mQ-RCaADQxs/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "mFkv2z1T04Q",
+        "url": "https://images.unsplash.com/photo-1663659506570-067bf9e9937f?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "a group of bottles on a shelf",
+        "photographer": "Kate Branch",
+        "photographerUrl": "https://unsplash.com/@katebranch?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/mFkv2z1T04Q/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "y-fZQRwjLVw",
+        "url": "https://images.unsplash.com/photo-1700709678035-b6606373aa52?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "a bottle of soap sitting on top of a piece of driftwood",
+        "photographer": "Taitopia Render",
+        "photographerUrl": "https://unsplash.com/@taitopiarender?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/y-fZQRwjLVw/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      },
+      {
+        "id": "Q416rdZNzUk",
+        "url": "https://images.unsplash.com/photo-1668062284652-f98903857aa3?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww&ixlib=rb-4.1.0",
+        "alt": "hands holding a red card",
+        "photographer": "Galina Kondratenko",
+        "photographerUrl": "https://unsplash.com/@paralisart?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/Q416rdZNzUk/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8SGFuZCUyMFNvYXB8ZW58MXwyfHx8MTc5Mjc3MjA0N3ww"
+      }
+    ]
+  },
+  "6ada5fc16f79f562efdd": {
+    "name": "Deodorant",
+    "chosen": 3,
+    "candidates": [
+      {
+        "id": "Y4oPclDAHdQ",
+        "url": "https://images.unsplash.com/photo-1622328137637-b0a7531cf5c5?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA&ixlib=rb-4.1.0",
+        "alt": "person holding green and white plastic cup",
+        "photographer": "Elsa Olofsson",
+        "photographerUrl": "https://unsplash.com/@elsaolofsson?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/Y4oPclDAHdQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA"
+      },
+      {
+        "id": "ms6w1XH2Atc",
+        "url": "https://images.unsplash.com/photo-1765516976457-550bd5f6f708?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA&ixlib=rb-4.1.0",
+        "alt": "Gray toiletry bag with travel-sized cosmetics and full-sized products",
+        "photographer": "Rachel Beck",
+        "photographerUrl": "https://unsplash.com/@rachjl?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/ms6w1XH2Atc/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA"
+      },
+      {
+        "id": "ox_e5qIamgQ",
+        "url": "https://images.unsplash.com/photo-1657071978380-40e36e7b6f42?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA&ixlib=rb-4.1.0",
+        "alt": "a bag of nuts",
+        "photographer": "Jaime Nugent",
+        "photographerUrl": "https://unsplash.com/@nugenugget?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/ox_e5qIamgQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA"
+      },
+      {
+        "id": "fqq65bgrJBo",
+        "url": "https://images.unsplash.com/photo-1740908354774-c50f8b5a79a5?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA&ixlib=rb-4.1.0",
+        "alt": "A spray of deodorant sitting on the ground next to a tree",
+        "photographer": "GoGoNano",
+        "photographerUrl": "https://unsplash.com/@gogonano?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/fqq65bgrJBo/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA"
+      },
+      {
+        "id": "42oXEWx7nmc",
+        "url": "https://images.unsplash.com/photo-1750029418926-73f83b93e3c4?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA&ixlib=rb-4.1.0",
+        "alt": "A hand holds a perfume bottle",
+        "photographer": "David Valentine",
+        "photographerUrl": "https://unsplash.com/@thephotochad?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/42oXEWx7nmc/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8RGVvZG9yYW50fGVufDF8Mnx8fDE3OTI3NzIwNDd8MA"
+      }
+    ]
+  },
+  "6ada5fc1a2e7c617363b": {
+    "name": "Pain Reliever",
+    "chosen": -1,
+    "candidates": [
+      {
+        "id": "DdA8pS-PiGM",
+        "url": "https://images.unsplash.com/photo-1649073586709-9910307a138b?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "a skeleton with a red circle around it's stomach",
+        "photographer": "julien Tromeur",
+        "photographerUrl": "https://unsplash.com/@julientromeur?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/DdA8pS-PiGM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "KrTnPwtdZ9s",
+        "url": "https://images.unsplash.com/photo-1754941622117-97957c5d669b?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "Person with red light therapy device on arm",
+        "photographer": "Julius Toltesi",
+        "photographerUrl": "https://unsplash.com/@julius_toltesi?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/KrTnPwtdZ9s/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "aQgyFIAXUrE",
+        "url": "https://images.unsplash.com/photo-1754941622136-6664a3f50b2e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "Therapy device on a person's knee",
+        "photographer": "Julius Toltesi",
+        "photographerUrl": "https://unsplash.com/@julius_toltesi?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/aQgyFIAXUrE/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "wPRBuPQwzoo",
+        "url": "https://images.unsplash.com/photo-1716929157477-f75c6f6e2195?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "Human arm muscles",
+        "photographer": "Europeana",
+        "photographerUrl": "https://unsplash.com/@europeana?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/wPRBuPQwzoo/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "bazU70w4edU",
+        "url": "https://images.unsplash.com/photo-1754941622138-b3c3671f2fa8?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "Man's arm with medical device attached",
+        "photographer": "Julius Toltesi",
+        "photographerUrl": "https://unsplash.com/@julius_toltesi?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/bazU70w4edU/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8UGFpbiUyMFJlbGlldmVyfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      }
+    ]
+  },
+  "6ada5fc1cd5a87e7b0a4": {
+    "name": "Vitamin C",
+    "chosen": 0,
+    "candidates": [
+      {
+        "id": "rqK_baq_XgI",
+        "url": "https://images.unsplash.com/photo-1723951174326-2a97221d3b7f?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww&ixlib=rb-4.1.0",
+        "alt": "A bottle of vitamin c on top of lemon slices",
+        "photographer": "Ela De Pure",
+        "photographerUrl": "https://unsplash.com/@eladepure?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/rqK_baq_XgI/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww"
+      },
+      {
+        "id": "C1xH2EgguF4",
+        "url": "https://images.unsplash.com/photo-1745159338135-39f6b462b382?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww&ixlib=rb-4.1.0",
+        "alt": "Vitamin c serum sits atop a notebook",
+        "photographer": "Ela De Pure",
+        "photographerUrl": "https://unsplash.com/@eladepure?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/C1xH2EgguF4/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww"
+      },
+      {
+        "id": "-rv8XyHMe-8",
+        "url": "https://images.unsplash.com/photo-1665757517554-389deb72111e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww&ixlib=rb-4.1.0",
+        "alt": "a white and orange capsule",
+        "photographer": "Supliful - Supplements On Demand",
+        "photographerUrl": "https://unsplash.com/@supliful?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/-rv8XyHMe-8/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww"
+      },
+      {
+        "id": "fos3XTNcL0Q",
+        "url": "https://images.unsplash.com/photo-1666595162324-df6f452108e7?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww&ixlib=rb-4.1.0",
+        "alt": "a group of orange pills",
+        "photographer": "Supliful - Supplements On Demand",
+        "photographerUrl": "https://unsplash.com/@supliful?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/fos3XTNcL0Q/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww"
+      },
+      {
+        "id": "iRmb0q55tgQ",
+        "url": "https://images.unsplash.com/photo-1665758574784-7e549d53c7f7?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww&ixlib=rb-4.1.0",
+        "alt": "a jar of food",
+        "photographer": "Supliful - Supplements On Demand",
+        "photographerUrl": "https://unsplash.com/@supliful?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/iRmb0q55tgQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Vml0YW1pbiUyMEN8ZW58MXwyfHx8MTc5Mjc3MjA0OHww"
+      }
+    ]
+  },
+  "6ada5fc1ea5fb2931bf7": {
+    "name": "Band-Aids",
+    "chosen": -1,
+    "candidates": [
+      {
+        "id": "13SNmap7BD0",
+        "url": "https://images.unsplash.com/photo-1761956325204-aafe354b2898?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "A group of five people posing for a photo",
+        "photographer": "Les Taylor",
+        "photographerUrl": "https://unsplash.com/@les_photograph?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/13SNmap7BD0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "4VUZV9dk_VM",
+        "url": "https://images.unsplash.com/photo-1785321313073-296a3cc1d401?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "Three musicians performing on a stage with red lighting",
+        "photographer": "Pierre Goiffon",
+        "photographerUrl": "https://unsplash.com/@pir?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/4VUZV9dk_VM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "cSrij-0FHzs",
+        "url": "https://images.unsplash.com/photo-1732928729825-98007bd5d7af?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "A box with a picture of a round object inside of it",
+        "photographer": "I'M ZION",
+        "photographerUrl": "https://unsplash.com/@ziontech?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/cSrij-0FHzs/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "T-4f7E73G88",
+        "url": "https://images.unsplash.com/photo-1741890461921-652924f5794f?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "A brass band performs onstage under dramatic lights",
+        "photographer": "Pierre Goiffon",
+        "photographerUrl": "https://unsplash.com/@pir?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/T-4f7E73G88/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      },
+      {
+        "id": "DfJErTD52pE",
+        "url": "https://images.unsplash.com/photo-1763889245414-7f6e8e2a34ce?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA&ixlib=rb-4.1.0",
+        "alt": "A band performs on stage with guitars and drums",
+        "photographer": "Austin",
+        "photographerUrl": "https://unsplash.com/@austin_7792?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/DfJErTD52pE/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8QmFuZC1BaWRzfGVufDF8Mnx8fDE3OTI3NzIwNDh8MA"
+      }
+    ]
+  },
+  "6ada5fdae1fb98066095": {
+    "name": "Bananas",
+    "chosen": 2,
+    "candidates": [
+      {
+        "id": "Kl3467edwsE",
+        "url": "https://images.unsplash.com/photo-1587132137056-bfbf0166836e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA&ixlib=rb-4.1.0",
+        "alt": "yellow banana on white background",
+        "photographer": "Mockup Graphics",
+        "photographerUrl": "https://unsplash.com/@mockupgraphics?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/Kl3467edwsE/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA"
+      },
+      {
+        "id": "fczCr7MdE7U",
+        "url": "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA&ixlib=rb-4.1.0",
+        "alt": "yellow bananas",
+        "photographer": "Giorgio Trovato",
+        "photographerUrl": "https://unsplash.com/@giorgiotrovato?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/fczCr7MdE7U/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA"
+      },
+      {
+        "id": "vVjA1KeKg-w",
+        "url": "https://images.unsplash.com/photo-1587334206596-c0f9f7dccbe6?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA&ixlib=rb-4.1.0",
+        "alt": "3 yellow banana fruits on white surface",
+        "photographer": "Mockup Graphics",
+        "photographerUrl": "https://unsplash.com/@mockupgraphics?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/vVjA1KeKg-w/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA"
+      },
+      {
+        "id": "e43m6iuVY3g",
+        "url": "https://images.unsplash.com/photo-1737624006731-2f9f8d797630?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA&ixlib=rb-4.1.0",
+        "alt": "A bunch of bananas sitting on top of a brown plate",
+        "photographer": "Spoorthi J",
+        "photographerUrl": "https://unsplash.com/@sayspoorthi?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/e43m6iuVY3g/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA"
+      },
+      {
+        "id": "e4wUyMIfcms",
+        "url": "https://images.unsplash.com/photo-1648288706765-7d7c689a8e2c?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA&ixlib=rb-4.1.0",
+        "alt": "a peeled banana sitting on top of a table",
+        "photographer": "Multi Awesome Studio",
+        "photographerUrl": "https://unsplash.com/@multiawesomestudio?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/e4wUyMIfcms/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8QmFuYW5hc3xlbnwxfDJ8fHwxNzkyNzcyMDQ5fDA"
+      }
+    ]
+  },
+  "6ada5fdb0d2d8f925415": {
+    "name": "Lemons",
+    "chosen": 3,
+    "candidates": [
+      {
+        "id": "enNffryKuQI",
+        "url": "https://images.unsplash.com/flagged/photo-1587302164675-820fe61bbd55?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA&ixlib=rb-4.1.0",
+        "alt": "sliced lemon on white background",
+        "photographer": "Mockup Graphics",
+        "photographerUrl": "https://unsplash.com/@mockupgraphics?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/enNffryKuQI/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA"
+      },
+      {
+        "id": "tm7Mf8apKCQ",
+        "url": "https://images.unsplash.com/photo-1610126176343-3e1833a107e1?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA&ixlib=rb-4.1.0",
+        "alt": "Overlapping bright yellow lemon slices with visible pulp and translucent rinds",
+        "photographer": "Sama Hosseini",
+        "photographerUrl": "https://unsplash.com/@samahosseini?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/tm7Mf8apKCQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA"
+      },
+      {
+        "id": "fz4j0RPp9qo",
+        "url": "https://images.unsplash.com/photo-1587324438673-56c78a866b15?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA&ixlib=rb-4.1.0",
+        "alt": "sliced lemon on white surface",
+        "photographer": "arianka ibarra",
+        "photographerUrl": "https://unsplash.com/@ariankamichelle?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/fz4j0RPp9qo/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA"
+      },
+      {
+        "id": "HhVTiioq9DY",
+        "url": "https://images.unsplash.com/photo-1602103242369-0116ae1c7002?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA&ixlib=rb-4.1.0",
+        "alt": "yellow lemon fruits on white surface",
+        "photographer": "Ang\u00e9lica Echeverry",
+        "photographerUrl": "https://unsplash.com/@angelicaecheverry?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/HhVTiioq9DY/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA"
+      },
+      {
+        "id": "t261fCT-lEc",
+        "url": "https://images.unsplash.com/photo-1602104623433-2dd8b8b35548?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA&ixlib=rb-4.1.0",
+        "alt": "yellow fruit lot on white surface",
+        "photographer": "Ang\u00e9lica Echeverry",
+        "photographerUrl": "https://unsplash.com/@angelicaecheverry?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/t261fCT-lEc/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8TGVtb25zfGVufDF8Mnx8fDE3OTI3NzIwNDl8MA"
+      }
+    ]
+  },
+  "69348066ee20f1660a93": {
+    "name": "Romaine Lettuce",
+    "chosen": 4,
+    "candidates": [
+      {
+        "id": "V0C6tLde058",
+        "url": "https://images.unsplash.com/photo-1556781366-336f8353ba7c?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA&ixlib=rb-4.1.0",
+        "alt": "green leaf on brown and black marble surface",
+        "photographer": "Quaritsch Photography",
+        "photographerUrl": "https://unsplash.com/@quaritsch?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/V0C6tLde058/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA"
+      },
+      {
+        "id": "kFZ2nivVBYI",
+        "url": "https://images.unsplash.com/photo-1622943495354-f49d2964094c?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA&ixlib=rb-4.1.0",
+        "alt": "green leaves on white wall",
+        "photographer": "Ashleigh Shea",
+        "photographerUrl": "https://unsplash.com/@ashleigh86?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/kFZ2nivVBYI/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA"
+      },
+      {
+        "id": "6_SGrUywWOQ",
+        "url": "https://images.unsplash.com/photo-1645712429486-9ace28487d1c?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA&ixlib=rb-4.1.0",
+        "alt": "a square white bowl filled with green leaves",
+        "photographer": "this life's illusions",
+        "photographerUrl": "https://unsplash.com/@lifes_illusions?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/6_SGrUywWOQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA"
+      },
+      {
+        "id": "lGeAZjIhQyo",
+        "url": "https://images.unsplash.com/photo-1681330266932-391fd00f805f?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA&ixlib=rb-4.1.0",
+        "alt": "a white bowl filled with assorted veggies on top of a white table",
+        "photographer": "Laura Geror",
+        "photographerUrl": "https://unsplash.com/@laura_geror?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/lGeAZjIhQyo/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA"
+      },
+      {
+        "id": "whPlG79QzS0",
+        "url": "https://images.unsplash.com/photo-1645712429415-e613305e2300?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA&ixlib=rb-4.1.0",
+        "alt": "a white bowl filled with green leafy vegetables",
+        "photographer": "this life's illusions",
+        "photographerUrl": "https://unsplash.com/@lifes_illusions?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/whPlG79QzS0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8bGV0dHVjZXxlbnwxfDJ8fHwxNzkyNzcyMDU3fDA"
+      }
+    ]
+  },
+  "6ada5fc02ec78d41080c": {
+    "name": "Aluminum Foil",
+    "chosen": -1,
+    "candidates": [
+      {
+        "id": "shLU6SZfIQY",
+        "url": "https://images.unsplash.com/photo-1618352357270-ef40d25bcef8?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA&ixlib=rb-4.1.0",
+        "alt": "A textured surface of thin gold leaf with deep creases and metallic highlights",
+        "photographer": "Kier in Sight Archives",
+        "photographerUrl": "https://unsplash.com/@kierinsightarchives?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/shLU6SZfIQY/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8MXx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA"
+      },
+      {
+        "id": "mMFcg9oM2jE",
+        "url": "https://images.unsplash.com/photo-1708746334255-e47cd78a6954?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA&ixlib=rb-4.1.0",
+        "alt": "a silver foil bag sitting on a white surface",
+        "photographer": "LATIKA SARKER",
+        "photographerUrl": "https://unsplash.com/@latikasar?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/mMFcg9oM2jE/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8Mnx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA"
+      },
+      {
+        "id": "RBBvxvE04nM",
+        "url": "https://images.unsplash.com/photo-1708746333840-22560480297b?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA&ixlib=rb-4.1.0",
+        "alt": "a silver foil bag sitting on top of a white table",
+        "photographer": "LATIKA SARKER",
+        "photographerUrl": "https://unsplash.com/@latikasar?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/RBBvxvE04nM/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8M3x8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA"
+      },
+      {
+        "id": "aLqbkZQm5gQ",
+        "url": "https://images.unsplash.com/photo-1783366548984-90ec4ef88078?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA&ixlib=rb-4.1.0",
+        "alt": "Crumpled bronze metallic foil with rough texture and reflections",
+        "photographer": "Sebastian Schuster",
+        "photographerUrl": "https://unsplash.com/@sschusterphotoart?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/aLqbkZQm5gQ/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NHx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA"
+      },
+      {
+        "id": "7Wh3X4D-JC0",
+        "url": "https://images.unsplash.com/photo-1783804374344-782f69362d4c?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA&ixlib=rb-4.1.0",
+        "alt": "Crumpled copper foil on a dark background",
+        "photographer": "Sebastian Schuster",
+        "photographerUrl": "https://unsplash.com/@sschusterphotoart?utm_source=GroceryFulfillmentApp&utm_medium=referral",
+        "downloadLocation": "https://api.unsplash.com/photos/7Wh3X4D-JC0/download?ixid=M3wxMTEwNTAzfDB8MXxzZWFyY2h8NXx8Zm9pbHxlbnwxfDJ8fHwxNzkyNzcyMDU4fDA"
       }
     ]
   }
