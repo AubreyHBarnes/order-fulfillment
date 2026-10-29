@@ -242,6 +242,37 @@ I can drive these with the existing `shot.sh` helper for stills; true video need
 4. **A5 timeline timestamps** is a backend change and out of scope under your constraints. OK to leave it and have the Phase 2 tracker show a time only where one is real?
 5. **Before-state recordings (0.11):** shall I capture these now, before Phase 1, and should that reset the three live test orders first?
 
+### 0.13 Answers to the open questions (2026-10-29)
+
+| # | Decision | Status |
+|---|---|---|
+| 1 | Reanimated `~4.2.3` + `react-native-worklets` approved for Phase 2; haptics via library approved | Approved |
+| 2 | Amber on light: user asked for visuals first. Options A/B/C rendered with measured ratios (see the "Amber on Light Options" artifact). Recommendation is B (filled shape, ink glyph, `#A56A00` outline in light mode only: 4.23:1 outline, 8.98:1 glyph) | **Awaiting choice** |
+| 3 | Out-of-stock re-mapped from red to gray; red reserved for needs-action | Approved |
+| 4 | A5 timeline timestamps postponed until the user can make the backend change; Phase 2 tracker shows a time only where a real one exists | Postponed |
+| 5 | Before-state recordings captured; test orders reset first | Partial, see 0.14 |
+
+### 0.14 Before-state recordings (`docs/ui-audit/recordings/`, uncommitted, 18 MB)
+
+Captured on emulators via `adb screenrecord`, dev build, 1080x2400:
+
+| Clip | Light | Dark | Notes |
+|---|---|---|---|
+| 01 customer catalog scroll | yes | yes | shows A2 (chips) |
+| 02 shopper header navigation (Drop Offs, Pick Tasks, Check-ins) | yes | yes | shows A1 (white header slab in dark) |
+| 08 mid-shift theme flip on dashboard | one clip (light, then dark, then light) | | baseline for the no-captured-hex requirement |
+| 03 assignment modal + first item picked | partial | **missing** | order BB02DC98 |
+| 04 shopping to drop-off handoff | **missing** | **missing** | |
+| 05 customer order tracker | partial (static, nothing changed during the take) | **missing** | |
+| 06 substitution request seen by customer | **missing** | **missing** | |
+| 07 ForgotPassword dark | **missing** | | needs a logout |
+
+Why the gap: scripted taps on the substitution picker were unreliable, and the dev-only WebSocket error toast overlaid the footage and swallowed taps. A temporary `LogBox.ignoreAllLogs` edit was used for part of the session and reverted (not committed).
+
+Backend observation (not changed): after an auto-assignment, `claimLock` stayed at 1 on both the order and the shopper status doc until reset by hand, and a manual claim then failed with "no longer available". Worth a look in `functions/auto-assignment` before the demo.
+
+Test data left: order `BB02DC98` is assigned to shopper.tester with 1 of 3 items picked; `1A8739CF`, `F55B13C0`, `35934C69` are cancelled, `6400B034` completed.
+
 ---
 
 *Phase 0 is complete. No source files were changed. Awaiting approval before Phase 1.*
