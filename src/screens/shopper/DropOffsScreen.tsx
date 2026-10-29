@@ -39,7 +39,7 @@ import {
 } from 'react-native';
 import { Text, Icon, Card, Button } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing, tabularNums } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { getOutForDeliveryOrdersByShopperId } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
@@ -299,7 +299,7 @@ const DropOffsScreen: React.FC = () => {
     return (
       <View style={[styles.loadingContainer, dynamicStyles.container]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: 16 }}>
+        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: spacing.lg }}>
           Loading drop offs...
         </Text>
       </View>
@@ -348,22 +348,22 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
     flexGrow: 1,
   },
 
   card: {
-    marginBottom: 12,
-    borderRadius: 12,
+    marginBottom: spacing.md,
+    borderRadius: radius.md,
   },
 
   cardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
 
   customerName: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   infoText: {
@@ -377,27 +377,28 @@ const styles = StyleSheet.create({
   },
 
   detailText: {
+    ...tabularNums,
     flex: 1,
   },
 
   deliveredButton: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
 
   emptyTitle: {
-    marginTop: 16,
-    fontWeight: '500',
+    marginTop: spacing.lg,
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   emptySubtitle: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
 });

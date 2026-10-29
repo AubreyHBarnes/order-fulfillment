@@ -32,7 +32,7 @@ import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Text, Card, Button, ActivityIndicator, Divider } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing, tabularNums } from '../../theme';
 import { getOrderById } from '../../services/orderService';
 import { cancelOrder, respondToSubstitution } from '../../services/functionActionService';
 import { getProductById, formatPrice } from '../../services/productService';
@@ -128,6 +128,7 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({
       color: theme.custom.textSecondary,
     },
     detailText: {
+      ...tabularNums,
       color: theme.custom.textSecondary,
     },
     errorText: {
@@ -550,63 +551,65 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: spacing.lg,
   },
   orderId: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   card: {
-    marginHorizontal: 16,
-    marginBottom: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontWeight: '600',
-    marginBottom: 12,
+    fontFamily: fontFamilies.headingSemiBold,
+    marginBottom: spacing.md,
     letterSpacing: 0.5,
   },
   addressText: {
     lineHeight: 22,
   },
   notesText: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     fontStyle: 'italic',
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   divider: {
-    marginVertical: 8,
+    marginVertical: spacing.sm,
   },
   totalLabel: {
-    fontWeight: '600',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodySemiBold,
   },
   totalAmount: {
-    fontWeight: '700',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
   },
   cancelContainer: {
-    padding: 16,
+    padding: spacing.lg,
   },
   cancelButton: {
     borderWidth: 1,
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   errorText: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   backButton: {
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   bottomPadding: {
     height: 32,

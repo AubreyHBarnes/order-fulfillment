@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import { RUSH_PREP_MINUTES } from '../../services/orderService';
 import type { RushOrderToggleProps } from '../../types';
 
@@ -65,7 +65,7 @@ const RushOrderToggle: React.FC<RushOrderToggleProps> = ({ isRush, onChange }) =
           isRush && { backgroundColor: theme.colors.primary },
         ]}
       >
-        {isRush && <Text style={styles.checkmark}>✓</Text>}
+        {isRush && <Text style={[styles.checkmark, { color: theme.colors.onPrimary }]}>✓</Text>}
       </View>
     </TouchableOpacity>
   );
@@ -75,11 +75,11 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 2,
-    padding: 16,
-    marginBottom: 20,
-    gap: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    gap: spacing.md,
   },
 
   icon: {
@@ -92,8 +92,8 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontFamily: fontFamilies.headingSemiBold,
+    marginBottom: spacing.xxs,
   },
 
   subtitle: {
@@ -110,9 +110,8 @@ const styles = StyleSheet.create({
   },
 
   checkmark: {
-    color: '#fff',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fontFamilies.bodyBold,
   },
 });
 

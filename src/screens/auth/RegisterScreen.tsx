@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { AuthStackParamList, UserRole } from '../../types';
 
 type RegisterScreenProps = NativeStackScreenProps<
@@ -278,17 +278,17 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
+    padding: spacing.xl,
   },
   header: {
     alignItems: 'center',
     marginBottom: 30,
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontFamily: fontFamilies.heading,
+    marginBottom: spacing.sm,
   },
   subtitle: {
     fontSize: 16,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   roleContainer: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   roleButtons: {
     flexDirection: 'row',
@@ -305,14 +305,14 @@ const styles = StyleSheet.create({
   },
   roleButton: {
     flex: 1,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: radius.sm,
+    padding: spacing.lg,
     alignItems: 'center',
     borderWidth: 2,
   },
   roleButtonText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
   rowContainer: {
     flexDirection: 'row',
@@ -325,29 +325,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.sm,
   },
   input: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
   },
   registerButton: {
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: radius.sm,
+    padding: spacing.lg,
     alignItems: 'center',
     marginTop: 10,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   registerButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 

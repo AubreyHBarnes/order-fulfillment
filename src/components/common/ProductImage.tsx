@@ -18,7 +18,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Image, Modal, Pressable, Linking } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { Product } from '../../types';
 
 const UNSPLASH_URL = 'https://unsplash.com/?utm_source=GroceryFulfillmentApp&utm_medium=referral';
@@ -61,12 +61,12 @@ const ProductImage: React.FC<ProductImageProps> = ({ product, size }) => {
       {hasCredit && (
         <Pressable
           onPress={() => setCreditVisible(true)}
-          style={styles.infoBadge}
-          hitSlop={8}
+          style={[styles.infoBadge, { backgroundColor: theme.custom.mediaScrim }]}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Photo credit"
         >
-          <Icon source="information-variant" size={16} color="#FFFFFF" />
+          <Icon source="information-variant" size={16} color={theme.custom.onMedia} />
         </Pressable>
       )}
 
@@ -76,7 +76,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ product, size }) => {
         animationType="fade"
         onRequestClose={() => setCreditVisible(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setCreditVisible(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: theme.custom.scrim }]} onPress={() => setCreditVisible(false)}>
           {/* Own Pressable so taps on the card don't dismiss via the backdrop */}
           <Pressable
             onPress={() => {}}
@@ -126,28 +126,26 @@ const styles = StyleSheet.create({
     bottom: 8,
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: spacing.xxl,
   },
   creditCard: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: radius.lg,
+    padding: spacing.xxl,
     elevation: 8,
   },
   creditTitle: {
-    fontWeight: '700',
-    marginBottom: 8,
+    fontFamily: fontFamilies.heading,
+    marginBottom: spacing.sm,
   },
 });
 

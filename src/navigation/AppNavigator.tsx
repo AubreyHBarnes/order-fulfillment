@@ -16,7 +16,8 @@
  */
 
 import React, { useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import type { Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -52,6 +53,7 @@ import {
   OrderCompletionScreen,
   ShopperSettingsScreen,
 } from '../screens/shopper';
+import { fontFamilies, spacing, useAppTheme } from '../theme';
 
 // Debug/Development Screens (kept for testing, not in main flow)
 // import TestConnectionScreen from '../screens/TestConnectionScreen';
@@ -100,11 +102,12 @@ const ShopperStack = createNativeStackNavigator<ShopperStackParamList>();
  * - Keeps navigation config clean
  */
 const WelcomeTitle: React.FC = () => {
+  const theme = useAppTheme();
   const { userProfile } = useAuth();
   const firstName = userProfile?.firstName ?? 'Customer';
 
   return (
-    <Text style={{ fontSize: 18, fontWeight: '600', color: '#000' }}>
+    <Text style={{ fontSize: 18, fontFamily: fontFamilies.headingSemiBold, color: theme.colors.onSurface }}>
       Welcome, {firstName}
     </Text>
   );
@@ -118,6 +121,7 @@ const WelcomeTitle: React.FC = () => {
  * - Clean separation of concerns
  */
 const LogoutButton: React.FC = () => {
+  const theme = useAppTheme();
   const { logout } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -162,9 +166,9 @@ const LogoutButton: React.FC = () => {
        */
     >
       {loading ? (
-        <ActivityIndicator size="small" color="#007AFF" />
+        <ActivityIndicator size="small" color={theme.colors.primary} />
       ) : (
-        <Text style={{ color: '#007AFF', fontSize: 16 }}>Logout</Text>
+        <Text style={{ color: theme.colors.primary, fontSize: 16 }}>Logout</Text>
       )}
     </TouchableOpacity>
   );
@@ -189,7 +193,28 @@ const LogoutButton: React.FC = () => {
 // ============================================================
 
 const AppNavigator: React.FC = () => {
+  const theme = useAppTheme();
   const { user, userProfile, loading } = useAuth();
+
+  // Header and stack background follow the theme: the old hard-coded white
+  // header was the dark-mode bug (white slab, invisible status-bar icons).
+  const navTheme: NavTheme = {
+    dark: theme.dark,
+    colors: {
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.elevation.level2,
+      text: theme.colors.onSurface,
+      border: theme.colors.outlineVariant,
+      notification: theme.colors.error,
+    },
+    fonts: DefaultTheme.fonts,
+  };
+  const headerOptions = {
+    headerStyle: { backgroundColor: theme.colors.elevation.level2 },
+    headerTintColor: theme.colors.primary,
+    headerTitleStyle: { fontFamily: fontFamilies.headingSemiBold, color: theme.colors.onSurface },
+  };
 
   /**
    * WHY DESTRUCTURE FROM useAuth?
@@ -229,11 +254,11 @@ const AppNavigator: React.FC = () => {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#F5F5F5',
+          backgroundColor: theme.colors.background,
         }}
       >
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 16, color: '#757575' }}>Loading...</Text>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ marginTop: spacing.lg, color: theme.custom.textSecondary }}>Loading...</Text>
       </View>
     );
   }
@@ -243,7 +268,7 @@ const AppNavigator: React.FC = () => {
   // ============================================================
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       {/**
        * CONDITIONAL NAVIGATION:
        * Three separate navigation stacks based on auth state and role
@@ -365,15 +390,7 @@ const AppNavigator: React.FC = () => {
         // logs in (this branch stops rendering).
         <ShopperAssignmentProvider shopperId={userProfile?.shopperID ?? ''}>
         <ShopperStack.Navigator
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: '#FFFFFF',
-            },
-            headerTintColor: '#007AFF',
-            headerTitleStyle: {
-              fontWeight: '600',
-            },
-          }}
+          screenOptions={headerOptions}
         >
           <ShopperStack.Screen
             name="ShopperHome"
@@ -472,19 +489,7 @@ const AppNavigator: React.FC = () => {
              * - Headers provide context ("where am I?")
              * - Back button for navigation
              */
-            headerStyle: {
-              backgroundColor: '#FFFFFF',
-            },
-            headerTintColor: '#007AFF',
-            /**
-             * WHY THESE COLORS?
-             * - White background: Clean, standard
-             * - Blue tint: Matches primary color
-             * - Consistent with brand
-             */
-            headerTitleStyle: {
-              fontWeight: '600',
-            },
+            ...headerOptions,
           }}
         >
           {/**

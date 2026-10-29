@@ -11,7 +11,8 @@
  * - Easy to refactor internals without changing imports
  */
 
-import { useTheme, MD3Theme } from 'react-native-paper';
+import { useTheme } from 'react-native-paper';
+import type { AppTheme } from './buildTheme';
 import { lightTheme } from './lightTheme';
 import { darkTheme } from './darkTheme';
 
@@ -24,46 +25,16 @@ export { lightTheme } from './lightTheme';
 export { darkTheme } from './darkTheme';
 
 // Export colors for direct access if needed
-export { palette, lightColors, darkColors } from './colors';
+export { lightColors, darkColors } from './colors';
+export type { ColorTokens, StatusColor, StatusKey } from './colors';
+export type { AppTheme, CustomThemeColors } from './buildTheme';
+export { fontFamilies, tabularNums, fonts } from './typography';
+export { spacing, radius, minTouchTarget } from './layout';
+export { duration, easing, spring } from './motion';
 
 // ============================================================
 // TYPE DEFINITIONS
 // ============================================================
-
-/**
- * Custom theme properties not in Paper's MD3Theme
- */
-interface CustomThemeColors {
-  success: string;
-  successLight: string;
-  warning: string;
-  warningLight: string;
-  textSecondary: string;
-  textDisabled: string;
-  divider: string;
-  border: string;
-  borderLight: string;
-  inputBackground: string;
-  inputBorder: string;
-  inputBorderFocused: string;
-  cardBackground: string;
-  ripple: string;
-  disabled: string;
-  disabledText: string;
-  statusBar: string;
-}
-
-/**
- * AppTheme - Our extended theme type
- *
- * WHY EXTEND MD3Theme?
- * - Includes all Paper theme properties
- * - Adds our custom properties
- * - TypeScript knows about both
- */
-export interface AppTheme extends MD3Theme {
-  custom: CustomThemeColors;
-}
 
 // ============================================================
 // TYPED THEME HOOK
@@ -135,8 +106,8 @@ export const getThemeFromMode = (
    * - Only check system preference for 'system' mode
    * - Respects user choice over system setting
    */
-  if (mode === 'light') return lightTheme as AppTheme;
-  if (mode === 'dark') return darkTheme as AppTheme;
+  if (mode === 'light') return lightTheme;
+  if (mode === 'dark') return darkTheme;
 
   // mode === 'system' - follow device setting
   /**
@@ -145,7 +116,7 @@ export const getThemeFromMode = (
    * - Light mode is safer default (better contrast)
    * - Matches most app defaults
    */
-  return (systemColorScheme === 'dark' ? darkTheme : lightTheme) as AppTheme;
+  return systemColorScheme === 'dark' ? darkTheme : lightTheme;
 };
 
 /**

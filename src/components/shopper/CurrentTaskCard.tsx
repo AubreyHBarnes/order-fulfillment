@@ -72,7 +72,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, Icon } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { CurrentTaskCardProps } from '../../types';
 
 // ============================================================
@@ -341,7 +341,7 @@ const CurrentTaskCard: React.FC<CurrentTaskCardProps> = ({ task, onPress }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
 
   /**
@@ -353,16 +353,16 @@ const styles = StyleSheet.create({
    * - Consistent with other section headers in app
    */
   sectionTitle: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
 
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
 
   /**
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
    * - Natural left-to-right reading flow
    */
   dueTime: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   /**
@@ -384,14 +384,14 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    borderRadius: 12,
-    gap: 8,
+    padding: spacing.xxxl,
+    borderRadius: radius.md,
+    gap: spacing.sm,
   },
 
   emptyText: {
-    fontWeight: '500',
-    marginTop: 8,
+    fontFamily: fontFamilies.bodyMedium,
+    marginTop: spacing.sm,
   },
 
   emptySubtext: {
@@ -408,25 +408,25 @@ const styles = StyleSheet.create({
    */
   taskCard: {
     borderWidth: 2,
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
 
   taskCardContent: {
-    gap: 12,
+    gap: spacing.md,
   },
 
   orderId: {
-    fontWeight: '700',
+    fontFamily: fontFamilies.bodyBold,
   },
 
   itemsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
 
   itemsText: {
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   /**
@@ -462,17 +462,17 @@ const styles = StyleSheet.create({
   customerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
 
   customerName: {
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   fulfillmentRow: {
     flexDirection: 'row',
-    marginTop: 4,
-    gap: 8,
+    marginTop: spacing.xs,
+    gap: spacing.sm,
   },
 
   /**
@@ -486,14 +486,14 @@ const styles = StyleSheet.create({
   fulfillmentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     gap: 6,
   },
 
   fulfillmentText: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 

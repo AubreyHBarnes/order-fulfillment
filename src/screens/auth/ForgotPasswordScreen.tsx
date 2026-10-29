@@ -16,6 +16,8 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import type { AuthStackParamList } from '../../types';
+import { fontFamilies, radius, spacing, useAppTheme } from '../../theme';
+import type { AppTheme } from '../../theme';
 
 type ForgotPasswordScreenProps = NativeStackScreenProps<
   AuthStackParamList,
@@ -25,6 +27,8 @@ type ForgotPasswordScreenProps = NativeStackScreenProps<
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
   navigation,
 }) => {
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
   const [email, setEmail] = useState<string>('');
   const [localLoading, setLocalLoading] = useState<boolean>(false);
   const [emailSent, setEmailSent] = useState<boolean>(false);
@@ -97,7 +101,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
           disabled={localLoading}
         >
           {localLoading ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color={theme.colors.onPrimary} />
           ) : (
             <Text style={styles.resetButtonText}>Send Reset Link</Text>
           )}
@@ -114,11 +118,11 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 20,
+    backgroundColor: theme.colors.background,
+    padding: spacing.xl,
     justifyContent: 'center',
   },
   content: {
@@ -126,54 +130,58 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    fontFamily: fontFamilies.heading,
+    color: theme.colors.onSurface,
+    marginBottom: spacing.md,
   },
   subtitle: {
+    fontFamily: fontFamilies.body,
     fontSize: 16,
-    color: '#666',
+    color: theme.custom.textSecondary,
     marginBottom: 30,
     lineHeight: 22,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontFamily: fontFamilies.bodySemiBold,
+    color: theme.colors.onSurface,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: 'white',
-    borderRadius: 8,
+    backgroundColor: theme.colors.elevation.level1,
+    color: theme.colors.onSurface,
+    fontFamily: fontFamilies.body,
+    borderRadius: radius.sm,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.outline,
   },
   resetButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: theme.colors.primary,
+    borderRadius: radius.sm,
+    padding: spacing.lg,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   resetButtonText: {
-    color: 'white',
+    color: theme.colors.onPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   cancelButton: {
-    padding: 16,
+    padding: spacing.lg,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#666',
+    fontFamily: fontFamilies.body,
+    color: theme.custom.textSecondary,
     fontSize: 16,
   },
   successContainer: {
@@ -181,38 +189,39 @@ const styles = StyleSheet.create({
   },
   successIcon: {
     fontSize: 64,
-    color: '#4CAF50',
-    marginBottom: 20,
+    color: theme.custom.status.picked.color,
+    marginBottom: spacing.xl,
   },
   successTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    fontFamily: fontFamilies.heading,
+    color: theme.colors.onSurface,
+    marginBottom: spacing.md,
   },
   successText: {
+    fontFamily: fontFamilies.body,
     fontSize: 16,
-    color: '#666',
+    color: theme.custom.textSecondary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   emailText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: fontFamilies.bodySemiBold,
+    color: theme.colors.onSurface,
     marginBottom: 30,
   },
   backButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: theme.colors.primary,
+    borderRadius: radius.sm,
+    padding: spacing.lg,
     width: '100%',
     alignItems: 'center',
   },
   backButtonText: {
-    color: 'white',
+    color: theme.colors.onPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 

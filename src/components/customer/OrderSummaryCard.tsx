@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing, tabularNums } from '../../theme';
 import type { OrderSummaryCardProps, CartItem } from '../../types';
 import { formatPrice } from '../../services/productService';
 
@@ -32,15 +32,18 @@ const OrderSummaryCard: React.FC<OrderSummaryCardProps> = ({
       color: theme.colors.onSurface,
     },
     itemPrice: {
+      ...tabularNums,
       color: theme.colors.onSurface,
     },
     divider: {
       backgroundColor: theme.custom.divider,
     },
     subtotalLabel: {
+      ...tabularNums,
       color: theme.colors.onSurface,
     },
     subtotalAmount: {
+      ...tabularNums,
       color: theme.colors.onSurface,
     },
   };
@@ -92,32 +95,32 @@ const OrderSummaryCard: React.FC<OrderSummaryCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
 
   sectionLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.md,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
 
   card: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: radius.md,
+    padding: spacing.lg,
   },
 
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
 
   itemInfo: {
     flex: 1,
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
 
   itemText: {
@@ -125,13 +128,14 @@ const styles = StyleSheet.create({
   },
 
   itemPrice: {
+    ...tabularNums,
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   divider: {
     height: 1,
-    marginVertical: 12,
+    marginVertical: spacing.md,
   },
 
   subtotalRow: {
@@ -141,13 +145,15 @@ const styles = StyleSheet.create({
   },
 
   subtotalLabel: {
+    ...tabularNums,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   subtotalAmount: {
+    ...tabularNums,
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fontFamilies.bodyBold,
   },
 });
 

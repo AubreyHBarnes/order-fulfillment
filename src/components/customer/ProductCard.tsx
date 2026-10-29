@@ -17,7 +17,7 @@ import { Card, Text, Button, Badge } from 'react-native-paper';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../services/productService';
 import ProductImage from '../common/ProductImage';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing, tabularNums } from '../../theme';
 import type { ProductCardProps } from '../../types';
 
 /**
@@ -46,6 +46,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
       color: theme.custom.textDisabled,
     },
     price: {
+      ...tabularNums,
       color: theme.colors.primary,
     },
     unit: {
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   content: {
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
     /**
      * WHY paddingVertical: 16?
      * - More breathing room for product name at top
@@ -260,10 +261,10 @@ const styles = StyleSheet.create({
      */
   },
   header: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   name: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
     /**
      * WHY min-height?
      * - Ensures 2-line space even for short names
@@ -274,29 +275,31 @@ const styles = StyleSheet.create({
   },
   outOfStockBadge: {
     alignSelf: 'flex-start',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   metadata: {
+    ...tabularNums,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   category: {
     textTransform: 'capitalize',
   },
   aisle: {
-    marginLeft: 4,
+    marginLeft: spacing.xs,
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   price: {
-    fontWeight: 'bold',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
   },
   unit: {
-    marginLeft: 4,
+    marginLeft: spacing.xs,
   },
   actionContainer: {
     marginTop: 'auto',
@@ -313,11 +316,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 8,
+    padding: spacing.sm,
     borderRadius: 4,
   },
   inCartText: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 

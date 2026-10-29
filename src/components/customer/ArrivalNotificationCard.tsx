@@ -67,7 +67,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Alert } from 'react-native';
 import { Card, Text, Button, TextInput, ActivityIndicator } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing } from '../../theme';
 import {
   recordArrival,
   getActiveArrivalForOrder,
@@ -514,8 +514,8 @@ const ArrivalNotificationCard: React.FC<ArrivalNotificationCardProps> = ({
  */
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginVertical: 8,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
     /**
      * WHY THESE MARGINS?
      * - Match other cards in OrderDetailScreen
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
     /**
      * WHY FLEXBOX ROW?
      * - Spinner and text side by side
@@ -536,27 +536,27 @@ const styles = StyleSheet.create({
      */
   },
   loadingText: {
-    marginLeft: 12,
+    marginLeft: spacing.md,
   },
   title: {
-    fontWeight: '600',
-    marginBottom: 4,
+    fontFamily: fontFamilies.headingSemiBold,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   helpText: {
-    marginTop: 12,
+    marginTop: spacing.md,
     fontStyle: 'italic',
   },
   input: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   button: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   buttonContent: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     /**
      * WHY EXTRA PADDING?
      * - Makes button taller (easier to tap)

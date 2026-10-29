@@ -16,7 +16,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, IconButton, Button, Chip } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, minTouchTarget, radius, spacing, tabularNums } from '../../theme';
 import { formatPrice } from '../../services/productService';
 import type { ItemChecklistItemProps } from '../../types';
 
@@ -35,31 +35,34 @@ const ItemChecklistItem: React.FC<ItemChecklistItemProps> = ({
 
   const dynamicStyles = {
     card: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.elevation.level1,
     },
     name: {
       color: theme.colors.onSurface,
     },
     detail: {
+      ...tabularNums,
       color: theme.custom.textSecondary,
     },
+    // status meanings are fixed: picked green, short/substituted amber,
+    // unavailable gray (out of stock is not an alarm; red is for actions)
     foundChip: {
-      backgroundColor: theme.custom.successLight,
+      backgroundColor: theme.custom.status.picked.container,
     },
     foundChipText: {
-      color: theme.custom.success,
+      color: theme.custom.status.picked.onContainer,
     },
     oosChip: {
-      backgroundColor: theme.colors.errorContainer,
+      backgroundColor: theme.custom.status.unavailable.container,
     },
     oosChipText: {
-      color: theme.colors.error,
+      color: theme.custom.status.unavailable.onContainer,
     },
     pendingChip: {
-      backgroundColor: theme.custom.warningLight,
+      backgroundColor: theme.custom.status.substituted.container,
     },
     pendingChipText: {
-      color: theme.custom.warning,
+      color: theme.custom.status.substituted.onContainer,
     },
   };
 
@@ -150,7 +153,8 @@ const ItemChecklistItem: React.FC<ItemChecklistItemProps> = ({
               <IconButton
                 icon="minus"
                 mode="outlined"
-                size={18}
+                size={24}
+                style={styles.stepperButton}
                 onPress={() => onQuantityChange(Math.max(0, pickedQty - 1))}
                 disabled={pickedQty <= 0}
               />
@@ -160,19 +164,20 @@ const ItemChecklistItem: React.FC<ItemChecklistItemProps> = ({
               <IconButton
                 icon="plus"
                 mode="outlined"
-                size={18}
+                size={24}
+                style={styles.stepperButton}
                 onPress={() => onQuantityChange(Math.min(orderedQty, pickedQty + 1))}
                 disabled={pickedQty >= orderedQty}
               />
             </View>
 
-            <Button mode="contained-tonal" compact onPress={onMarkFound} style={styles.actionButton}>
+            <Button mode="contained-tonal" contentStyle={styles.touchTarget} onPress={onMarkFound} style={styles.actionButton}>
               Found
             </Button>
-            <Button mode="outlined" compact onPress={onMarkOutOfStock} style={styles.actionButton}>
+            <Button mode="outlined" contentStyle={styles.touchTarget} onPress={onMarkOutOfStock} style={styles.actionButton}>
               Out of Stock
             </Button>
-            <Button mode="outlined" compact onPress={onSubstitute} style={styles.actionButton}>
+            <Button mode="outlined" contentStyle={styles.touchTarget} onPress={onSubstitute} style={styles.actionButton}>
               Substitute
             </Button>
           </View>
@@ -180,10 +185,10 @@ const ItemChecklistItem: React.FC<ItemChecklistItemProps> = ({
 
         {issue?.kind === 'sub' && issue.status === 'rejected' && (
           <View style={styles.controlsRow}>
-            <Button mode="contained-tonal" compact onPress={onSubstitute} style={styles.actionButton}>
+            <Button mode="contained-tonal" contentStyle={styles.touchTarget} onPress={onSubstitute} style={styles.actionButton}>
               Propose Another
             </Button>
-            <Button mode="outlined" compact onPress={onMarkOutOfStock} style={styles.actionButton}>
+            <Button mode="outlined" contentStyle={styles.touchTarget} onPress={onMarkOutOfStock} style={styles.actionButton}>
               Mark Out of Stock
             </Button>
           </View>
@@ -194,22 +199,30 @@ const ItemChecklistItem: React.FC<ItemChecklistItemProps> = ({
 };
 
 const styles = StyleSheet.create({
+  touchTarget: {
+    minHeight: minTouchTarget,
+  },
+  stepperButton: {
+    width: minTouchTarget,
+    height: minTouchTarget,
+    margin: 0,
+  },
   card: {
-    marginHorizontal: 16,
+    marginHorizontal: spacing.lg,
     marginBottom: 10,
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: spacing.sm,
   },
   infoBlock: {
     flex: 1,
   },
   name: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   chip: {
     alignSelf: 'flex-start',
@@ -218,7 +231,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
     marginTop: 10,
   },
   stepper: {
@@ -226,6 +239,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepperText: {
+    ...tabularNums,
     minWidth: 24,
     textAlign: 'center',
   },

@@ -58,7 +58,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { ShopperStatusDropdownProps, ShopperAvailability } from '../../types';
 
 // ============================================================
@@ -193,7 +193,7 @@ const ShopperStatusDropdown: React.FC<ShopperStatusDropdownProps> = ({
       color: theme.custom.textSecondary,
     },
     modalOverlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: theme.custom.scrim,
     },
     dropdownMenu: {
       backgroundColor: theme.colors.surface,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
    * Contains label + dropdown trigger
    */
   wrapper: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
 
   /**
@@ -367,10 +367,10 @@ const styles = StyleSheet.create({
    * - Clear visual hierarchy (label vs value)
    */
   label: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
     letterSpacing: 0.5,
-    marginBottom: 8,
-    marginLeft: 4,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
   },
 
   /**
@@ -386,11 +386,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 2,
-    gap: 12,
+    gap: spacing.md,
   },
 
   disabled: {
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
 
   statusText: {
     flex: 1,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   /**
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
 
   /**
@@ -427,8 +427,8 @@ const styles = StyleSheet.create({
    */
   dropdownMenu: {
     minWidth: 280,
-    borderRadius: 16,
-    padding: 8,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -437,9 +437,9 @@ const styles = StyleSheet.create({
   },
 
   menuTitle: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     textAlign: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
 
   /**
@@ -449,9 +449,9 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    gap: spacing.md,
   },
 
   optionTextContainer: {
@@ -459,11 +459,11 @@ const styles = StyleSheet.create({
   },
 
   optionLabel: {
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   optionDescription: {
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
 });
 

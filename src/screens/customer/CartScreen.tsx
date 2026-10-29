@@ -28,7 +28,7 @@ import { View, FlatList, StyleSheet, ListRenderItemInfo, Text } from 'react-nati
 import { ActivityIndicator } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCart } from '../../context/CartContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, spacing } from '../../theme';
 import CartItemCard from '../../components/customer/CartItemCard';
 import CartSummary from '../../components/customer/CartSummary';
 import EmptyCart from '../../components/customer/EmptyCart';
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
     /**
      * WHY centered container?
      * - For loading state
@@ -349,8 +349,8 @@ const styles = StyleSheet.create({
 
   // ===== LIST =====
   listContent: {
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
     /**
      * WHY padding?
      * - Space at top before first item
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
 
   // ===== STATES =====
   loadingText: {
-    marginTop: 16,
+    marginTop: spacing.lg,
     /**
      * WHY gray text?
      * - Secondary importance to spinner

@@ -73,7 +73,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing, tabularNums } from '../../theme';
 import type { QuickLinkCardProps } from '../../types';
 
 // ============================================================
@@ -110,9 +110,11 @@ const QuickLinkCard: React.FC<QuickLinkCardProps> = ({
       color: theme.custom.textSecondary,
     },
     countBadge: {
+      ...tabularNums,
       backgroundColor: count > 0 ? theme.colors.primary : theme.custom.textDisabled,
     },
     countText: {
+      ...tabularNums,
       color: count > 0 ? theme.colors.onPrimary : theme.colors.surface,
     },
     chevron: {
@@ -229,10 +231,10 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-    marginBottom: 12,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    gap: spacing.md,
+    marginBottom: spacing.md,
     // Shadow for iOS
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -273,11 +275,11 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
   },
 
   subtitle: {
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
 
   /**
@@ -291,16 +293,18 @@ const styles = StyleSheet.create({
    * - paddingHorizontal: 8 = room for 2-3 digit numbers
    */
   countBadge: {
+    ...tabularNums,
     minWidth: 28,
     height: 28,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
   },
 
   countText: {
-    fontWeight: '700',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
     fontSize: 14,
   },
 });

@@ -1,248 +1,186 @@
 /**
- * Color Palette
+ * Color tokens
  * File: src/theme/colors.ts
  *
- * PURPOSE: Single source of truth for all colors in the app
+ * Every token is a light/dark pair. Components never read these directly:
+ * they go through useAppTheme() so a mode change re-renders them.
  *
- * WHY CENTRALIZE COLORS?
- * - Change a color once, it updates everywhere
- * - Ensures consistency across the app
- * - Makes it easy to implement dark mode
- * - Designers can review/update colors in one place
- * - Prevents "magic numbers" (hardcoded hex values)
+ * Source colors (brand): primary #1F6F50, accent #F2B33D, surface #F7F8F5,
+ * ink #1A1F1C. The Material 3 roles are generated from the primary hue
+ * (@material/material-color-utilities, tone 80 for dark primary and the
+ * container/secondary/tertiary ladders), then adjusted: light primary,
+ * surface and ink are the exact brand values, and dark surfaces are the
+ * M3 neutral tones (#111412 base), never pure black.
  *
- * ORGANIZATION:
- * 1. Palette - Raw color values (like paint colors)
- * 2. Semantic - What colors mean (primary, error, background)
- * 3. Light/Dark variants - Theme-specific mappings
+ * Every text/graphic pair is checked against WCAG AA in
+ * __tests__/themeContrast.test.ts, and the ratios are logged in
+ * DESIGN_DECISIONS.md.
  */
 
-// ============================================================
-// PALETTE - Raw Color Values
-// ============================================================
+/** A status meaning with its fixed visual treatment in one mode. */
+export interface StatusColor {
+  /** Icon/glyph and text color on the plain surface. */
+  color: string;
+  /** Soft background for chips and banners. */
+  container: string;
+  /** Text and icons on `container`. */
+  onContainer: string;
+  /** Solid fill for a status mark (check circle, dot). */
+  solid: string;
+  /** Glyph on `solid`. */
+  onSolid: string;
+}
 
-/**
- * WHY SEPARATE PALETTE?
- * - These are your "paint colors" - the actual hex values
- * - Semantic colors reference these
- * - Easy to see all available colors at a glance
- * - Can be shared between light and dark themes
- *
- * NAMING CONVENTION:
- * - colorName + intensity (blue500, gray100)
- * - 50 = lightest, 900 = darkest
- * - Follows Material Design naming
- */
-export const palette = {
-  // ===== BRAND BLUE =====
-  // Primary brand color - used for main actions, links, emphasis
-  blue50: '#E3F2FD',   // Very light - backgrounds, highlights
-  blue100: '#BBDEFB',  // Light - hover states, secondary backgrounds
-  blue200: '#90CAF9',  // Light-medium
-  blue500: '#007AFF',  // Primary - buttons, links (iOS blue)
-  blue600: '#0066CC',  // Darker - pressed states
-  blue700: '#0055AA',  // Dark - text on light backgrounds
+export interface ColorTokens {
+  primary: string;
+  onPrimary: string;
+  primaryContainer: string;
+  onPrimaryContainer: string;
+  secondary: string;
+  onSecondary: string;
+  secondaryContainer: string;
+  onSecondaryContainer: string;
+  tertiary: string;
+  onTertiary: string;
+  tertiaryContainer: string;
+  onTertiaryContainer: string;
+  error: string;
+  onError: string;
+  errorContainer: string;
+  onErrorContainer: string;
+  background: string;
+  onBackground: string;
+  surface: string;
+  onSurface: string;
+  surfaceVariant: string;
+  onSurfaceVariant: string;
+  outline: string;
+  outlineVariant: string;
+  inverseSurface: string;
+  inverseOnSurface: string;
+  inversePrimary: string;
+  /** Tonal elevation: higher level = more primary tint, not a shadow. */
+  elevation: { level0: string; level1: string; level2: string; level3: string; level4: string; level5: string };
+  /** Dimmed text (placeholders, disabled). Exempt from AA, but kept legible. */
+  textDisabled: string;
+  /** Modal scrim. One token so its opacity is tuned in one place. */
+  scrim: string;
+  /** Touch ripple. */
+  ripple: string;
+  /** Text/icon on photo overlays (always over a dark scrim, both modes). */
+  onMedia: string;
+  mediaScrim: string;
+  status: {
+    picked: StatusColor;
+    substituted: StatusColor;
+    unavailable: StatusColor;
+    actionNeeded: StatusColor;
+  };
+}
 
-  // ===== GREEN =====
-  // Success states, confirmations, positive actions
-  green50: '#E8F5E9',
-  green100: '#C8E6C9',
-  green500: '#4CAF50',  // Success - checkmarks, confirmations
-  green600: '#43A047',
-  green700: '#388E3C',
+export const lightColors: ColorTokens = {
+  primary: '#1F6F50',
+  onPrimary: '#FFFFFF',
+  primaryContainer: '#CDEBDA',
+  onPrimaryContainer: '#0B3D2A',
+  secondary: '#4D6357',
+  onSecondary: '#FFFFFF',
+  secondaryContainer: '#CFE9D9',
+  onSecondaryContainer: '#0A1F16',
+  tertiary: '#3D6473',
+  onTertiary: '#FFFFFF',
+  tertiaryContainer: '#C1E9FB',
+  onTertiaryContainer: '#001F29',
+  error: '#B3261E',
+  onError: '#FFFFFF',
+  errorContainer: '#F9DEDC',
+  onErrorContainer: '#5C0F0B',
+  background: '#F7F8F5',
+  onBackground: '#1A1F1C',
+  surface: '#F7F8F5',
+  onSurface: '#1A1F1C',
+  surfaceVariant: '#DCE5DD',
+  onSurfaceVariant: '#454D47',
+  outline: '#79827B',
+  outlineVariant: '#CBD3CC',
+  inverseSurface: '#2E312F',
+  inverseOnSurface: '#EFF1ED',
+  inversePrimary: '#6DDBAA',
+  elevation: {
+    level0: 'transparent',
+    level1: '#F1F4F0',
+    level2: '#EDF1ED',
+    level3: '#E9EFEA',
+    level4: '#E7EEE9',
+    level5: '#E5ECE7',
+  },
+  textDisabled: '#8A918B',
+  scrim: 'rgba(26, 31, 28, 0.5)',
+  ripple: 'rgba(31, 111, 80, 0.12)',
+  onMedia: '#FFFFFF',
+  mediaScrim: 'rgba(0, 0, 0, 0.55)',
+  status: {
+    // green
+    picked: { color: '#1F6F50', container: '#D5EBDD', onContainer: '#0F3B2A', solid: '#1F6F50', onSolid: '#FFFFFF' },
+    // amber: the plain brand amber is 1.74:1 on the light surface, so the
+    // icon/text step is a darker value of the same hue; the fill keeps the
+    // brand amber with ink on it. Never amber text on white.
+    substituted: { color: '#8A5A00', container: '#FBE7BC', onContainer: '#3D2A00', solid: '#F2B33D', onSolid: '#1A1F1C' },
+    // gray
+    unavailable: { color: '#5C655F', container: '#E2E5E0', onContainer: '#2F3631', solid: '#5C655F', onSolid: '#FFFFFF' },
+    // red, sparingly
+    actionNeeded: { color: '#B3261E', container: '#F9DEDC', onContainer: '#5C0F0B', solid: '#B3261E', onSolid: '#FFFFFF' },
+  },
+};
 
-  // ===== RED =====
-  // Error states, destructive actions, required fields
-  red50: '#FFEBEE',
-  red100: '#FFCDD2',
-  red400: '#F44336',  // Medium red - alerts, warnings
-  red500: '#E53935',   // Error - validation, destructive
-  red600: '#D32F2F',
-  red700: '#C62828',
+export const darkColors: ColorTokens = {
+  primary: '#6DDBAA',
+  onPrimary: '#003825',
+  primaryContainer: '#0A5239',
+  onPrimaryContainer: '#C6F5DD',
+  secondary: '#B4CCBD',
+  onSecondary: '#1F352A',
+  secondaryContainer: '#364B40',
+  onSecondaryContainer: '#CFE9D9',
+  tertiary: '#A5CCDE',
+  onTertiary: '#073543',
+  tertiaryContainer: '#244C5A',
+  onTertiaryContainer: '#C1E9FB',
+  error: '#FFB4AB',
+  onError: '#4B0008',
+  errorContainer: '#7A1912',
+  onErrorContainer: '#FFDAD6',
+  background: '#111412',
+  onBackground: '#E1E3DF',
+  surface: '#111412',
+  onSurface: '#E1E3DF',
+  surfaceVariant: '#404943',
+  onSurfaceVariant: '#BFC9C1',
+  outline: '#8A938C',
+  outlineVariant: '#404943',
+  inverseSurface: '#E1E3DF',
+  inverseOnSurface: '#2E312F',
+  inversePrimary: '#006C4B',
+  elevation: {
+    level0: 'transparent',
+    level1: '#161E1A',
+    level2: '#18241E',
+    level3: '#1B2A23',
+    level4: '#1C2C24',
+    level5: '#1E3027',
+  },
+  textDisabled: '#6F7872',
+  scrim: 'rgba(0, 0, 0, 0.7)',
+  ripple: 'rgba(109, 219, 170, 0.16)',
+  onMedia: '#FFFFFF',
+  mediaScrim: 'rgba(0, 0, 0, 0.55)',
+  status: {
+    picked: { color: '#6DDBAA', container: '#14402E', onContainer: '#C9F2DD', solid: '#6DDBAA', onSolid: '#003825' },
+    // amber is naturally strong on dark: same brand hex, no shift needed
+    substituted: { color: '#F2B33D', container: '#4A3810', onContainer: '#FBE3A6', solid: '#F2B33D', onSolid: '#1A1F1C' },
+    unavailable: { color: '#A3ACA5', container: '#2C322E', onContainer: '#D4DAD5', solid: '#A3ACA5', onSolid: '#1A1F1C' },
+    actionNeeded: { color: '#FFB4AB', container: '#7A1912', onContainer: '#FFDAD6', solid: '#FFB4AB', onSolid: '#4B0008' },
+  },
+};
 
-  // ===== YELLOW/ORANGE =====
-  // Warnings, caution states
-  yellow50: '#FFF8E1',
-  yellow500: '#FFC107',  // Warning
-  orange500: '#FF9800',
-
-  // ===== GRAY =====
-  // Backgrounds, borders, disabled states, text
-  white: '#FFFFFF',
-  gray50: '#FAFAFA',   // Almost white - subtle backgrounds
-  gray100: '#F5F5F5',  // Light gray - screen backgrounds
-  gray200: '#EEEEEE',  // Light - card backgrounds in dark mode
-  gray300: '#E0E0E0',  // Borders, dividers
-  gray400: '#BDBDBD',  // Disabled text, placeholders
-  gray500: '#9E9E9E',  // Secondary text
-  gray600: '#757575',  // Body text (light mode)
-  gray700: '#616161',
-  gray800: '#424242',  // Headings (light mode)
-  gray900: '#212121',  // Primary text (light mode)
-  black: '#000000',
-
-  // ===== DARK MODE SPECIFIC =====
-  // Special colors for dark backgrounds
-  darkBg: '#121212',       // True dark background
-  darkSurface: '#1E1E1E',  // Elevated surfaces (cards)
-  darkSurface2: '#2C2C2C', // Higher elevation
-  darkBorder: '#333333',   // Borders in dark mode
-} as const;
-
-/**
- * WHY "as const"?
- * - Makes TypeScript treat these as literal types
- * - palette.blue500 is type '#007AFF', not just 'string'
- * - Enables autocomplete and type checking
- * - Prevents accidental modification
- */
-
-// ============================================================
-// SEMANTIC COLORS - Light Theme
-// ============================================================
-
-/**
- * WHY SEMANTIC NAMING?
- * - "primary" is more meaningful than "blue500"
- * - Components don't need to know the actual color
- * - Easy to swap colors without changing component code
- * - Example: primary could be blue for one brand, green for another
- */
-export const lightColors = {
-  // ===== PRIMARY =====
-  // Main brand color - buttons, links, active states
-  primary: palette.blue500,
-  primaryLight: palette.blue50,
-  primaryDark: palette.blue700,
-  onPrimary: palette.white,  // Text/icons ON primary color
-
-  // ===== SECONDARY =====
-  // Accent color - less prominent than primary
-  secondary: palette.green500,
-  secondaryLight: palette.green50,
-  onSecondary: palette.white,
-
-  // ===== BACKGROUND =====
-  // Screen and surface backgrounds
-  background: palette.gray100,     // Screen background
-  surface: palette.white,          // Card/modal backgrounds
-  surfaceVariant: palette.gray50,  // Subtle surface variation
-
-  // ===== TEXT =====
-  // All text colors
-  textPrimary: palette.gray900,    // Main text, headings
-  textSecondary: palette.gray600,  // Subtitles, captions
-  textDisabled: palette.gray400,   // Disabled/placeholder text
-  textOnPrimary: palette.white,    // Text on primary color
-
-  // ===== STATES =====
-  // Feedback colors
-  error: palette.red500,
-  errorLight: palette.red50,
-  onError: palette.white,
-  success: palette.green500,
-  successLight: palette.green50,
-  warning: palette.yellow500,
-  warningLight: palette.yellow50,
-
-  // ===== BORDERS & DIVIDERS =====
-  border: palette.gray300,
-  borderLight: palette.gray200,
-  divider: palette.gray200,
-
-  // ===== INTERACTIVE =====
-  // States for interactive elements
-  disabled: palette.gray300,
-  disabledText: palette.gray400,
-  ripple: 'rgba(0, 122, 255, 0.1)',  // Touch feedback
-
-  // ===== SPECIFIC UI =====
-  // Component-specific colors
-  cardBackground: palette.white,
-  inputBackground: palette.white,
-  inputBorder: palette.gray300,
-  inputBorderFocused: palette.blue500,
-  headerBackground: palette.white,
-  tabBarBackground: palette.white,
-  statusBar: 'dark-content',  // iOS status bar style
-} as const;
-
-// ============================================================
-// SEMANTIC COLORS - Dark Theme
-// ============================================================
-
-/**
- * WHY DIFFERENT DARK COLORS?
- * - Light colors on dark backgrounds need different values
- * - Pure white (#FFFFFF) is too harsh on dark backgrounds
- * - Colors need higher contrast ratios
- * - Some colors need to be lighter (blue500 → blue200)
- */
-export const darkColors = {
-  // ===== PRIMARY =====
-  // Lighter primary for visibility on dark backgrounds
-  primary: palette.blue200,         // Lighter blue for dark mode
-  primaryLight: palette.blue100,
-  primaryDark: palette.blue500,
-  onPrimary: palette.gray900,       // Dark text on light primary
-
-  // ===== SECONDARY =====
-  secondary: palette.green100,
-  secondaryLight: palette.green50,
-  onSecondary: palette.gray900,
-
-  // ===== BACKGROUND =====
-  background: palette.darkBg,           // True black background
-  surface: palette.darkSurface,         // Elevated surfaces
-  surfaceVariant: palette.darkSurface2, // Higher elevation
-
-  // ===== TEXT =====
-  // Light text on dark backgrounds
-  textPrimary: palette.gray100,     // Main text (almost white)
-  textSecondary: palette.gray400,   // Subtitles (dimmer)
-  textDisabled: palette.gray600,    // Disabled text
-  textOnPrimary: palette.gray900,   // Dark text on primary
-
-  // ===== STATES =====
-  // Lighter error/success for visibility
-  error: palette.red100,
-  errorLight: 'rgba(229, 57, 53, 0.2)',  // Semi-transparent red
-  onError: palette.gray900,
-  success: palette.green100,
-  successLight: 'rgba(76, 175, 80, 0.2)',
-  warning: palette.yellow500,
-  warningLight: 'rgba(255, 193, 7, 0.2)',
-
-  // ===== BORDERS & DIVIDERS =====
-  border: palette.darkBorder,
-  borderLight: palette.gray800,
-  divider: palette.gray800,
-
-  // ===== INTERACTIVE =====
-  disabled: palette.gray700,
-  disabledText: palette.gray600,
-  ripple: 'rgba(144, 202, 249, 0.2)',  // Light blue ripple
-
-  // ===== SPECIFIC UI =====
-  cardBackground: palette.darkSurface,
-  inputBackground: palette.darkSurface,
-  inputBorder: palette.darkBorder,
-  inputBorderFocused: palette.blue200,
-  headerBackground: palette.darkSurface,
-  tabBarBackground: palette.darkSurface,
-  statusBar: 'light-content',  // Light status bar for dark mode
-} as const;
-
-// ============================================================
-// TYPE EXPORTS
-// ============================================================
-
-/**
- * WHY EXPORT TYPES?
- * - TypeScript knows what colors are available
- * - Autocomplete in IDE
- * - Catch typos at compile time
- * - Components can type their color props
- */
-export type ColorPalette = typeof palette;
-export type SemanticColors = typeof lightColors;
+export type StatusKey = keyof ColorTokens['status'];

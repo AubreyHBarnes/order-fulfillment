@@ -16,7 +16,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { PickupLocationSelectorProps, PickupLocation } from '../../types';
 
 const PickupLocationSelector: React.FC<PickupLocationSelectorProps> = ({
@@ -129,13 +129,13 @@ const PickupLocationSelector: React.FC<PickupLocationSelectorProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
 
   sectionLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.lg,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -143,20 +143,20 @@ const styles = StyleSheet.create({
   locationOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     borderWidth: 2,
   },
 
   radioContainer: {
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
 
   radioOuter: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
@@ -174,8 +174,8 @@ const styles = StyleSheet.create({
 
   locationName: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.xs,
   },
 
   locationAddress: {

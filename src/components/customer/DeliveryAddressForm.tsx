@@ -17,7 +17,7 @@
 
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { DeliveryAddressFormProps } from '../../types';
 
 const DeliveryAddressForm: React.FC<DeliveryAddressFormProps> = ({
@@ -188,29 +188,29 @@ const DeliveryAddressForm: React.FC<DeliveryAddressFormProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
 
   sectionLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.lg,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
 
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
 
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.sm,
   },
 
   input: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
 
   rowContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
 
   cityInput: {

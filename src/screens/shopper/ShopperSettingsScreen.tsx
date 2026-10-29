@@ -31,7 +31,7 @@ import { Text, Icon, Button, Divider, SegmentedButtons } from 'react-native-pape
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, spacing } from '../../theme';
 import type { ShopperStackParamList } from '../../types';
 import type { ThemeMode } from '../../theme';
 import packageJson from '../../../package.json';
@@ -78,7 +78,7 @@ const ShopperSettingsScreen: React.FC<ShopperSettingsScreenProps> = () => {
         <View style={[styles.avatarContainer, { backgroundColor: theme.colors.primaryContainer }]}>
           <Icon source="account" size={48} color={theme.colors.primary} />
         </View>
-        <Text variant="titleLarge" style={{ color: theme.colors.onSurface, marginTop: 12 }}>
+        <Text variant="titleLarge" style={{ color: theme.colors.onSurface, marginTop: spacing.md }}>
           {userProfile?.firstName} {userProfile?.lastName}
         </Text>
         <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary }}>
@@ -91,7 +91,7 @@ const ShopperSettingsScreen: React.FC<ShopperSettingsScreenProps> = () => {
 
         {/* Appearance Settings */}
         <View style={styles.settingsSection}>
-          <Text variant="labelMedium" style={{ color: theme.custom.textSecondary, marginBottom: 8 }}>
+          <Text variant="labelMedium" style={{ color: theme.custom.textSecondary, marginBottom: spacing.sm }}>
             APPEARANCE
           </Text>
           <SegmentedButtons
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   profileSection: {
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.xxl,
   },
   avatarContainer: {
     width: 80,
@@ -145,21 +145,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   divider: {
-    marginVertical: 16,
+    marginVertical: spacing.lg,
   },
   middleSection: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
   },
   settingsSection: {
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
   },
   versionText: {
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   logoutSection: {
-    padding: 20,
+    padding: spacing.xl,
     paddingBottom: 40,
   },
   logoutButton: {

@@ -26,7 +26,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { getOrderById } from '../../services/orderService';
 import { completeOrder, releaseAfterCompletion } from '../../services/functionActionService';
@@ -172,24 +172,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   scrollContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
   title: {
-    fontWeight: '700',
-    marginBottom: 4,
+    fontFamily: fontFamilies.heading,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   errorText: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   footer: {
-    padding: 16,
+    padding: spacing.lg,
     borderTopWidth: 1,
   },
 });

@@ -26,7 +26,7 @@
 import React from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
 import { Text, Icon, Button } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing, tabularNums } from '../../theme';
 import type { NewAssignmentModalProps } from '../../types';
 
 const NewAssignmentModal: React.FC<NewAssignmentModalProps> = ({
@@ -40,10 +40,10 @@ const NewAssignmentModal: React.FC<NewAssignmentModalProps> = ({
 
   const dynamicStyles = {
     modalOverlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: theme.custom.scrim,
     },
     card: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.elevation.level3,
     },
     title: {
       color: theme.colors.onSurface,
@@ -52,6 +52,7 @@ const NewAssignmentModal: React.FC<NewAssignmentModalProps> = ({
       color: theme.colors.primary,
     },
     detailText: {
+      ...tabularNums,
       color: theme.custom.textSecondary,
     },
   };
@@ -118,13 +119,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
   card: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: radius.lg,
+    padding: spacing.xxl,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -133,27 +134,28 @@ const styles = StyleSheet.create({
   },
   iconRow: {
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   title: {
-    fontWeight: '700',
+    fontFamily: fontFamilies.heading,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   detailsBlock: {
     alignItems: 'center',
-    marginBottom: 24,
-    gap: 4,
+    marginBottom: spacing.xxl,
+    gap: spacing.xs,
   },
   detailText: {
+    ...tabularNums,
     textAlign: 'center',
   },
   orderId: {
-    fontWeight: '700',
+    fontFamily: fontFamilies.bodyBold,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   button: {
     flex: 1,

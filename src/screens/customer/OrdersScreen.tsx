@@ -16,7 +16,7 @@ import {
 import { Text, ActivityIndicator } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, spacing } from '../../theme';
 import { getOrdersByCustomerId } from '../../services/orderService';
 import { subscribeToOrders } from '../../services/realtimeService';
 import OrderCard from '../../components/customer/OrderCard';
@@ -172,30 +172,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   listContent: {
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     flexGrow: 1,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
   emptyTitle: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   emptyText: {
     textAlign: 'center',
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   errorText: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
 });

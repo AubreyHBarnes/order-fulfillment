@@ -12,7 +12,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, Button } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing } from '../../theme';
 import { formatPrice } from '../../services/productService';
 import type { SubstitutionApprovalCardProps } from '../../types';
 
@@ -94,23 +94,23 @@ const SubstitutionApprovalCard: React.FC<SubstitutionApprovalCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginVertical: 8,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
   },
   title: {
-    fontWeight: '600',
-    marginBottom: 4,
+    fontFamily: fontFamilies.headingSemiBold,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   itemRow: {
     marginBottom: 10,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: spacing.md,
+    marginTop: spacing.sm,
   },
   button: {
     flex: 1,

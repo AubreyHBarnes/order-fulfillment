@@ -8,7 +8,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { OrderStatusBadgeProps, OrderStatus } from '../../types';
 
 interface StatusConfig {
@@ -20,56 +20,31 @@ interface StatusConfig {
 const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status }) => {
   const theme = useAppTheme();
 
+  const { colors, custom } = theme;
+  const picked = { backgroundColor: custom.status.picked.container, textColor: custom.status.picked.onContainer };
   const getStatusConfig = (orderStatus: OrderStatus): StatusConfig => {
     switch (orderStatus) {
       case 'pending':
-        return {
-          label: 'Pending',
-          backgroundColor: theme.custom.textDisabled + '30',
-          textColor: theme.custom.textSecondary,
-        };
+        return { label: 'Pending', backgroundColor: colors.surfaceVariant, textColor: colors.onSurfaceVariant };
       case 'assigned':
-        return {
-          label: 'Assigned',
-          backgroundColor: theme.colors.primary + '20',
-          textColor: theme.colors.primary,
-        };
+        return { label: 'Assigned', backgroundColor: colors.primaryContainer, textColor: colors.onPrimaryContainer };
       case 'shopping':
-        return {
-          label: 'Shopping',
-          backgroundColor: theme.colors.primary + '20',
-          textColor: theme.colors.primary,
-        };
+        return { label: 'Shopping', backgroundColor: colors.primaryContainer, textColor: colors.onPrimaryContainer };
       case 'ready_for_pickup':
-        return {
-          label: 'Ready',
-          backgroundColor: theme.custom.success + '20',
-          textColor: theme.custom.success,
-        };
+        return { label: 'Ready', ...picked };
       case 'out_for_delivery':
-        return {
-          label: 'Out for Delivery',
-          backgroundColor: theme.custom.success + '20',
-          textColor: theme.custom.success,
-        };
+        return { label: 'Out for Delivery', ...picked };
       case 'completed':
-        return {
-          label: 'Completed',
-          backgroundColor: theme.custom.success + '20',
-          textColor: theme.custom.success,
-        };
+        return { label: 'Completed', ...picked };
       case 'cancelled':
+        // gray, not red: red is reserved for things that need the customer's action
         return {
           label: 'Cancelled',
-          backgroundColor: theme.colors.error + '20',
-          textColor: theme.colors.error,
+          backgroundColor: custom.status.unavailable.container,
+          textColor: custom.status.unavailable.onContainer,
         };
       default:
-        return {
-          label: orderStatus,
-          backgroundColor: theme.custom.textDisabled + '30',
-          textColor: theme.custom.textSecondary,
-        };
+        return { label: orderStatus, backgroundColor: colors.surfaceVariant, textColor: colors.onSurfaceVariant };
     }
   };
 
@@ -87,13 +62,13 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status }) => {
 const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
     alignSelf: 'flex-start',
   },
   text: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 

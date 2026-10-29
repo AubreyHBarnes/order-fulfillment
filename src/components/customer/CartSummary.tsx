@@ -20,7 +20,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Surface, Text, Button, Divider } from 'react-native-paper';
 import { formatPrice } from '../../services/productService';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing, tabularNums } from '../../theme';
 import type { CartSummaryProps } from '../../types';
 
 /**
@@ -45,6 +45,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
       color: theme.custom.textSecondary,
     },
     subtotalValue: {
+      ...tabularNums,
       color: theme.colors.primary,
     },
   };
@@ -147,7 +148,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 const styles = StyleSheet.create({
   // ===== CONTAINER =====
   container: {
-    padding: 16,
+    padding: spacing.lg,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     /**
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: spacing.md,
     /**
      * WHY space-between?
      * - Items count on left, subtotal on right
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    marginBottom: 4,
+    marginBottom: spacing.xs,
     /**
      * WHY gray color?
      * - Secondary text styling
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
   },
 
   value: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
     /**
      * WHY fontWeight: 600?
      * - Emphasizes the actual value
@@ -201,7 +202,8 @@ const styles = StyleSheet.create({
   },
 
   subtotalValue: {
-    fontWeight: 'bold',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
     /**
      * WHY larger and blue?
      * - Most important number on screen
@@ -212,7 +214,7 @@ const styles = StyleSheet.create({
 
   // ===== DIVIDER =====
   divider: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
     /**
      * WHY divider here?
      * - Clear separation between info and action
@@ -243,7 +245,7 @@ const styles = StyleSheet.create({
 
   checkoutButtonLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
     /**
      * WHY explicit font styling?
      * - Ensures button text is prominent

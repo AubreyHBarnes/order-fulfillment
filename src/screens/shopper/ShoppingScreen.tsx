@@ -23,7 +23,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, radius, spacing, tabularNums } from '../../theme';
 import { getOrderById } from '../../services/orderService';
 import { updatePickedItems, updateItemIssues } from '../../services/functionActionService';
 import { getProductById } from '../../services/productService';
@@ -69,6 +69,7 @@ const ShoppingScreen: React.FC<ShoppingScreenProps> = ({ route, navigation }) =>
       color: theme.colors.error,
     },
     detailText: {
+      ...tabularNums,
       color: theme.custom.textSecondary,
     },
   };
@@ -310,25 +311,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   errorText: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   listContent: {
-    paddingVertical: 12,
-    paddingBottom: 24,
+    paddingVertical: spacing.md,
+    paddingBottom: spacing.xxl,
   },
   footer: {
-    padding: 16,
+    padding: spacing.lg,
     borderTopWidth: 1,
   },
   continueButton: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
 });
 

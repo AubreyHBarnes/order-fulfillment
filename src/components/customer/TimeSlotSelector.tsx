@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing } from '../../theme';
 import type { TimeSlotSelectorProps, PickupTimeSlot } from '../../types';
 
 const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
@@ -89,13 +89,13 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
 
   sectionLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.md,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -103,14 +103,14 @@ const styles = StyleSheet.create({
   chip: {
     borderRadius: 20,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     marginRight: 10,
     borderWidth: 2,
   },
 
   chipText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   emptyText: {

@@ -14,7 +14,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Button } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing } from '../../theme';
 import type { EmptyCartProps } from '../../types';
 
 /**
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
     /**
      * WHY flex: 1?
      * - Takes all available vertical space
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   // ===== CONTENT =====
   icon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
     /**
      * WHY large font size for emoji?
      * - Makes icon visually prominent
@@ -149,9 +149,9 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     /**
      * WHY textAlign: center?
      * - Matches centered layout
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
 
   message: {
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
     /**
      * WHY secondary text color?
      * - Less prominent than title
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
 
   // ===== ACTION =====
   button: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     /**
      * WHY marginTop?
      * - Extra spacing from message

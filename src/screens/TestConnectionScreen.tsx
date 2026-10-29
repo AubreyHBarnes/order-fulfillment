@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { databases, config } from '../services/appwrite';
 import type { Product } from '../types';
+import { fontFamilies, radius, spacing, tabularNums } from '../theme';
 
 const TestConnectionScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -122,38 +123,38 @@ const TestConnectionScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: spacing.xl,
     backgroundColor: '#f5f5f5',
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontFamily: fontFamilies.heading,
+    marginBottom: spacing.xl,
     textAlign: 'center',
   },
   statusCard: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: spacing.xl,
     borderRadius: 10,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
     alignItems: 'center',
   },
   statusText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   loader: {
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   errorCard: {
     backgroundColor: '#ffebee',
-    padding: 20,
+    padding: spacing.xl,
     borderRadius: 10,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   errorTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fontFamilies.heading,
     color: '#c62828',
     marginBottom: 10,
   },
@@ -164,24 +165,24 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     backgroundColor: '#c62828',
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.md,
+    borderRadius: radius.sm,
     alignItems: 'center',
   },
   retryText: {
     color: 'white',
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   resultsCard: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: spacing.xl,
     borderRadius: 10,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
     flex: 1,
   },
   resultsTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     marginBottom: 15,
     color: '#2e7d32',
   },
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   productList: {
     flex: 1,
@@ -206,8 +207,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productPrice: {
+    ...tabularNums,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
     color: '#0066cc',
   },
   infoCard: {
@@ -217,7 +219,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     marginBottom: 10,
   },
   infoText: {

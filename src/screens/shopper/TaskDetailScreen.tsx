@@ -59,7 +59,7 @@ import {
 } from 'react-native';
 import { Text, Icon, Card, Divider, Button } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing, tabularNums } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { getOrderById } from '../../services/orderService';
 import { getShopperStatus } from '../../services/shopperStatusService';
@@ -435,12 +435,15 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
       color: theme.colors.onSurface,
     },
     itemPrice: {
+      ...tabularNums,
       color: theme.custom.textSecondary,
     },
     totalLabel: {
+      ...tabularNums,
       color: theme.colors.onSurface,
     },
     totalAmount: {
+      ...tabularNums,
       color: theme.colors.primary,
     },
     errorText: {
@@ -484,7 +487,7 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
     return (
       <View style={[styles.loadingContainer, dynamicStyles.container]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: 16 }}>
+        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: spacing.lg }}>
           Loading order details...
         </Text>
       </View>
@@ -499,7 +502,7 @@ const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }
         <Text variant="titleMedium" style={[styles.errorTitle, dynamicStyles.errorText]}>
           Unable to load order
         </Text>
-        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: 8 }}>
+        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: spacing.sm }}>
           {error || 'Order not found'}
         </Text>
       </View>
@@ -671,7 +674,7 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
 
   loadingContainer: {
@@ -684,41 +687,41 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
 
   errorTitle: {
-    marginTop: 16,
-    fontWeight: '500',
+    marginTop: spacing.lg,
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   sectionTitle: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     letterSpacing: 0.5,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
 
   card: {
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
 
   cardContent: {
-    gap: 12,
+    gap: spacing.md,
   },
 
   orderId: {
-    fontWeight: '700',
+    fontFamily: fontFamilies.bodyBold,
   },
 
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
 
   customerName: {
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   orderDate: {
@@ -727,21 +730,21 @@ const styles = StyleSheet.create({
 
   fulfillmentRow: {
     flexDirection: 'row',
-    marginTop: 4,
-    gap: 8,
+    marginTop: spacing.xs,
+    gap: spacing.sm,
   },
 
   fulfillmentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     gap: 6,
   },
 
   fulfillmentText: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   address: {
@@ -749,7 +752,7 @@ const styles = StyleSheet.create({
   },
 
   notesRow: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 
   notes: {
@@ -760,25 +763,27 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
 
   itemQuantity: {
+    ...tabularNums,
     width: 32,
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   itemName: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
 
   itemPrice: {
-    marginLeft: 8,
+    ...tabularNums,
+    marginLeft: spacing.sm,
   },
 
   divider: {
-    marginVertical: 12,
+    marginVertical: spacing.md,
   },
 
   totalRow: {
@@ -788,11 +793,13 @@ const styles = StyleSheet.create({
   },
 
   totalLabel: {
-    fontWeight: '600',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   totalAmount: {
-    fontWeight: '700',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
   },
 
   bottomPadding: {
@@ -800,12 +807,12 @@ const styles = StyleSheet.create({
   },
 
   actionContainer: {
-    paddingHorizontal: 16,
-    marginTop: 8,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
   },
 
   actionButton: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
 });
 

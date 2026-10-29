@@ -20,7 +20,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, IconButton } from 'react-native-paper';
 import { formatPrice } from '../../services/productService';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, minTouchTarget, spacing, tabularNums } from '../../theme';
 import type { CartItemCardProps } from '../../types';
 
 /**
@@ -39,9 +39,11 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
 
   const dynamicStyles = {
     pricePerUnit: {
+      ...tabularNums,
       color: theme.custom.textSecondary,
     },
     subtotal: {
+      ...tabularNums,
       color: theme.colors.primary,
     },
   };
@@ -128,7 +130,7 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
             <IconButton
               icon="minus"
               mode="outlined"
-              size={20}
+              size={24}
               onPress={handleDecrement}
               disabled={item.quantity <= 1}
               /**
@@ -160,7 +162,7 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
             <IconButton
               icon="plus"
               mode="outlined"
-              size={20}
+              size={24}
               onPress={handleIncrement}
               style={styles.quantityButton}
               accessible={true}
@@ -220,8 +222,8 @@ const CartItemCard: React.FC<CartItemCardProps> = ({
 const styles = StyleSheet.create({
   // ===== CARD CONTAINER =====
   card: {
-    marginHorizontal: 16,
-    marginVertical: 8,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
     /**
      * WHY marginHorizontal instead of margin?
      * - Card stretches full width (minus margins)
@@ -244,7 +246,7 @@ const styles = StyleSheet.create({
   // ===== PRODUCT INFO =====
   infoSection: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
     /**
      * WHY flex: 1?
      * - Takes available space after quantity and subtotal
@@ -254,8 +256,8 @@ const styles = StyleSheet.create({
   },
 
   productName: {
-    fontWeight: '600',
-    marginBottom: 4,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.xs,
     /**
      * WHY fontWeight: 600?
      * - Emphasizes product name
@@ -265,6 +267,7 @@ const styles = StyleSheet.create({
   },
 
   pricePerUnit: {
+    ...tabularNums,
     /**
      * WHY secondary color?
      * - Secondary information
@@ -275,7 +278,7 @@ const styles = StyleSheet.create({
 
   // ===== QUANTITY CONTROLS =====
   quantitySection: {
-    marginRight: 12,
+    marginRight: spacing.md,
     /**
      * WHY separate section?
      * - Groups quantity controls visually
@@ -296,6 +299,8 @@ const styles = StyleSheet.create({
 
   quantityButton: {
     margin: 0,
+    width: minTouchTarget,
+    height: minTouchTarget,
     /**
      * WHY margin: 0?
      * - IconButton has default margin
@@ -305,9 +310,10 @@ const styles = StyleSheet.create({
   },
 
   quantityText: {
+    ...tabularNums,
     minWidth: 32,
     textAlign: 'center',
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
     /**
      * WHY minWidth: 32?
      * - Ensures consistent width for 1-99 quantities
@@ -328,7 +334,8 @@ const styles = StyleSheet.create({
   },
 
   subtotal: {
-    fontWeight: 'bold',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
     /**
      * WHY primary color?
      * - Matches price styling from ProductCard
@@ -339,7 +346,7 @@ const styles = StyleSheet.create({
 
   removeButton: {
     margin: 0,
-    marginTop: 4,
+    marginTop: spacing.xs,
     /**
      * WHY small marginTop?
      * - Separates from subtotal

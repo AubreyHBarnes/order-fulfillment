@@ -37,7 +37,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import FulfillmentTypeSelector from '../../components/customer/FulfillmentTypeSelector';
 import DeliveryAddressForm from '../../components/customer/DeliveryAddressForm';
 import PickupLocationSelector from '../../components/customer/PickupLocationSelector';
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 100,
   },
 
@@ -684,13 +684,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
     borderTopWidth: 1,
   },
 
   placeOrderButton: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 18,
     alignItems: 'center',
   },
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
 
   placeOrderButtonText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 
