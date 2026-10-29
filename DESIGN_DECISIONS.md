@@ -247,10 +247,10 @@ I can drive these with the existing `shot.sh` helper for stills; true video need
 | # | Decision | Status |
 |---|---|---|
 | 1 | Reanimated `~4.2.3` + `react-native-worklets` approved for Phase 2; haptics via library approved | Approved |
-| 2 | Amber on light: user asked for visuals first. Options A/B/C rendered with measured ratios (see the "Amber on Light Options" artifact). Recommendation is B (filled shape, ink glyph, `#A56A00` outline in light mode only: 4.23:1 outline, 8.98:1 glyph) | **Awaiting choice** |
+| 2 | Amber on light: **option C chosen.** Light-mode amber icons use a darker step of the same hue, `#8A5A00` (5.56:1 on the light surface; same ~40° hue as `#F2B33D`). Dark mode and amber fills keep `#F2B33D` (8.74:1 on dark; ink glyph on fill 8.98:1). Alternatives rejected: A, amber icon alone (1.74:1, fails); B, outlined fill (kept one brand hue but adds an outline treatment only in light mode) | Decided |
 | 3 | Out-of-stock re-mapped from red to gray; red reserved for needs-action | Approved |
 | 4 | A5 timeline timestamps postponed until the user can make the backend change; Phase 2 tracker shows a time only where a real one exists | Postponed |
-| 5 | Before-state recordings captured; test orders reset first | Partial, see 0.14 |
+| 5 | Before-state recordings captured; test orders reset first. Remaining substitution and handoff clips: user records by hand; the rest are skipped | Partial, see 0.14 |
 
 ### 0.14 Before-state recordings (`docs/ui-audit/recordings/`, uncommitted, 18 MB)
 
@@ -269,7 +269,7 @@ Captured on emulators via `adb screenrecord`, dev build, 1080x2400:
 
 Why the gap: scripted taps on the substitution picker were unreliable, and the dev-only WebSocket error toast overlaid the footage and swallowed taps. A temporary `LogBox.ignoreAllLogs` edit was used for part of the session and reverted (not committed).
 
-Backend observation (not changed): after an auto-assignment, `claimLock` stayed at 1 on both the order and the shopper status doc until reset by hand, and a manual claim then failed with "no longer available". Worth a look in `functions/auto-assignment` before the demo.
+Backend note (corrected, nothing changed): an earlier draft of this entry called the claim locks a bug. They are not. `claimLock` stays at 1 on an order and its shopper while the shopper holds the order, by design (`functions/auto-assignment/src/main.js:191`). The "no longer available" and "already have an active order" errors during recording came from resetting test data by direct database writes, which skipped the Function's cleanup, plus a stale Task Details screen. One possible gap remains and is unverified: `handleCancelOrder` (line 1229) does not clear the shopper's `currentOrderId` or lock when a customer cancels an `assigned` order. Customers can cancel only while `pending` or `assigned`, so the window is narrow. Logged as low priority, out of scope for the design work. No next-day auto-cancel exists in the Function or client code.
 
 Test data left: order `BB02DC98` is assigned to shopper.tester with 1 of 3 items picked; `1A8739CF`, `F55B13C0`, `35934C69` are cancelled, `6400B034` completed.
 
