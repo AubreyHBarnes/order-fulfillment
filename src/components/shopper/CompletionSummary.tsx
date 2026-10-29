@@ -11,7 +11,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing, tabularNums } from '../../theme';
 import type { CompletionSummaryProps } from '../../types';
 
 const CompletionSummary: React.FC<CompletionSummaryProps> = ({
@@ -62,7 +62,7 @@ const CompletionSummary: React.FC<CompletionSummaryProps> = ({
             </Text>
           </View>
         ))}
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
         <View style={styles.row}>
           <Text variant="titleMedium" style={styles.totalLabel}>
             Total Items
@@ -78,14 +78,14 @@ const CompletionSummary: React.FC<CompletionSummaryProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    borderRadius: radius.md,
   },
   sectionTitle: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     letterSpacing: 0.5,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   row: {
     flexDirection: 'row',
@@ -94,18 +94,19 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   value: {
-    fontWeight: '700',
+    fontFamily: fontFamilies.bodyBold,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(128,128,128,0.2)',
-    marginVertical: 8,
+    marginVertical: spacing.sm,
   },
   totalLabel: {
-    fontWeight: '700',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
   },
   totalValue: {
-    fontWeight: '700',
+    ...tabularNums,
+    fontFamily: fontFamilies.bodyBold,
   },
 });
 

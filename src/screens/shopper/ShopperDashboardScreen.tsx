@@ -82,7 +82,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useShopperAssignment } from '../../context/ShopperAssignmentContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing } from '../../theme';
 import {
   getAvailableTasksCount,
   getCurrentAssignedOrder,
@@ -804,9 +804,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     // Shadow for subtle separation
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -816,11 +816,11 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontWeight: '700',
+    fontFamily: fontFamilies.heading,
   },
 
   settingsButton: {
-    padding: 8,
+    padding: spacing.sm,
   },
 
   scrollView: {
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    padding: 20,
+    padding: spacing.xl,
   },
 
   /**
@@ -836,35 +836,35 @@ const styles = StyleSheet.create({
    * Store name and greeting
    */
   storeSection: {
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
 
   storeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
 
   storeName: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   greeting: {
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
 
   /**
    * QUICK LINKS SECTION
    */
   quickLinksSection: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 
   sectionTitle: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.headingSemiBold,
     letterSpacing: 0.5,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
 
   bottomPadding: {

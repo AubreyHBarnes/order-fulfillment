@@ -11,6 +11,7 @@ import { StyleSheet } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 import { beginTrip, TripHandle } from '../../services/tripReporter';
 import { geolocationSource, requestLocationPermission } from '../../services/geolocationSource';
+import { spacing, useAppTheme } from '../../theme';
 
 interface Props {
   orderId: string;
@@ -21,6 +22,7 @@ interface Props {
 type State = 'idle' | 'starting' | 'sharing' | 'error';
 
 const OnMyWayCard: React.FC<Props> = ({ orderId, onArrived }) => {
+  const theme = useAppTheme();
   const [state, setState] = useState<State>('idle');
   const [message, setMessage] = useState('');
   const trip = useRef<TripHandle | null>(null);
@@ -65,7 +67,7 @@ const OnMyWayCard: React.FC<Props> = ({ orderId, onArrived }) => {
             ? 'Sharing your location. Staff are notified automatically when you reach the pickup area. Keep the app open.'
             : 'Share your location and we will let staff know when you reach the pickup area.'}
         </Text>
-        {state === 'error' && <Text style={styles.error}>{message}</Text>}
+        {state === 'error' && <Text style={[styles.error, { color: theme.colors.error }]}>{message}</Text>}
         {state === 'sharing' ? (
           <Button mode="outlined" onPress={stop}>Stop sharing</Button>
         ) : (
@@ -79,9 +81,9 @@ const OnMyWayCard: React.FC<Props> = ({ orderId, onArrived }) => {
 };
 
 const styles = StyleSheet.create({
-  card: { marginHorizontal: 16, marginBottom: 16 },
-  body: { marginVertical: 8 },
-  error: { color: '#B00020', marginBottom: 8 },
+  card: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
+  body: { marginVertical: spacing.sm },
+  error: { marginBottom: spacing.sm },
 });
 
 export default OnMyWayCard;

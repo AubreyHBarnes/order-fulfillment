@@ -16,7 +16,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Modal, Pressable, FlatList } from 'react-native';
 import { Text, Searchbar, ActivityIndicator, IconButton } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing, tabularNums } from '../../theme';
 import { searchProducts, formatPrice } from '../../services/productService';
 import type { SubstitutionPickerModalProps, Product } from '../../types';
 
@@ -33,10 +33,10 @@ const SubstitutionPickerModal: React.FC<SubstitutionPickerModalProps> = ({
 
   const dynamicStyles = {
     modalOverlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: theme.custom.scrim,
     },
     card: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.elevation.level3,
     },
     title: {
       color: theme.colors.onSurface,
@@ -48,6 +48,7 @@ const SubstitutionPickerModal: React.FC<SubstitutionPickerModalProps> = ({
       color: theme.colors.onSurface,
     },
     resultPrice: {
+      ...tabularNums,
       color: theme.colors.primary,
     },
     emptyText: {
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
     maxHeight: '75%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
+    padding: spacing.xl,
     elevation: 8,
   },
   header: {
@@ -157,31 +158,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontWeight: '700',
+    fontFamily: fontFamilies.heading,
   },
   subtitle: {
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   searchBar: {
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
   loading: {
-    marginVertical: 8,
+    marginVertical: spacing.sm,
   },
   list: {
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   resultRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
   },
   emptyText: {
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: spacing.xxl,
   },
 });
 

@@ -36,7 +36,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getOrderById, getPickupLocations } from '../../services/orderService';
 import { formatPrice } from '../../services/productService';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { MainStackParamList, Order } from '../../types';
 
 /**
@@ -398,14 +398,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
 
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: spacing.xl,
     /**
      * WHY CENTER CONTENT?
      * - Success screen is celebratory
@@ -416,8 +416,8 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 24,
+    fontFamily: fontFamilies.heading,
+    marginBottom: spacing.xxl,
     /**
      * WHY LARGE TITLE?
      * - Primary success message
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
     /**
      * WHY GREEN CIRCLE?
      * - Success color (green)
@@ -442,17 +442,17 @@ const styles = StyleSheet.create({
 
   checkmark: {
     fontSize: 40,
-    fontWeight: 'bold',
+    fontFamily: fontFamilies.bodyBold,
   },
 
   successIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
 
   orderId: {
     fontSize: 18,
-    marginBottom: 32,
+    marginBottom: spacing.xxxl,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     /**
      * WHY MONOSPACE?
@@ -463,8 +463,8 @@ const styles = StyleSheet.create({
   },
 
   infoCard: {
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: radius.md,
+    padding: spacing.xl,
     width: '100%',
     maxWidth: 320,
     /**
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
     /**
      * WHY lineHeight: 24?
      * - Multi-line address readability
@@ -490,40 +490,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    paddingTop: 16,
+    paddingTop: spacing.lg,
   },
 
   summaryText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   loadingText: {
-    marginTop: 16,
+    marginTop: spacing.lg,
     fontSize: 16,
   },
 
   errorText: {
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 
   footer: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
     borderTopWidth: 1,
   },
 
   continueButton: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 18,
     alignItems: 'center',
   },
 
   continueButtonText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 

@@ -22,7 +22,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { FulfillmentTypeSelectorProps } from '../../types';
 
 /**
@@ -186,7 +186,7 @@ const FulfillmentTypeSelector: React.FC<FulfillmentTypeSelectorProps> = ({
  */
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
     /**
      * WHY marginBottom?
      * - Space before next section
@@ -196,8 +196,8 @@ const styles = StyleSheet.create({
 
   sectionLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.md,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     /**
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
 
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     /**
      * WHY flexDirection: 'row'?
      * - Side-by-side buttons
@@ -219,8 +219,8 @@ const styles = StyleSheet.create({
 
   optionButton: {
     flex: 1,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: radius.md,
+    padding: spacing.xl,
     alignItems: 'center',
     borderWidth: 2,
     /**
@@ -232,12 +232,12 @@ const styles = StyleSheet.create({
 
   optionIcon: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
 
   optionText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
     /**
      * WHY NO color?
      * - Color from dynamicStyles.optionText

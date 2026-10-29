@@ -8,7 +8,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, spacing } from '../../theme';
 import { formatPrice } from '../../services/productService';
 import OrderStatusBadge from './OrderStatusBadge';
 import type { OrderCardProps } from '../../types';
@@ -87,15 +87,15 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onPress }) => {
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
+    marginHorizontal: spacing.lg,
     marginVertical: 6,
   },
   content: {
-    paddingVertical: 12,
-    gap: 8,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   orderId: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   dateText: {
     fontSize: 14,

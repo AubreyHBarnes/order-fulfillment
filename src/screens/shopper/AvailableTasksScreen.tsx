@@ -50,7 +50,7 @@ import {
 import { Text, Icon, Card } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import { getAvailableTasks } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
 import { subscribeToOrders } from '../../services/realtimeService';
@@ -420,7 +420,7 @@ const AvailableTasksScreen: React.FC<AvailableTasksScreenProps> = ({
     return (
       <View style={[styles.loadingContainer, dynamicStyles.container]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: 16 }}>
+        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: spacing.lg }}>
           Loading available tasks...
         </Text>
       </View>
@@ -474,61 +474,61 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
     flexGrow: 1,
   },
 
   card: {
-    marginBottom: 12,
-    borderRadius: 12,
+    marginBottom: spacing.md,
+    borderRadius: radius.md,
   },
 
   cardContent: {
-    gap: 4,
+    gap: spacing.xs,
   },
 
   customerName: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   orderInfo: {
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
 
   fulfillmentRow: {
     flexDirection: 'row',
-    marginTop: 8,
-    gap: 8,
+    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
 
   fulfillmentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    gap: spacing.xs,
   },
 
   fulfillmentText: {
-    fontWeight: '500',
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
 
   emptyTitle: {
-    marginTop: 16,
-    fontWeight: '500',
+    marginTop: spacing.lg,
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   emptySubtitle: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
 });

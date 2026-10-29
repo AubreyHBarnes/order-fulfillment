@@ -40,7 +40,7 @@ import {
 } from 'react-native';
 import { Text, Icon, Card, Button } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing, tabularNums } from '../../theme';
 import { getActiveArrivals } from '../../services/arrivalService';
 import { getOrderById } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
@@ -338,7 +338,7 @@ const CustomerCheckInsScreen: React.FC = () => {
     return (
       <View style={[styles.loadingContainer, dynamicStyles.container]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: 16 }}>
+        <Text variant="bodyMedium" style={{ color: theme.custom.textSecondary, marginTop: spacing.lg }}>
           Loading check-ins...
         </Text>
       </View>
@@ -387,18 +387,18 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
     flexGrow: 1,
   },
 
   card: {
-    marginBottom: 12,
-    borderRadius: 12,
+    marginBottom: spacing.md,
+    borderRadius: radius.md,
   },
 
   cardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
 
   headerRow: {
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   },
 
   customerName: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 
   infoText: {
@@ -417,8 +417,8 @@ const styles = StyleSheet.create({
 
   waitBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
   },
 
   detailRow: {
@@ -428,27 +428,28 @@ const styles = StyleSheet.create({
   },
 
   detailText: {
+    ...tabularNums,
     flex: 1,
   },
 
   handOffButton: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
 
   emptyTitle: {
-    marginTop: 16,
-    fontWeight: '500',
+    marginTop: spacing.lg,
+    fontFamily: fontFamilies.bodyMedium,
   },
 
   emptySubtitle: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
 });

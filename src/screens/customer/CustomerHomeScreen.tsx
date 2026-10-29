@@ -38,7 +38,7 @@ import {
 } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCart } from '../../context/CartContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import {
   getAllProducts,
   getProductsByCategory,
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
 
   // ===== HEADER =====
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
      * - Standard header pattern
      */
     alignItems: 'center',
-    padding: 16,
+    padding: spacing.lg,
     /**
      * WHY elevation/shadowOffset?
      * - Creates shadow (depth)
@@ -838,13 +838,13 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontWeight: 'bold',
+    fontFamily: fontFamilies.heading,
   },
 
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
 
   headerButton: {
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
      * - Allows badge to position absolutely within button
      * - Badge can overlay the cart icon
      */
-    padding: 8,
+    padding: spacing.sm,
   },
 
   cartBadge: {
@@ -871,9 +871,9 @@ const styles = StyleSheet.create({
 
   // ===== SEARCH =====
   searchBar: {
-    margin: 16,
-    marginTop: 8,
-    marginBottom: 8,
+    margin: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
     elevation: 0,
     /**
      * WHY elevation: 0?
@@ -898,8 +898,8 @@ const styles = StyleSheet.create({
   },
 
   categoryContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     /**
      * WHY contentContainerStyle?
      * - ScrollView styles the content, not wrapper
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
   },
 
   categoryChip: {
-    marginRight: 8,
+    marginRight: spacing.sm,
     height: 32,
     /**
      * WHY marginRight?
@@ -932,8 +932,8 @@ const styles = StyleSheet.create({
   },
 
   productList: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
     /**
      * WHY paddingHorizontal: 20?
      * - More space between device edges and product grid
@@ -944,7 +944,7 @@ const styles = StyleSheet.create({
 
   row: {
     justifyContent: 'center',
-    gap: 12,
+    gap: spacing.md,
     /**
      * WHY justifyContent: center with gap?
      * - Centers cards instead of spreading them apart
@@ -958,11 +958,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxxl,
   },
 
   emptyTitle: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
 
@@ -972,34 +972,34 @@ const styles = StyleSheet.create({
 
   // ===== LOADING =====
   loadingText: {
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
 
   // ===== ERROR =====
   errorTitle: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
 
   errorText: {
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
     textAlign: 'center',
   },
 
   retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
   },
 
   retryButtonText: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
     fontSize: 16,
   },
 
   // ===== FAB (if using) =====
   fab: {
     position: 'absolute',
-    margin: 16,
+    margin: spacing.lg,
     right: 0,
     bottom: 0,
   },

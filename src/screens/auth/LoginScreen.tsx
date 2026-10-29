@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { AuthStackParamList } from '../../types';
 
 type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   header: {
     alignItems: 'center',
@@ -167,8 +167,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontFamily: fontFamilies.heading,
+    marginBottom: spacing.sm,
   },
   subtitle: {
     fontSize: 16,
@@ -177,35 +177,35 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontFamily: fontFamilies.bodySemiBold,
+    marginBottom: spacing.sm,
   },
   input: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   forgotPasswordText: {
     fontSize: 14,
   },
   loginButton: {
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: radius.sm,
+    padding: spacing.lg,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   loginButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
 });
 

@@ -273,6 +273,195 @@ Backend note (corrected, nothing changed): an earlier draft of this entry called
 
 Test data left: order `BB02DC98` is assigned to shopper.tester with 1 of 3 items picked; `1A8739CF`, `F55B13C0`, `35934C69` are cancelled, `6400B034` completed.
 
+
 ---
 
-*Phase 0 is complete. No source files were changed. Awaiting approval before Phase 1.*
+## Phase 1: Tokens and theme
+
+Branch `feature/brand-system`. Before-state is tagged `before-brand-system`. No new app dependencies. Gate: `npx tsc --noEmit` clean, 128 tests pass (109 are the new contrast assertions), and visual check on both emulators in both modes (after-shots in `docs/ui-audit/phase1/`).
+
+### 1.1 What was built
+
+| File | Contents |
+|---|---|
+| `src/theme/colors.ts` | `ColorTokens` with a `lightColors` / `darkColors` pair. M3 roles, tonal elevation ladder, scrim, ripple, media colors, and `status.{picked,substituted,unavailable,actionNeeded}` each with `color / container / onContainer / solid / onSolid` |
+| `src/theme/typography.ts` | `fontFamilies`, `tabularNums`, Paper `configureFonts` for all 15 M3 variants |
+| `src/theme/layout.ts` | `spacing` (2/4/8/12/16/20/24/32), `radius` (8/12/16/full), `minTouchTarget` 48 |
+| `src/theme/motion.ts` | `duration` fast 150 / base 250 / slow 400; `easing` standard / exit / emphasized (cubic-bezier points); `spring` settle / pop / layout |
+| `src/theme/buildTheme.ts` | One function maps a token set onto Paper's MD3 theme plus `theme.custom`, so light and dark cannot drift structurally. Legacy `custom.success/warning/...` keys are kept as aliases to the new status tokens |
+| `src/theme/contrast.ts`, `__tests__/themeContrast.test.ts` | WCAG ratio helper and a test that fails if any pair in either mode drops below AA. `PRINT_CONTRAST=1 npx jest __tests__/themeContrast.test.ts` prints the table below |
+| `android/app/src/main/assets/fonts/` | Static Inter 400/500/600/700 and Plus Jakarta Sans 600/700/800 (SIL OFL, licenses alongside) |
+
+Existing mechanism reused unchanged: `ThemeContext` (system default plus in-app override persisted in AsyncStorage) and `PaperProvider`.
+
+### 1.2 Replacement of hard-coded values
+
+| Category | Before | After |
+|---|---|---|
+| Color literals outside `src/theme` | ~42 in 15 files | 0, except `shadowColor: '#000'` (8 sites): a black shadow is correct in both modes. Dark mode gets depth from tonal elevation, and shadows there are simply invisible |
+| `fontWeight` literals | 112 | 0. Each became an explicit font family (headings to Plus Jakarta, everything else to Inter) |
+| Padding, margin, gap literals | 335 on-scale | tokens. Off-scale values (5, 6, 10, 14, 15, 18, 30) deliberately left: snapping them changes layout, which is a visual decision |
+| `borderRadius` | 45 on-scale | tokens |
+| Navigation | white header, blue tint, light loading screen | themed header (`elevation.level2`), themed `NavigationContainer`, themed loading screen |
+| `ForgotPasswordScreen` | legacy palette, no theme | themed via a `createStyles(theme)` factory |
+| Alpha-suffix hacks (`color + '20'`) | 8 in `OrderStatusBadge` | explicit container/onContainer tokens |
+| Scrims | `rgba(0,0,0,0.5)` x7 | `theme.custom.scrim`, one token per mode |
+| Tabular figures | none | `tabularNums` on 47 price, total, quantity and count styles |
+
+Left as-is and logged for later: 77 `fontSize` literals (the M3 variants carry most text; inline sizes are a type-scale decision), `TestConnectionScreen` (dev only), iOS font wiring (not done, not verifiable on this machine).
+
+### 1.3 Contrast, every pair, both modes
+
+`surface` rows are the base; `elevation5` rows are the worst case on the lightest/most tinted card surface. Text pairs need 4.5:1, outline boundaries need 3:1.
+
+| Mode | Pair | Colors | Ratio | Needs |
+|---|---|---|---|---|
+| light | error / elevation5 | `#B3261E on #E5ECE7` | 5.44:1 | 4.5:1 |
+| light | error / surface | `#B3261E on #F7F8F5` | 6.13:1 | 4.5:1 |
+| light | inverseOnSurface / inverseSurface | `#EFF1ED on #2E312F` | 11.57:1 | 4.5:1 |
+| light | onError / error | `#FFFFFF on #B3261E` | 6.54:1 | 4.5:1 |
+| light | onErrorContainer / errorContainer | `#5C0F0B on #F9DEDC` | 10.80:1 | 4.5:1 |
+| light | onMedia / mediaScrim over black | `#FFFFFF on #000000` | 21.00:1 | 4.5:1 |
+| light | onPrimary / primary | `#FFFFFF on #1F6F50` | 6.09:1 | 4.5:1 |
+| light | onPrimaryContainer / primaryContainer | `#0B3D2A on #CDEBDA` | 9.62:1 | 4.5:1 |
+| light | onSecondaryContainer / secondaryContainer | `#0A1F16 on #CFE9D9` | 13.36:1 | 4.5:1 |
+| light | onSurface / elevation5 | `#1A1F1C on #E5ECE7` | 13.91:1 | 4.5:1 |
+| light | onSurface / surface | `#1A1F1C on #F7F8F5` | 15.68:1 | 4.5:1 |
+| light | onSurface / surfaceVariant | `#1A1F1C on #DCE5DD` | 12.97:1 | 4.5:1 |
+| light | onSurfaceVariant / elevation5 | `#454D47 on #E5ECE7` | 7.27:1 | 4.5:1 |
+| light | onSurfaceVariant / surface | `#454D47 on #F7F8F5` | 8.19:1 | 4.5:1 |
+| light | onSurfaceVariant / surfaceVariant | `#454D47 on #DCE5DD` | 6.77:1 | 4.5:1 |
+| light | onTertiaryContainer / tertiaryContainer | `#001F29 on #C1E9FB` | 13.29:1 | 4.5:1 |
+| light | outline / elevation5 (boundary) | `#79827B on #E5ECE7` | 3.30:1 | 3:1 |
+| light | outline / surface (boundary) | `#79827B on #F7F8F5` | 3.72:1 | 3:1 |
+| light | primary / elevation5 | `#1F6F50 on #E5ECE7` | 5.07:1 | 4.5:1 |
+| light | primary / surface | `#1F6F50 on #F7F8F5` | 5.71:1 | 4.5:1 |
+| light | status.actionNeeded.color / elevation5 | `#B3261E on #E5ECE7` | 5.44:1 | 4.5:1 |
+| light | status.actionNeeded.color / surface | `#B3261E on #F7F8F5` | 6.13:1 | 4.5:1 |
+| light | status.actionNeeded.onContainer / container | `#5C0F0B on #F9DEDC` | 10.80:1 | 4.5:1 |
+| light | status.actionNeeded.onSolid / solid | `#FFFFFF on #B3261E` | 6.54:1 | 4.5:1 |
+| light | status.picked.color / elevation5 | `#1F6F50 on #E5ECE7` | 5.07:1 | 4.5:1 |
+| light | status.picked.color / surface | `#1F6F50 on #F7F8F5` | 5.71:1 | 4.5:1 |
+| light | status.picked.onContainer / container | `#0F3B2A on #D5EBDD` | 9.98:1 | 4.5:1 |
+| light | status.picked.onSolid / solid | `#FFFFFF on #1F6F50` | 6.09:1 | 4.5:1 |
+| light | status.substituted.color / elevation5 | `#8A5A00 on #E5ECE7` | 4.93:1 | 4.5:1 |
+| light | status.substituted.color / surface | `#8A5A00 on #F7F8F5` | 5.56:1 | 4.5:1 |
+| light | status.substituted.onContainer / container | `#3D2A00 on #FBE7BC` | 11.28:1 | 4.5:1 |
+| light | status.substituted.onSolid / solid | `#1A1F1C on #F2B33D` | 8.98:1 | 4.5:1 |
+| light | status.unavailable.color / elevation5 | `#5C655F on #E5ECE7` | 5.02:1 | 4.5:1 |
+| light | status.unavailable.color / surface | `#5C655F on #F7F8F5` | 5.66:1 | 4.5:1 |
+| light | status.unavailable.onContainer / container | `#2F3631 on #E2E5E0` | 9.76:1 | 4.5:1 |
+| light | status.unavailable.onSolid / solid | `#FFFFFF on #5C655F` | 6.03:1 | 4.5:1 |
+| dark | error / elevation5 | `#FFB4AB on #1E3027` | 8.21:1 | 4.5:1 |
+| dark | error / surface | `#FFB4AB on #111412` | 10.92:1 | 4.5:1 |
+| dark | inverseOnSurface / inverseSurface | `#2E312F on #E1E3DF` | 10.18:1 | 4.5:1 |
+| dark | onError / error | `#4B0008 on #FFB4AB` | 9.49:1 | 4.5:1 |
+| dark | onErrorContainer / errorContainer | `#FFDAD6 on #7A1912` | 8.23:1 | 4.5:1 |
+| dark | onMedia / mediaScrim over black | `#FFFFFF on #000000` | 21.00:1 | 4.5:1 |
+| dark | onPrimary / primary | `#003825 on #6DDBAA` | 7.76:1 | 4.5:1 |
+| dark | onPrimaryContainer / primaryContainer | `#C6F5DD on #0A5239` | 7.68:1 | 4.5:1 |
+| dark | onSecondaryContainer / secondaryContainer | `#CFE9D9 on #364B40` | 7.29:1 | 4.5:1 |
+| dark | onSurface / elevation5 | `#E1E3DF on #1E3027` | 10.78:1 | 4.5:1 |
+| dark | onSurface / surface | `#E1E3DF on #111412` | 14.35:1 | 4.5:1 |
+| dark | onSurface / surfaceVariant | `#E1E3DF on #404943` | 7.22:1 | 4.5:1 |
+| dark | onSurfaceVariant / elevation5 | `#BFC9C1 on #1E3027` | 8.19:1 | 4.5:1 |
+| dark | onSurfaceVariant / surface | `#BFC9C1 on #111412` | 10.89:1 | 4.5:1 |
+| dark | onSurfaceVariant / surfaceVariant | `#BFC9C1 on #404943` | 5.48:1 | 4.5:1 |
+| dark | onTertiaryContainer / tertiaryContainer | `#C1E9FB on #244C5A` | 7.23:1 | 4.5:1 |
+| dark | outline / elevation5 (boundary) | `#8A938C on #1E3027` | 4.40:1 | 3:1 |
+| dark | outline / surface (boundary) | `#8A938C on #111412` | 5.86:1 | 3:1 |
+| dark | primary / elevation5 | `#6DDBAA on #1E3027` | 8.20:1 | 4.5:1 |
+| dark | primary / surface | `#6DDBAA on #111412` | 10.92:1 | 4.5:1 |
+| dark | status.actionNeeded.color / elevation5 | `#FFB4AB on #1E3027` | 8.21:1 | 4.5:1 |
+| dark | status.actionNeeded.color / surface | `#FFB4AB on #111412` | 10.92:1 | 4.5:1 |
+| dark | status.actionNeeded.onContainer / container | `#FFDAD6 on #7A1912` | 8.23:1 | 4.5:1 |
+| dark | status.actionNeeded.onSolid / solid | `#4B0008 on #FFB4AB` | 9.49:1 | 4.5:1 |
+| dark | status.picked.color / elevation5 | `#6DDBAA on #1E3027` | 8.20:1 | 4.5:1 |
+| dark | status.picked.color / surface | `#6DDBAA on #111412` | 10.92:1 | 4.5:1 |
+| dark | status.picked.onContainer / container | `#C9F2DD on #14402E` | 9.56:1 | 4.5:1 |
+| dark | status.picked.onSolid / solid | `#003825 on #6DDBAA` | 7.76:1 | 4.5:1 |
+| dark | status.substituted.color / elevation5 | `#F2B33D on #1E3027` | 7.49:1 | 4.5:1 |
+| dark | status.substituted.color / surface | `#F2B33D on #111412` | 9.97:1 | 4.5:1 |
+| dark | status.substituted.onContainer / container | `#FBE3A6 on #4A3810` | 8.93:1 | 4.5:1 |
+| dark | status.substituted.onSolid / solid | `#1A1F1C on #F2B33D` | 8.98:1 | 4.5:1 |
+| dark | status.unavailable.color / elevation5 | `#A3ACA5 on #1E3027` | 5.97:1 | 4.5:1 |
+| dark | status.unavailable.color / surface | `#A3ACA5 on #111412` | 7.95:1 | 4.5:1 |
+| dark | status.unavailable.onContainer / container | `#D4DAD5 on #2C322E` | 9.23:1 | 4.5:1 |
+| dark | status.unavailable.onSolid / solid | `#1A1F1C on #A3ACA5` | 7.16:1 | 4.5:1 |
+
+Minimum across all 72 rows: **3.30:1** (an outline boundary, which needs 3:1). Every text pair is 4.5:1 or better.
+
+**Before vs after (the numbers that mattered):**
+
+| Pair | Before | After |
+|---|---|---|
+| Light primary text on surface | 4.02:1 fail | 5.71:1 |
+| Light secondary text | 4.23:1 fail | 8.19:1 |
+| Light success text | 2.78:1 fail | 5.71:1 (`picked`) |
+| Light warning/amber text | 1.63:1 fail | 5.56:1 (`#8A5A00`, same hue as `#F2B33D`) |
+| Light error text | 4.23:1 fail | 6.13:1 |
+| Dark header vs status-bar icons | 1.00:1 | themed, visible |
+
+### 1.4 Decision log
+
+**D1. One hue family, generated from the brand green.**
+What: replaced the blue primary / green secondary / yellow warning palette with M3 roles generated from `#1F6F50` (tool: `@material/material-color-utilities`, run in a scratch directory, not an app dependency; output pasted into `colors.ts`).
+Serves: Clear, Assured. Fixes audit findings A2, A3 and A4, which were one bug: Paper components that reach for `secondaryContainer` showed a green the brand never chose.
+Alternatives: keep the iOS-blue and recolor only buttons (rejected: leaves three unrelated hues); use the generated primary `#006C4B` as-is (rejected: brand value `#1F6F50` is already 5.71:1 and must be exact in light mode).
+
+**D2. Exact brand values in light, generated values in dark.**
+What: light primary, surface and ink are exactly `#1F6F50`, `#F7F8F5`, `#1A1F1C`. Dark primary is the M3 tone-80 of the same hue (`#6DDBAA`); unshifted `#1F6F50` on the dark surface was 3.04:1 and fails text.
+Serves: Assured. The brand stays recognizably itself, and dark mode reads as the same green, lighter.
+Alternatives: one shared primary (rejected: fails AA on dark); dark mode with a tinted brand surface (rejected: dark gray surfaces were specified).
+
+**D3. Dark surfaces are `#111412` with a tonal ladder, not black and not shadows.**
+What: `elevation.level0..5` blend the primary into the surface at 5/8/11/12/14%. Modal cards use level 3, cards use level 1, the header uses level 2.
+Serves: Clear. Depth reads without shadows, which vanish on dark.
+Alternatives: pure black (rejected, harsh and no elevation room); shadows in dark (rejected, invisible).
+
+**D4. Status colors are a fixed vocabulary, tuned per mode.**
+What: `status.picked` green, `substituted` amber, `unavailable` gray, `actionNeeded` red, each with five roles. Out-of-stock moved from red to gray; order "Cancelled" badge moved from red to gray.
+Serves: Pain point P2 (unclear shortage/substitution updates): a customer can learn that amber means "something changed, look" and that red always means "you need to act". Clear.
+Alternatives: reuse success/warning/error (rejected: that was the old vocabulary, and out-of-stock read as an alarm).
+
+**D5. Amber: darker step of the same hue for light-mode icons and text (option C).**
+What: light `substituted.color` is `#8A5A00` (5.56:1); the fill stays `#F2B33D` with ink on it (8.98:1); dark mode uses `#F2B33D` for everything (9.97:1 on the dark surface).
+Serves: Clear. The brand amber alone is 1.74:1 on the light surface.
+Alternatives: outlined fill (option B); amber icon alone (option A, fails). See 0.13.
+
+**D6. Fonts as separate static families, not variable fonts or `fontWeight`.**
+What: each weight is its own family file (`Inter_600SemiBold`) because Android addresses custom fonts by file name; `fontWeight` is left at 400 to avoid faux bold. Headings (display, headline, titleLarge and the inline heading-like styles) use Plus Jakarta; title medium/small use its SemiBold.
+Serves: Assured (a confident heading face) and Clear (Inter for dense body text and numerals).
+Alternatives: variable fonts (rejected: unreliable weight selection on Android); a font-weight-to-family wrapper component (rejected: per-component override, against the "through the theme" constraint).
+
+**D7. Tabular numerals on quantities, prices, totals and counts.**
+What: a shared `tabularNums` style applied to 47 style entries.
+Serves: Clear. Totals and steppers do not jitter when digits change, which matters once Phase 2 animates them.
+
+**D8. 48dp targets on the shopper's primary controls.**
+What: the quantity steppers (shopper and cart) are 48dp, the Found / Out of Stock / Substitute buttons have a 48dp minimum height (the `compact` flag is gone), and the photo-credit button gets a 48dp hit area with its 24dp visual unchanged (`hitSlop`).
+Serves: the shopper context: one-handed, in motion.
+Alternatives: bigger visuals (rejected for the credit badge: it would cover the product photo).
+
+**D9. Navigation themed through the navigator, not per screen.**
+What: `NavigationContainer theme`, one shared `headerOptions`, and `WelcomeTitle` / `LogoutButton` / loading screen read the theme.
+Serves: the night-driving drop-off flow. Fixes finding A1 (white header and invisible status-bar icons in dark).
+
+### 1.5 Before/after, verified live
+
+Dark `Shopping` screen: header is dark and tinted, back arrow and status bar are visible; "Found" chip is the green container; steppers are 48dp and the disabled "+" is dimmed; buttons are the new primary. Dark catalog: chips are on-palette, cards use tonal elevation, prices are tabular Plus Jakarta/Inter. Light dashboard: headings in Plus Jakarta, brand green throughout. Files: `docs/ui-audit/phase1/`.
+
+Not yet live-checked: Login/Register, the modals (tokens applied, not viewed), `ForgotPasswordScreen`, large-font layouts, and the amber `substituted` chip (no item was in that state; it is covered by the contrast test only).
+
+### 1.6 Things I noticed that are not fixed
+
+- `CurrentTaskCard` shows "Due by 7:00 PM" in the error color. Red is reserved for needs-action, so a due time should probably be neutral until it is urgent. A design call for you; one line to change.
+- Phase 1 changed look-and-feel on every screen. The before-state clips can still be recorded from the `before-brand-system` tag.
+
+### 1.7 Screen recordings for this phase
+
+Record after the Phase 2 motion lands, but a quick Phase 1 pair is worth having now, in light and dark: (1) Shopping screen, mark an item Found; (2) the dark header navigation (the same clip as `02-header-navigation`) for the A1 before/after.
+
+---
+
+*Phase 1 complete. Awaiting approval before Phase 2.*

@@ -8,7 +8,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, fontFamilies, radius, spacing } from '../../theme';
 import type { OrderTimelineProps, OrderStatus } from '../../types';
 
 /**
@@ -221,7 +221,7 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({ order }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   stepContainer: {
     flexDirection: 'row',
@@ -234,24 +234,24 @@ const styles = StyleSheet.create({
   dot: {
     width: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     borderWidth: 2,
   },
   line: {
     flex: 1,
     width: 2,
-    marginVertical: 4,
+    marginVertical: spacing.xs,
   },
   contentColumn: {
     flex: 1,
-    paddingLeft: 12,
-    paddingBottom: 16,
+    paddingLeft: spacing.md,
+    paddingBottom: spacing.lg,
   },
   label: {
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodySemiBold,
   },
   timestamp: {
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
 });
 
