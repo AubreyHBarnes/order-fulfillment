@@ -147,12 +147,13 @@ const styles = StyleSheet.create({
   orderId: {
     fontWeight: '700',
   },
+  // Stacked, not side by side: two flex:1 buttons in a 340px card left
+  // "Hand Off Order" truncating on narrower screens
   buttonRow: {
-    flexDirection: 'row',
     gap: 12,
   },
   button: {
-    flex: 1,
+    width: '100%',
   },
 });
 

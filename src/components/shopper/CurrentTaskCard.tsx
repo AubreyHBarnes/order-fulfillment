@@ -323,7 +323,7 @@ const CurrentTaskCard: React.FC<CurrentTaskCardProps> = ({ task, onPress }) => {
           activeOpacity={0.7}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel={`Current task: Order ${task.shortOrderId}, ${task.itemCount} items for ${task.customerName}`}
+          accessibilityLabel={`Current task: Order ${task.shortOrderId}, ${task.itemCount} ${task.itemCount === 1 ? 'item' : 'items'} for ${task.customerName}`}
           accessibilityHint="Double tap to view task details"
         >
           {CardContent}

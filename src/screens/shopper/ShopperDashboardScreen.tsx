@@ -419,10 +419,10 @@ const ShopperDashboardScreen: React.FC<ShopperDashboardScreenProps> = ({
           fetchDashboardData();
         }
       });
-      const unsubscribeOrders = subscribeToOrders((event) => {
-        if (event.payload.shopperID === shopperId) {
-          fetchDashboardData();
-        }
+      // Unfiltered: the Pick Tasks count is store-wide, and a new pending
+      // order has an empty shopperID so an own-orders filter never fired for it
+      const unsubscribeOrders = subscribeToOrders(() => {
+        fetchDashboardData();
       });
 
       return () => {
