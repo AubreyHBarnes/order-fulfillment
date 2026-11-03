@@ -6,6 +6,20 @@ It exists for two reasons: to keep a real record while the project is being acti
 
 ---
 
+## Pain points this project targets, and where each stands
+
+Source: first-hand experience as a pickup customer and a user of a production seller app (personal experience only, no third-party recordings). Originally listed in `docs/VIDEO_SCRIPT.md` section 2.
+
+| # | Pain point | Status | Where covered |
+|---|---|---|---|
+| 1 | Customer ETA jumps around; consumer GPS is off by 30-100+ ft | In progress: foreground-only proximity check-in built and emulator-verified, real-phone test pending | "Proximity check-in and the staff lot map" |
+| 2 | Parking spot is free text, ambiguous when other stores' pickup lots are nearby | Deferred, deliberately | "Proximity-based arrival notification" |
+| 3 | Several ready orders mean separate handoffs instead of one trip | Not solved; needs a data-model change | Script section 2 only |
+| 4 | Nothing tells anyone when priorities change (rush order, redirected shopper) | Solved | "Rush notifications and order swapping: before and after" |
+| 5 | Double notifications: one event shows a modal and a device push, and an identical one can arrive again after accepting | Not reproduced in the production app, not built here. This app has in-app realtime only, so the two-channel duplicate cannot occur, but backgrounded shoppers get nothing. Fix pattern if push is added: edge-triggered rules, cancel retry timers on accept, stable notification IDs for dedup | Script section 14 talking point |
+
+---
+
 ## Auto-assignment via sort order, not a routing algorithm
 
 **Context:** Shoppers need orders assigned to them somehow. A real fulfillment platform (Whole Foods/Amazon-style) runs this through a dedicated routing/dispatch system — proximity, shopper load, order age, all weighed together, often as its own service.
@@ -1181,3 +1195,54 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 ### The portfolio story
 
 *A privacy gap found by reviewing my own system, fixed the way a production system would be.* The interesting part is not "add a permission" - it's seeing that the obvious fix (turn on row security) is unsafe on its own, because of who owns the row at creation time, and that the real fix is architectural: **the client never writes rows it can later control; the server owns creation, permissions and group membership.** Concretely: row-level security, Teams as an access-control primitive for roles the platform doesn't natively model, server-owned membership so users can't self-promote, a staged rollout that stays reversible until the final flip, and live verification from both sides (the person who should see the data and the person who shouldn't). It builds directly on the earlier work - the JWT-verified Function actions, the permission lockdown and the live dual-emulator verification method - so it reads as one coherent security story rather than a one-off patch.
+
+---
+
+## Rush notifications and order swapping: before and after (a code and database audit)
+
+**Context:** A first-hand observation (to be worded by the author, dated, from personal experience only; no recordings or screenshots of any third-party app) is that a production seller app I use has no alert when a rush order arrives and no way to swap off an auto-assigned order. This entry answers "what would it take to build that?" with the actual changes in this repo.
+
+**Short answer:** the part that *decides and notifies* is about 100 lines. The rest of the work was making it fast, safe, and correct under concurrency. Counts below are `git show --shortstat` per commit; they include docs (DECISIONS.md/README), and `e5f5712` also carries the arrival hand-off work, so treat them as upper bounds for this feature.
+
+### Before
+- `Orders` already had `interruptedAt` / `interruptReason` (README schema table; `src/types/index.ts:96-97`), referenced by no code.
+- A rush order was `priority: 1` plus a `scheduledReadyTime` 30 minutes out (`41b6c98`). A busy shopper got no signal at all.
+- No swap: leaving an order meant abandoning it via the status dropdown.
+
+### After: the pieces
+| Piece | Where | Job |
+|---|---|---|
+| Pick who to bump | `functions/auto-assignment/src/main.js:114` `getInterruptCandidateShopper` | Busy, available shopper whose current order is due latest |
+| Decide when | `main.js:472` `handleNewOrderPlacement` | Idle shopper first; only `priority === 1` may bump someone |
+| Write it | `main.js:302` `assign()` | Sets `interruptedAt`/`interruptReason`, moves the shopper to the new order |
+| Notify the shopper | `src/context/ShopperAssignmentContext.tsx:328` `checkInterrupt`, `src/components/shopper/OrderInterruptedModal.tsx` | Detects the bump and shows the modal |
+| Deliver it live | `src/services/realtimeService.ts` | Appwrite Realtime subscriptions for Orders, ShopperStatus, CustomerArrivals |
+| "More urgent order" toast | `ShopperAssignmentContext.tsx:346` `checkUrgentOrder`, `UrgentOrderToast.tsx` | Non-blocking hint for shoppers who were not bumped |
+| Swap UI | `src/screens/shopper/TaskDetailScreen.tsx:295-365` | Swap action plus confirm dialog when already mid-task |
+| Swap on the server | `main.js:786` `handleSwapOrder`, `src/services/functionActionService.ts:80` | Claim the new order and release the old one in one transaction |
+
+### After: how it grew
+| Commit | Change | Size |
+|---|---|---|
+| `41b6c98` | Rush toggle at checkout | 4 files, +188/-16 |
+| `6fb0c83` | Interrupt + modal, client-side, polling every 8s (first working version) | 9 files, +704/-1 |
+| `d62b46e` | Polling replaced by Realtime | 11 files, +554/-127 |
+| `e5f5712` | Assignment/interrupt moved to a server Function | 17 files, +1750/-629 |
+| `e8ad14e` | Remaining client writes moved to server actions | 11 files, +524/-494 |
+| `59f8a6d` | Dead client write paths removed | 4 files, +24/-356 |
+| `1c24bb9` | Permission fix | 2 files, +38/-5 |
+| `a390871`, `f220dfc` | Claim/assignment race fix, null-bug follow-up | 10 files +1012/-161; 9 files +138/-4 |
+| `47dc0a7` | Order creation server-side, row permissions backfilled | 8 files, +591/-156 |
+
+### Database / infrastructure changes
+- **Schema:** no new fields; reuses `priority`, `interruptedAt`, `interruptReason`.
+- **Permissions:** `update("any")` removed from Orders, ShopperStatus, CustomerArrivals; all writes now go through the Function.
+- **Infrastructure:** deployed event-triggered Function with a cron schedule; a shoppers Team; row-level permissions on Orders.
+
+### Why it was not a few lines
+1. **Latency:** the first version polled; up to 8s late until Realtime.
+2. **Races:** two shoppers could claim the same order until claim locks.
+3. **Trust:** if clients can write orders, a client can fake an interrupt, so writes moved server-side with JWT-verified callers.
+4. **Live-only bugs:** e.g. a dynamic `interruptReason` string failed schema validation, found only by running it against the real Appwrite project.
+
+**Consequence:** roughly 100 lines to make it work, roughly 2,500 net lines across the commits to make it fast, safe and correct.
