@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Card, Text, Button, Badge } from 'react-native-paper';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../services/productService';
@@ -32,6 +32,11 @@ const CARD_WIDTH = 160;
 const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
   const { addToCart, isInCart, getCartItem } = useCart();
   const theme = useAppTheme();
+  // At large font sizes "Add to Cart" no longer fits the half-width card and
+  // Paper truncates it, so fall back to a short label (full text stays in the
+  // accessibility label).
+  const { fontScale } = useWindowDimensions();
+  const shortAddLabel = fontScale > 1.3;
   const inCart = isInCart(product.$id);
   const cartItem = getCartItem(product.$id);
 
@@ -196,7 +201,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
                  * - Better UX than showing error after tap
                  */
                 disabled={!product.inStock}
-                icon="cart-plus"
+                icon={shortAddLabel ? undefined : 'cart-plus'}
                 style={styles.addButton}
                 /**
                  * WHY compact prop?
@@ -210,7 +215,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
                 accessibilityHint="Double tap to add one item to your cart"
                 accessibilityState={{ disabled: !product.inStock }}
               >
-                Add to Cart
+                {shortAddLabel ? 'Add' : 'Add to Cart'}
               </Button>
             )}
           </View>
@@ -278,6 +283,7 @@ const styles = StyleSheet.create({
   },
   metadata: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     marginBottom: 8,
   },

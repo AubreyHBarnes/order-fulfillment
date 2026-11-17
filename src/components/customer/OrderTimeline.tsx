@@ -135,8 +135,9 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({ order }) => {
       textStyle = dynamicStyles.pendingText;
     }
 
-    // Show timestamp only for completed/current steps
-    const showTimestamp = (isCompleted || isCurrent) && !isCancelled;
+    // Only the order's placement time is stored; later steps have no timestamp
+    // of their own, so showing orderDate on them would be wrong.
+    const showTimestamp = status === 'pending' && (isCompleted || isCurrent) && !isCancelled;
 
     return (
       <View key={status} style={styles.stepContainer}>
