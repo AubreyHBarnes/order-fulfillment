@@ -27,6 +27,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   ListRenderItemInfo,
+  useWindowDimensions,
 } from 'react-native';
 import {
   Searchbar,
@@ -83,6 +84,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   // ============================================================
 
   const theme = useAppTheme();
+  const { fontScale } = useWindowDimensions();
 
   // ============================================================
   // STATE MANAGEMENT
@@ -659,6 +661,9 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
              */
             onPress={() => handleCategorySelect(category)}
             style={styles.categoryChip}
+            // Paper's chip label has a fixed 24 lineHeight; scale it with the
+            // user's font size so large-font labels aren't clipped.
+            textStyle={{ lineHeight: Math.ceil(24 * fontScale) }}
             /**
              * WHY SELECTED STYLE?
              * - Different colors for active vs inactive
@@ -885,7 +890,7 @@ const styles = StyleSheet.create({
 
   // ===== CATEGORIES =====
   categoryContainer: {
-    height: 50,
+    minHeight: 50,
     flexGrow: 0,
     flexShrink: 0,
     /**
@@ -910,7 +915,7 @@ const styles = StyleSheet.create({
 
   categoryChip: {
     marginRight: spacing.sm,
-    height: 32,
+    minHeight: 32,
     /**
      * WHY marginRight?
      * - Space between chips
