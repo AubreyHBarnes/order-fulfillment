@@ -41,6 +41,7 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 - 🛍️ **Shopping Workflow** - Claim an order, work a checklist (found / out-of-stock / propose substitute), customer approves substitutions live, mark ready for pickup (implemented)
 - 🔄 **Order Swap & Rush-Order Interrupt** - Swap onto a more urgent pending order, get interrupted for a rush order when every shopper is busy, non-blocking toast when a more urgent order becomes available - all pushed live via Appwrite Realtime (implemented)
 - ⚡ **Auto-Assignment** - Every assignment (idle hand-off, rush-order interrupt, released-order requeue) is decided server-side by an event-triggered Appwrite Function (`functions/auto-assignment/`), not the client. Started as a client-side `autoAssigned` flag with the decision logic running on whichever device triggered it (no routing algorithm, no atomicity between the read and the write); moved server-side to close the race conditions that design allowed - see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full before/after (implemented)
+- 📍 **Proximity Check-in (foreground-only)** - A customer with a ready pickup order taps "On my way"; while the app is open, location readings go to the server, which decides arrival from a pickup-zone polygon and creates an "Auto check-in" arrival (implemented; background location and the staff lot map are still open - see Roadmap)
 - 🚗 **Drop-offs / Customer Check-ins / Settings** - Drop-offs (`out_for_delivery` status, "Mark Delivered"), Customer Check-ins (store-wide arrival queue, hand-off), and Settings (theme, app version) are all implemented. Started as static placeholder screens in the nav; built out in Phase 4 (implemented)
 
 ### Technical Highlights
@@ -309,7 +310,7 @@ Check your Appwrite project settings for the correct endpoint.
 
 #### 5. Add Sample Data
 
-There's no seed script in this repo yet — populate the Products collection manually via the Appwrite console (Databases → your database → Products → Create Document), or write your own script against `node-appwrite` using the schema above.
+Populate the Products collection with `scripts/seedProducts.js` (103 sample products; needs `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_API_KEY` and `APPWRITE_DATABASE_ID` in the environment). Optionally attach Unsplash images with `scripts/fetchProductImages.js` (`search`, then `apply`; needs `UNSPLASH_ACCESS_KEY`). Run both under Node 22 — Node 26 breaks `node-appwrite`'s fetch (see `docs/DECISIONS.md`).
 
 #### 6. Run the Application
 
@@ -411,7 +412,7 @@ order-fulfillment/
 ## 🧪 Testing
 
 ```bash
-# Run tests (currently a single render smoke test)
+# Run tests (a render smoke test plus fixture tests for the pickup-zone and trip logic)
 npm test
 
 # Run with coverage
@@ -500,8 +501,13 @@ npm install
 ### Planned 📋
 - [ ] **Phase 6:** Remaining Backend & Polish
   - [x] Auto-assignment serverless function - an event-triggered Appwrite Function (`functions/auto-assignment/`) now decides every assignment (idle hand-off, rush-order interrupt, released-order requeue), replacing the client-side sorted query; see `docs/DECISIONS.md`'s "Auto-assignment" entries for the full design and the race conditions it closes
-  - [x] Permission tightening - every planned Function action (13/13: `claimOrder`, `swapOrder`, the CustomerArrivals accept/decline/complete trio, `completeOrder`, `releaseAfterCompletion`, `startShopping`, `toggleAvailability`, `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`) is built, deployed, and live-verified, and client `update` access has been removed from Orders/ShopperStatus/CustomerArrivals (2026-09-25) - every write to those three collections after creation now goes through a JWT-authenticated, server-side action, enforced by Appwrite itself rather than by convention; see `docs/DECISIONS.md`'s "Permission tightening" entries for the full plan, write-path inventory, and the permission removal
-  - [ ] Proximity check-in + staff lot map - shoppers are notified only once a customer is within 100m of the pickup area (the store sits 356m from the nearest competing pickup lot), decided server-side from background location, with a staff map of customers in the lot. Fully planned, including a testing strategy, but postponed; see `docs/DECISIONS.md`'s "Proximity check-in and the staff lot map" entry (order status itself already updates live via Realtime)
+  - [x] Permission tightening - every planned Function action (13/13, plus `joinShoppersTeam` and `createOrder` added later for Orders row security, 15 in total: `claimOrder`, `swapOrder`, the CustomerArrivals accept/decline/complete trio, `completeOrder`, `releaseAfterCompletion`, `startShopping`, `toggleAvailability`, `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`) is built, deployed, and live-verified, and client `update` access has been removed from Orders/ShopperStatus/CustomerArrivals (2026-09-25) - every write to those three collections after creation now goes through a JWT-authenticated, server-side action, enforced by Appwrite itself rather than by convention; see `docs/DECISIONS.md`'s "Permission tightening" entries for the full plan, write-path inventory, and the permission removal
+  - [x] Orders row security (issue #5, Orders only) - each order is readable only by its customer and the `shoppers` Team (`rowSecurity` on, no client table permissions); order creation moved into the Function (`createOrder`), existing orders backfilled, and the flip verified live against guest/customer/shopper sessions. Still to do: the in-app dual-emulator pass, and the same treatment for `CustomerArrivals` and `ShopperStatus`; see `docs/DECISIONS.md`'s "Issue #5" entries
+  - [x] Proximity check-in, foreground-only version - on a ready pickup order the customer's "On my way" card (`OnMyWayCard`, `geolocationSource.ts`) reports location while the app is open, and the server (`functions/auto-assignment/src/zone.js`, `trips.js`) decides arrival against the pickup-zone polygon with a 100m buffer, a speed gate and a required number of inside readings, then creates an "Auto check-in" arrival. The store sits 356m from the nearest competing pickup lot. Verified by fixture tests, a live script (`functions/auto-assignment/scripts/verify-proximity.js`) and an emulator route; see `docs/DECISIONS.md`'s "Proximity check-in" entry
+  - [ ] Proximity, remaining - background location, the staff lot map of customers in the lot, a per-reading log (`TripReadingsLog`), and the real-phone field test (checklist written, not yet run)
+  - [ ] Restore the every-minute sweep (arrival timeout/reassignment, stale-trip expiry) - the Appwrite plan no longer allows cron schedules, so it has not run in production since 2026-10-19; options are a plan upgrade, Appwrite's interval option, or an external trigger. Event-triggered and HTTP-action paths are unaffected
+  - [x] Product images - the catalog is 103 products with Unsplash images (`scripts/seedProducts.js`, `scripts/fetchProductImages.js`)
+  - [ ] Type-check the Function - the app is TypeScript, but `functions/auto-assignment/src/` (`main.js`, `trips.js`, `zone.js`) is plain JavaScript on Node 22, so nothing checks that the app and the Function agree on their message shapes. First step: `// @ts-check` with JSDoc types (no build step); later: convert to TypeScript with types shared between client and Function, which needs a compile step and a changed deploy path
   - [ ] UI/UX improvements
   - [ ] Performance optimization
   - [ ] Comprehensive testing

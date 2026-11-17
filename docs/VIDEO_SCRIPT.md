@@ -6,7 +6,7 @@
 
 **Framing for the whole video:** this is a work in progress, not a finished product. Say so up front and mean it — the unfinished parts are presented as deliberate, documented next steps and become talking points, not apologies.
 
-**Estimated total runtime:** ~28-35 minutes with the live demos. Sections 10-13 (the September work) are the strongest material for an engineering audience; if you need to cut time, shorten sections 4-9 rather than those.
+**Estimated total runtime:** ~32-40 minutes with the live demos. Sections 10-14 (the September-October work) are the strongest material for an engineering audience; if you need to cut time, shorten sections 4-9 rather than those.
 
 ---
 
@@ -24,9 +24,10 @@
 10. Phase 5: From polling to Realtime (20:30)
 11. Phase 6, part 1: Moving the decisions to the server (23:00)
 12. Phase 6, part 2: The arrival hand-off — and being corrected (25:30)
-13. Phase 6, part 3: Locking the database (27:30)
-14. What's still open (30:30)
-15. Close / call to action (33:00)
+13. Phase 6, part 3: Locking the database — and the production drift story (27:30)
+14. Phase 6, part 4: Proximity check-in (31:00)
+15. What's still open (34:00)
+16. Close / call to action (37:00)
 
 ---
 
@@ -216,7 +217,7 @@ This is where the "temporary" polling from section 7 got replaced — and the in
 
 **The decision:** replaced 8-second polling with live subscriptions at all 8 places that had it, centralized in one service file. Two facts about Appwrite Realtime shaped every screen, and both are worth explaining to an engineering audience:
 
-1. **No server-side filtering.** Subscribing to Orders delivers *every* order's changes, project-wide. Each screen filters for its own records. (Section 14 comes back to why this matters for privacy.)
+1. **No server-side filtering.** Subscribing to Orders delivers *every* order's changes, project-wide. Each screen filters for its own records. (That was true at the time. Since then, row-level permissions on Orders mean Appwrite only delivers an order's events to its customer and the shoppers Team — section 13 covers it.)
 2. **No replay after a disconnect.** If the connection drops — a network blip, or the app going to the background — any changes during that gap are simply gone. So the app does a fresh fetch after every reconnect and every time it comes back to the foreground.
    **In plain terms:** it's like a live radio broadcast, not a podcast. If you step away, you miss that part — so when you come back, you have to check the news to catch up.
 
@@ -270,6 +271,8 @@ This section is worth including partly *because* it starts with a mistake.
 
 **In plain terms:** a *cron schedule* is a "run this every X" timer that lives on the server. The catch is that it can't run more often than once a minute, so a 60-second timeout is actually detected somewhere between 60 and 119 seconds — a real limitation, and one I'd rather state than hide.
 
+**An honest update on that sweep:** it isn't running in production right now. The Appwrite plan no longer allows cron schedules, and the live schedule was cleared on October 19 — so the timeout and reassignment described here work in the code and were verified when the schedule existed, but a shopper who ignores a prompt currently isn't timed out. Nothing errored when it stopped; I only found out when a deploy was rejected (section 13 tells that story). Restoring it is an open item.
+
 **Three bugs found only by testing it live** — pick one or two for time:
 1. **A timeout could corrupt a completed order.** When a shopper was marked unavailable, their "current order" was released back to the queue — without checking whether that order was already finished. A stale pointer could have turned a completed order back into a new, unclaimed one. Fixed by checking the order's status first.
 2. **Declining could hand the arrival straight back to you.** Declining doesn't make a shopper unavailable, so they'd still look free — and the reassignment could pick them again. Fixed by recording who declined and excluding them.
@@ -277,7 +280,7 @@ This section is worth including partly *because* it starts with a mistake.
 
 ---
 
-## 13. Phase 6, part 3: Locking the database
+## 13. Phase 6, part 3: Locking the database — and the production drift story
 
 `[SCREEN: DECISIONS.md "Permission tightening complete" entry, then a terminal showing the 401]`
 
@@ -287,7 +290,7 @@ This is the strongest engineering story in the project. Set it up simply:
 
 **In plain terms:** it's like hiring a security guard for the front door but leaving the side door unlocked. The guard does their job perfectly, and it doesn't matter.
 
-**Why this was a big job, not a settings change:** Appwrite's permissions are all-or-nothing per collection — there's no way to say "shoppers can update *this* field of an order but not *that* one." So removing write access from the app meant *every* change the app still made had to move into the Function first: claiming an order, marking items found, approving a substitution, cancelling — **13 separate server actions** in all.
+**Why this was a big job, not a settings change:** Appwrite's permissions are all-or-nothing per collection — there's no way to say "shoppers can update *this* field of an order but not *that* one." So removing write access from the app meant *every* change the app still made had to move into the Function first: claiming an order, marking items found, approving a substitution, cancelling — **13 separate server actions** in all (15 now — joining the shoppers Team and creating an order were added later, for reasons covered below).
 
 **How the server knows who's asking:** the app sends a short-lived signed token (a JWT) with each request, and the Function verifies it with Appwrite before doing anything. Then — separately — it checks whether that person is *allowed* to do this: is this actually your order? Are you the shopper this arrival was sent to?
 
@@ -303,9 +306,69 @@ This is the strongest engineering story in the project. Set it up simply:
 
 > "Before this, every permission check in the Function was advisory. Now Appwrite itself rejects anything that doesn't go through them. That's the difference between a rule and a suggestion."
 
+### Locking reads too: Orders row security
+
+`[SCREEN: DECISIONS.md "Issue #5" entries]`
+
+Writes were locked, but reads weren't — anyone could list every order, addresses included. Appwrite can scope reads per *row* instead of per collection, so each order is stamped with exactly two readers: its customer and a `shoppers` Team. That forced one more move into the Function: order *creation* had to become a server action (`createOrder`), because only the server can stamp those permissions safely.
+
+**In plain terms:** instead of one lock on the whole filing cabinet, each folder gets its own lock — the customer has a key to their folder, and the shoppers' team has a key to all of them.
+
+The server now owns every identity field on a new order and ignores whatever the app sends. Verified live by sending a forged order — someone else's customer ID, `status: completed`, a claim lock already set, an order date in the year 2000 — and getting back an order with the caller's real ID, `pending`, no lock, and the server's clock. The old client-side version had actually allowed backdating an order to jump the queue.
+
+The flip itself was scripted with checks built in and an automatic rollback to the recorded previous state if any failed. Results: a guest sees 0 rows, a customer sees only their own orders (64 of 72) and gets a 404 on anyone else's, a direct write gets a 401, and a shopper sees all 72. One honest caveat: the "shopper sees pending orders" check passed vacuously — there were no pending orders at the time. The in-app dual-emulator pass is still to do.
+
+### The production drift story (a great 60-90 second clip)
+
+`[SCREEN: DECISIONS.md "Deploy gap and the lost cron schedule"]`
+
+> "Before flipping that switch, I did a pre-flight — and part of it was downloading the Function that was actually live and diffing it against my repo. They didn't match."
+
+- **The deploy gap.** `createOrder` was committed on `main` and marked done. But the live Function was an October 17 build from the proximity feature branch: it had the trip actions and no `createOrder`. Checkout on `main` would have failed against production — and deploying `main` as-is would have silently deleted the trip actions. Both choices broke something. The fix was merging `main` into the proximity branch, resolving two conflicts (keep both sides of the action switch; keep the branch's response shape so the trip reporter's reads still work), and deploying from there.
+- **The schedule that vanished.** The first deploy attempt failed with `403 billing_feature_unsupported` — the plan no longer allows cron. The live schedule had been cleared on October 19, so the every-minute sweep (arrival timeouts, reassignment, stale-trip expiry) had silently not run in production for three days — and still isn't. Nothing errored, because everything triggered by events or HTTP calls kept working. The deploy script now warns loudly and reports the schedule that's actually live instead of echoing the one requested.
+
+**In plain terms:** a *deployment* is the copy of the code that's really running on the server. It can quietly differ from the copy in your repository — like editing a recipe in your notebook while the restaurant kitchen is still cooking from the old card.
+
+> "The lesson: 'done' for a server change means deployed *and* exercised live — and before any step that depends on production, check what's actually running against what's in the repo. Type checks, tests, and a green commit can't tell you that."
+
+Same theme as sections 8 and 12 — the gap between what your code assumes and what the live system actually is — now applied to deployed code, not just the database.
+
 ---
 
-## 14. What's still open
+## 14. Phase 6, part 4: Proximity check-in
+
+`[SCREEN: DECISIONS.md "Proximity check-in and the staff lot map", then the OnMyWayCard on the customer emulator]`
+
+This closes the loop on the first frustration from section 2 — the meaningless "2-3 minutes away." The original plan was background location. The version actually built is deliberately smaller: **foreground-only** — the customer opens an "On my way" card on a ready pickup order, and while the app is on screen, location readings are sent to the server.
+
+> "The phone is a sensor; the server decides. The app never says 'I've arrived.' It reports where it is, and the server decides whether that counts."
+
+**How the server decides:**
+- The pickup area is a real 4-point polygon of the lot, not a simple radius, with a 100-meter buffer — the nearest competing pickup lot is 356 meters away.
+- **A speed gate:** a reading inside the buffer but moving at road speed (~8 m/s or more) is ignored, so driving past on the road doesn't trigger anything.
+- **Two inside readings** (the zone's `requiredInsideReadings`) are required before it counts as arrived — one noisy GPS fix can't do it. An outside reading resets the count.
+- **Untrustworthy readings are dropped** — mocked locations, implausible jumps, and poor accuracy never change the count.
+- **A known limit, stated plainly:** a car stopped at a light *inside* the buffer has speed 0, passes the speed gate, and can count as arrived. The fixes are a tighter buffer or a polygon drawn tight to the lot.
+- On arrival the server creates the same "Auto check-in" arrival the manual button would have, and the card flips to "Staff Has Been Notified."
+
+**In plain terms:** a *geofence* is a virtual boundary around a place. The interesting part isn't drawing it — it's deciding what counts as *really* being inside, given that consumer GPS can be off by 30-100+ feet.
+
+**Verified three ways:**
+1. Pure-logic tests with fixture trips (the zone math and the trip rules, no network).
+2. A live script run as a real test customer, against the real Function: 400/250/150 m → outside; 90 m moving fast → ignored; 60 m → inside; 40 m → arrived, exactly one arrival created. A shopper couldn't read the trip before arrival and could after.
+3. The emulator, replaying GPS fixes with `adb` — including a fast leg that stays *inside* the buffer without ever arriving, then a slow leg that does. That's the competitor-lot demo in miniature.
+
+`[DEMO: replay the emulator route — fast drive-past does nothing, slow approach flips the card to "Staff Has Been Notified"]`
+
+**A bug only the live run caught:** the stored zone polygon was invalid JSON. A line-wrapped paste had put newlines inside the numbers and split one coordinate in two, so every location report would have thrown. The unit tests never saw it because they use fixture polygons. Fixed in place; the rule going forward is that anything that writes the polygon must parse it first. Another "type-checking can't see the live data" story.
+
+**Also hit:** the Appwrite project had auto-paused after inactivity (403 `project_paused`). Worth checking before any demo.
+
+**What this version is not:** it stops when the screen locks or the app goes to the background — by design, and documented. Background tracking, the staff lot map, a per-reading log for reviewing real drives, and the real-phone field test (the checklist is written; it hasn't been run) are all still open — section 15.
+
+---
+
+## 15. What's still open
 
 `[SCREEN: README roadmap section, then the "Open issues from a system-design review" entry in DECISIONS.md]`
 
@@ -313,13 +376,19 @@ Be direct: this is unfinished, and knowing *exactly* how it's unfinished is the 
 
 > "Anyone can point at a finished feature. Being able to explain why something isn't built yet, what could go wrong because of it, and what it would take to fix, is the more useful signal."
 
-**Known gaps from a system-design review** — the ones worth naming on camera:
-- **The server can still race with itself.** Moving decisions into one Function cut the number of decision-makers from "every phone" to "one place" — but that one place can run several copies at the same moment. Two shoppers tapping Claim at the same instant can both pass the "is this still available?" check before either saves. The fix is a database transaction or a conditional write, and it's the next thing I'd build.
-  **In plain terms:** the check ("is it free?") and the action ("take it") need to happen as one step that nobody can squeeze in between.
-- **Some updates can stop halfway.** Assigning an order updates two records separately; a crash between them leaves them disagreeing. Same fix (transactions), or a regular cleanup job that finds and repairs mismatches.
-- **Reads are still wide open.** I locked who can *change* data, but not who can *read* it — anyone can currently list every order, including addresses. It's all test data, so nothing real is exposed, but in production this would be the first thing to fix, using row-level permissions.
-- **The app still sets a few things the server should,** like the order total and arrival timestamps — both should be calculated on the server.
-- **Testing is mostly manual.** Everything was verified live on two emulators, which is thorough but slow. The Function's rules are the best candidates for automated tests.
+**Closed since the system-design review** — worth a sentence, because it shows the list gets worked:
+- **The server racing with itself — fixed.** One Function can run several copies at once, so two shoppers tapping Claim at the same instant could both pass the "is this still available?" check. Fixed with claim locks, where the database decides the winner, and verified live.
+  **In plain terms:** the check ("is it free?") and the action ("take it") now happen as one step that nobody can squeeze in between.
+- **Reads on Orders — fixed.** Per-row permissions: a customer sees only their own orders, shoppers see all, guests see none (section 13). Still open: the same treatment for `CustomerArrivals` and `ShopperStatus`, and the in-app dual-emulator pass for Orders.
+- **Product images — done.** The catalog is now 103 products with Unsplash images, each chosen image recorded.
+
+**Known gaps still open** — the ones worth naming on camera:
+- **Some updates can stop halfway.** Assigning an order updates two records separately; a crash between them leaves them disagreeing. The fix is transactions, or a regular cleanup job that finds and repairs mismatches.
+- **The every-minute sweep isn't running in production** (section 13). The plan rejects cron; options are an upgrade, Appwrite's interval option (not yet investigated), or an external trigger. Until then, an ignored arrival prompt or an unanswered auto check-in isn't timed out or reassigned.
+- **The app still sets a few things the server should,** like the order total (price trust is deliberately still open) and arrival timestamps — both should be calculated on the server.
+- **The server logic isn't type-checked.** The app is TypeScript, but the Function (`main.js`, `trips.js`, `zone.js`) is plain JavaScript running on Node 22 — so nothing verifies that the app and the Function agree on the shape of their messages. I've already had a near-miss of this kind: the `{ success, data }` response shape had to be kept in sync by hand during the deploy-gap merge. Say it as a known gap, not a deliberate choice — the decision log doesn't record one. In production I'd share one set of types between client and server; a cheaper first step is `// @ts-check` with JSDoc comments, which needs no build step.
+  **In plain terms:** type checking is spell-check for your data's shape — it catches "the app sent `readyForPickup` but the server expects `ready_for_pickup`" before anything runs. Plain JavaScript has no such check, so that mistake only shows up when something breaks.
+- **Testing is partly automated now, mostly manual.** The pure logic for the pickup zone and trips has fixture-based tests, but the rest was verified live on emulators, which is thorough but slow. The Function's assignment rules are the best next candidates.
 
 **A frustration from the production app, not reproduced in this one: duplicate and mistimed notifications.** Talking point, not a feature. Three cases from my own use of the app:
 1. **No assigned order:** a new-assignment modal and a toast both appear. Accepting through either works, but right after, a second toast and sound say there's an order to accept, when I already accepted.
@@ -346,13 +415,13 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 > "I found and fixed a version of this class of bug already — a declined arrival reopening the modal because two writes raced. The pattern is the same: the notification has to be tied to a *change*, not to a *state*."
 
 **Features deliberately deferred:**
-- **Proximity check-in and a staff lot map** — notify shoppers only when a customer is actually within 100 meters of *this* store's pickup area (the nearest competing pickup lot is 356 meters away), decided on the server from background location. Fully planned, including a testing strategy — and postponed, because background location on Android is its own large project.
+- **Proximity: the rest of it.** The foreground-only version is built (section 14). Still open: background location (its own large Android project), the staff map of customers in the lot, a per-reading log so a real drive can be reviewed afterward (today only the last reading survives), and the real-phone field test — the checklist is written, including runs that are *expected* to fail, like a locked screen.
 - **Multi-order pickup consolidation** — the "two hand-offs for one trip" problem from the intro. No data-model support yet.
-- **Visual polish** — product images and UI improvements are what I'm working on next.
+- **UI polish** — product images are in; the broader UI/UX pass is what I'm working on next.
 
 ---
 
-## 15. Close / call to action
+## 16. Close / call to action
 
 `[SCREEN: back to the app, maybe the DECISIONS.md file one more time]`
 
@@ -362,10 +431,12 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 
 ## Notes to self for delivery
 
-- **Sections 11 and 13 are the ones to rehearse most** — they're the strongest material for an engineering audience and have the most moving parts to explain without reading.
+- **The dual-emulator setup only runs on the 12-core/30GB PC.** Running both emulators on the 14-core/15GB machine crashed it. Record the two-sided demos (sections 1, 7, 10, 12) on the big PC, or use one emulator plus a physical phone over `adb` for the second role.
+- **Before recording, check the Appwrite project isn't paused** (403 `project_paused` after inactivity), and remember the every-minute sweep is off — don't demo an arrival timeout or reassignment expecting it to fire.
+- **Sections 11, 13 and 14 are the ones to rehearse most** — they're the strongest material for an engineering audience and have the most moving parts to explain without reading.
 - **Say the "In plain terms" lines naturally**, as asides — "which, put simply, means…" — not as a separate lecture voice.
 - Have the dual-emulator setup already running and logged in *before* recording, so you're not waiting on boot times on camera.
 - **Before recording, clean up:** clear the stale `ready_for_pickup` test orders from September so demo lists aren't cluttered, and check that no test order contains your real name, address or vehicle.
 - **Never show the Appwrite console's API keys or project settings on screen.** If you record the console, blur those in editing.
 - A stale dev-mode "WebSocket error" toast can sit over the bottom buttons after the app idles — dismiss it before a take, or restart the app.
-- Good standalone short clips: the three live-testing bugs (section 8), the "200 OK that wasn't" story (section 13), and the corrected-requirement story (section 12) — each is a self-contained 60-90 second setup/reveal/fix.
+- Good standalone short clips: the three live-testing bugs (section 8), the "200 OK that wasn't" story (section 13), the production drift story (section 13), the corrupted-polygon story (section 14), and the corrected-requirement story (section 12) — each is a self-contained 60-90 second setup/reveal/fix.
