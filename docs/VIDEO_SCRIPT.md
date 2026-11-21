@@ -47,7 +47,7 @@ Open on something visual and concrete before any talking-head explanation — th
 This is the section to make personal and specific — don't generalize to "online grocery shopping is convenient." Name the actual friction points you've hit as a Whole Foods pickup customer, since those are the ones this project explicitly tries to answer:
 
 - **The ETA jumps around and doesn't mean anything.** You'll watch the in-app "shopper is 2-3 minutes away" estimate bounce up and down, sometimes while you can see you're still half a mile out. That's a GPS-accuracy problem more than a software bug — consumer GPS in a dense retail lot is commonly off by 30-100+ feet — but it's the kind of thing worth understanding *why* it happens before trying to build something similar.
-- **Parking-spot communication is just a free-text field**, and when there are two or three other pickup-enabled stores in the same lot, "spot 4" is ambiguous. A structured, store-scoped selection would remove that ambiguity — this project hasn't built that yet (more on that later), but it's called out explicitly as a scoped-and-deferred decision, not an oversight.
+- **Parking-spot communication is just a free-text field.** Dropped as a pain point: the "shared lot" premise was wrong, since each pickup-enabled store has its own lot at a separate shopping center. The field is a minor polish item, not a problem this project targets.
 - **When you have more than one order ready, there's no single pickup.** You end up doing two separate handoffs for what should be one trip to your trunk. This project's data model doesn't solve that yet either — flagged as a real, larger feature gap.
 - **Nothing tells anyone when priorities change.** If something more urgent needs to jump the queue, or a shopper needs to be redirected, that coordination doesn't happen live. This is the one this project actually *does* solve, and it's the thread running through the whole video.
 
@@ -198,7 +198,7 @@ Quick pass through finishing the last placeholder screens:
 - **Drop Offs needed a status that didn't exist yet** — delivery orders jumped straight from `shopping` to `completed`, so a new `out_for_delivery` status was added to give the screen something real to act on.
 - **A second, more severe schema-drift bug**, this time on `CustomerArrivals`: required fields the database enforced (arrival times, `parkingSpot` as a required number 1-5) didn't match what the code sent, breaking the customer's "I've Arrived" button outright. Same resolution as the first drift story: fix the code to match the live schema.
 
-Loop back to the intro: `parkingSpot` being a required number 1-5 on the real schema is exactly why a proper structured picker, instead of free text, is flagged as a deliberate, still-open decision rather than quietly bolted on during a bug fix.
+Loop back to the intro: `parkingSpot` being a required number 1-5 on the real schema is why the field was clamped to match the schema rather than redesigned during a bug fix. A structured picker isn't planned: no other pickup lots share this one, so there is no spot ambiguity to solve.
 
 ---
 
@@ -344,7 +344,6 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 **Features deliberately deferred:**
 - **Proximity check-in and a staff lot map** — notify shoppers only when a customer is actually within 100 meters of *this* store's pickup area (the nearest competing pickup lot is 356 meters away), decided on the server from background location. Fully planned, including a testing strategy — and postponed, because background location on Android is its own large project.
 - **Multi-order pickup consolidation** — the "two hand-offs for one trip" problem from the intro. No data-model support yet.
-- **Structured parking-spot selection** — the free-text problem from the intro.
 - **Visual polish** — product images and UI improvements are what I'm working on next.
 
 ---
