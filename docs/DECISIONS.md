@@ -12,7 +12,7 @@ Source: first-hand experience as a pickup customer and a user of a production se
 
 | # | Pain point | Status | Where covered |
 |---|---|---|---|
-| 1 | Customer ETA jumps around; consumer GPS is off by 30-100+ ft | In progress: foreground-only proximity check-in built and emulator-verified, real-phone test pending | "Proximity check-in and the staff lot map" |
+| 1 | The live customer app has two buttons, "I'm on my way" (told to tap at 5 minutes out) and "I have arrived". Five minutes is a poor signal: Target is across a 5-lane street from Whole Foods, pickup time there is unknowable, and live traffic makes any fixed number inaccurate. Consumer GPS is also off by 30-100+ ft | Proximity check-in built and emulator-verified (distance-based), real-phone test pending. ETA-based gather alert designed 2026-11-21, not built | "Proximity check-in and the staff lot map"; "Gather alert by ETA" |
 | 2 | ~~Parking spot is free text, ambiguous when other stores' pickup lots are nearby~~ | Dropped (2026-11-21): not a real problem. The premise of a shared lot was wrong; Albertsons, Target and Whole Foods each have their own lot at separate shopping centers, with a highway between them | n/a |
 | 3 | Several ready orders mean separate handoffs instead of one trip | Not solved; needs a data-model change | Script section 2 only |
 | 4 | Nothing tells anyone when priorities change (rush order, redirected shopper) | Solved | "Rush notifications and order swapping: before and after" |
@@ -1246,3 +1246,26 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 4. **Live-only bugs:** e.g. a dynamic `interruptReason` string failed schema validation, found only by running it against the real Appwrite project.
 
 **Consequence:** roughly 100 lines to make it work, roughly 2,500 net lines across the commits to make it fast, safe and correct.
+
+---
+
+## Gather alert by ETA, with manual buttons as the fallback (designed 2026-11-21, not built)
+
+**Context:** The live customer app asks the customer to tap "I'm on my way" when they are about 5 minutes out, then "I have arrived". A fixed 5 minutes is unreliable (see pain point #1: Target is across a 5-lane street, so it is under 5 minutes away, and pickup time and traffic can't be predicted). The proximity check-in already built is distance-based: it fires at 100m from the pickup polygon's edge, which for a moving car is only about 10 seconds of warning, too little for a shopper to start gathering items.
+
+**Decision:**
+1. **Two separate signals.** A *gather alert* (customer is about to arrive) and *arrival* (customer is at the lot). The existing 100m proximity trigger stays as arrival.
+2. **The gather alert fires when the customer's ETA is under 90 seconds and stays under it for a sustained period** (start at 20-30 seconds, tune in testing), whether or not the customer tapped "I'm on my way".
+3. **ETA is computed without a routing API:** straight-line distance to the store divided by the customer's measured GPS speed, smoothed over a few readings. Measured speed already reflects traffic. A stopped customer has no ETA, so someone parked at Target never triggers. Also require the distance to be shrinking, so someone driving past on the road does not.
+4. **Manual buttons stay as a fallback**, not just a convenience. If the phone is in a power-saver mode, location is off, or the app is closed, the customer can still tap "I'm on my way" / "I have arrived" and the shopper is told. "I'm on my way" alone does not fire the gather alert.
+5. **Arrival asks for a parking spot with buttons (1 to 5), not free text.** The schema already requires a number from 1 to 5. This is a usability choice only; the earlier idea of ambiguity between shared lots was wrong (see the pain-point table).
+
+**Why:** the shopper needs lead time before the customer is at the door, and a time-based rule matches what the shopper actually cares about. It also avoids trusting a customer's own guess at "5 minutes".
+
+**Alternatives considered:** a routing API with live traffic (more accurate across the highway, but adds a key, cost and a dependency; revisit only if measured-speed ETA proves too noisy); keeping the manual buttons only (what the live app does); lowering the distance threshold instead of adding ETA (still gives a driving customer almost no warning).
+
+**Consequences / left open:**
+- Not built, and not tested on a real phone. Straight-line distance understates the route across the highway; the sustained period and the shrinking-distance check should absorb most of it, but that is a guess until tested.
+- The current build is foreground-only. How Android battery saver or iOS Low Power Mode change location updates on real phones has not been tested; this is the reason the manual fallback exists.
+- Thresholds (90s, 20-30s sustained, smoothing window) are starting points to tune.
+
