@@ -321,12 +321,15 @@ Be direct: this is unfinished, and knowing *exactly* how it's unfinished is the 
 - **The app still sets a few things the server should,** like the order total and arrival timestamps — both should be calculated on the server.
 - **Testing is mostly manual.** Everything was verified live on two emulators, which is thorough but slow. The Function's rules are the best candidates for automated tests.
 
-**A frustration from the production app I haven't reproduced: double notifications.** Talking point, not a feature. In the app I use, a new order or pickup shows a modal *and* a device notification. I accept and start working, then seconds later an identical notification arrives — tapping it drops me back on the order I'm already in the middle of. For pickups it's worse: the modal can't be ignored, and dismissing it sends me to the home screen, so I have to navigate back.
+**A frustration from the production app, not reproduced in this one: duplicate and mistimed notifications.** Talking point, not a feature. Three cases from my own use of the app:
+1. **No assigned order:** a new-assignment modal and a toast both appear. Accepting through either works, but right after, a second toast and sound say there's an order to accept, when I already accepted.
+2. **Mid-order, a customer arrives:** an unskippable modal (OK only) starts the drop-off steps, and I set my current order aside.
+3. **During those staging steps or the pickup scan:** another unskippable "order ready to pickup" modal appears, and OK sends me to the home screen. I then have to navigate back to the order I was scanning, which wastes time.
 
 I can't see their code, so these are hypotheses, ranked by how well they fit "identical, seconds later, after I accepted":
 1. **A level-triggered rule instead of an edge-triggered one.** *Level* means "notify whenever an order is assigned to me" — every update while I own it matches again, including my own accept. *Edge* means "notify when the assignee *changes to* me" — it fires once, at the transition. Accepting writes to the same record, so a level rule re-notifies. This fits the delay best.
 2. **A retry timer that doesn't know about the accept.** The server's "no response in N seconds, re-send" timer fires even though the ack was slow or lost.
-3. **Two delivery channels with no shared dedup.** The in-app modal (a live connection) and the device notification (OS push through Google/Apple) both fire for one event, and neither knows about the other.
+3. **Two delivery channels with no shared dedup.** The modal and the toast (or a device notification via OS push) both fire for one event, and neither knows about the other.
 4. **At-least-once delivery without idempotency.** Push services and job queues may deliver twice and expect the client to dedupe by a stable ID.
 5. **Reconnect replay** — less likely given how consistent it is.
 
@@ -337,6 +340,7 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 **How this app compares — honestly:**
 - It has **no push channel at all** — only in-app realtime, which works while the app is open. So the two-channel duplicate can't happen here, and the flip side is that a backgrounded shopper gets nothing. That's a bigger gap against my original frustration than duplicates.
 - Most flows are edge-like: the new-assignment modal only fires on the transition from no-order to has-order, and the urgent-order toast remembers the last order it announced.
+- Cases 2 and 3 above are the other kind of problem: a notification that moves you away from work in progress. Here the arrival modal can be declined and times out, but *accepting* an arrival navigates to Customer Check-ins regardless of what the shopper was doing. Gentler than an unskippable modal, but the same class.
 - The arrival handler is the exception — it's closer to level-triggered, with no memory of arrivals it already showed. It's guarded only because those updates are rare. A seen-ID check is a few lines; I haven't added it.
 
 > "I found and fixed a version of this class of bug already — a declined arrival reopening the modal because two writes raced. The pattern is the same: the notification has to be tied to a *change*, not to a *state*."
