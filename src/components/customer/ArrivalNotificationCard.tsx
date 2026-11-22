@@ -65,15 +65,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Alert } from 'react-native';
-import {
-  Card,
-  Text,
-  Button,
-  TextInput,
-  ActivityIndicator,
-  SegmentedButtons,
-} from 'react-native-paper';
+import { StyleSheet, Alert, View } from 'react-native';
+import { Card, Text, Button, TextInput, ActivityIndicator } from 'react-native-paper';
 import { useAppTheme } from '../../theme';
 import {
   recordArrival,
@@ -471,21 +464,31 @@ const ArrivalNotificationCard: React.FC<ArrivalNotificationCardProps> = ({
 
         {/* Parking spot: tap 1-5 (the schema's range) instead of typing free text */}
         <Text variant="labelLarge" style={[styles.spotLabel, dynamicStyles.subtitle]}>
-          Parking spot (optional; "None" if the lot is full)
+          Parking spot (optional)
         </Text>
-        <SegmentedButtons
-          value={parkingSpot}
-          onValueChange={setParkingSpot}
-          buttons={[
-            ...PARKING_SPOTS.map((n) => ({
-              value: n,
-              label: n,
-              accessibilityLabel: `Parking spot ${n}`,
-            })),
-            { value: NO_SPOT, label: 'None', accessibilityLabel: 'No spot available' },
-          ]}
+        {/* Tapping the selected button again clears it. SegmentedButtons overflowed: min width x6 > card */}
+        <View style={styles.spotRow}>
+          {PARKING_SPOTS.map((n) => (
+            <Button
+              key={n}
+              mode={parkingSpot === n ? 'contained' : 'outlined'}
+              onPress={() => setParkingSpot(parkingSpot === n ? '' : n)}
+              style={styles.spotButton}
+              contentStyle={styles.spotButtonContent}
+              accessibilityLabel={`Parking spot ${n}`}
+            >
+              {n}
+            </Button>
+          ))}
+        </View>
+        <Button
+          mode={parkingSpot === NO_SPOT ? 'contained' : 'outlined'}
+          onPress={() => setParkingSpot(parkingSpot === NO_SPOT ? '' : NO_SPOT)}
           style={styles.input}
-        />
+          icon="car-off"
+        >
+          No spot available
+        </Button>
 
         {/* I've Arrived Button */}
         <Button
@@ -578,6 +581,19 @@ const styles = StyleSheet.create({
   },
   spotLabel: {
     marginBottom: 6,
+  },
+  spotRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 8,
+  },
+  // minWidth 0 overrides Paper's 64dp default so five fit in the card
+  spotButton: {
+    flex: 1,
+    minWidth: 0,
+  },
+  spotButtonContent: {
+    paddingHorizontal: 0,
   },
   button: {
     marginTop: 8,
