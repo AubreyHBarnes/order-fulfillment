@@ -82,6 +82,25 @@ export async function handleStartTrip(databases, caller, payload, log) {
   return { status: 200, body: { ok: true, tripId: trip.$id } };
 }
 
+/**
+ * Manual "I'm on my way" for a customer whose location can't be shared. Stamps Orders.onMyWayAt,
+ * a heads-up for the shopper with no location in it. Never touches gatherAlertAt: only a measured
+ * ETA fires the gather alert (docs/DECISIONS.md, "Gather alert by ETA", point 4).
+ */
+export async function handleOnMyWay(databases, caller, payload, log) {
+  const { orderId } = payload;
+  if (!orderId) return fail(400, 'orderId is required');
+  const order = await databases.getDocument(IDS.db, IDS.orders, orderId).catch(() => null);
+  if (!order) return fail(404, 'Order not found');
+  if (order.customerID !== caller.$id) return fail(403, 'This order is not yours');
+  if (TERMINAL_ORDER_STATUSES.includes(order.status)) return fail(409, 'Order is already finished');
+  if (!order.onMyWayAt) {
+    await databases.updateDocument(IDS.db, IDS.orders, orderId, { onMyWayAt: new Date().toISOString() });
+    log(`onMyWay: order ${orderId}`);
+  }
+  return { status: 200, body: { ok: true } };
+}
+
 /** The server creates the arrival itself - same shape as arrivalService.recordArrival. */
 async function createArrivalOnce(databases, trip, nowIso) {
   const existing = await databases.listDocuments(IDS.db, IDS.arrivals, [

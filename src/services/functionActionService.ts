@@ -288,6 +288,11 @@ export const reportLocation = async (
   return callFunctionAction('reportLocation', { tripId, ...reading });
 };
 
+/** Manual "I'm on my way" for a customer whose location can't be shared: a heads-up, not a gather alert. */
+export const notifyOnMyWay = async (orderId: string): Promise<FunctionActionResponse> => {
+  return callFunctionAction('onMyWay', { orderId });
+};
+
 export const endTrip = async (tripId: string): Promise<FunctionActionResponse> => {
   return callFunctionAction('endTrip', { tripId });
 };

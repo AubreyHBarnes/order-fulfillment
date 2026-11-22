@@ -571,8 +571,8 @@ export const getArrivingSoonOrders = async (): Promise<OrderListResponse> => {
       config.ordersCollectionId,
       [
         Query.equal('status', 'ready_for_pickup'),
-        Query.isNotNull('gatherAlertAt'),
-        Query.orderAsc('gatherAlertAt'),
+        Query.or([Query.isNotNull('gatherAlertAt'), Query.isNotNull('onMyWayAt')]),
+        Query.orderAsc('$updatedAt'),
         Query.limit(25),
       ]
     );

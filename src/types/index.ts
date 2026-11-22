@@ -99,6 +99,8 @@ export interface Order extends Models.Document {
   // location is about 90s from the lot: the shopper-visible gather alert. A timestamp only, no
   // location (the trip itself stays owner-only). null/undefined until/unless the alert fires.
   gatherAlertAt?: string | null;
+  // Customer tapped the manual "I'm on my way" (no location shared). Heads-up only; never fires the gather alert.
+  onMyWayAt?: string | null;
   // Format: "productId:oos,productId:sub:subProductId:pending|approved|rejected,..."
   // (empty = no issues). See src/utils/orderItems.ts for parse/format helpers.
   itemIssues?: string;

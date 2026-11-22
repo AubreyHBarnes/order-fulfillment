@@ -22,7 +22,7 @@ jest.mock('node-appwrite', () => ({
   },
 }));
 
-const { handleStartTrip, handleReportLocation, handleEndTrip, endTripsForOrder } = require('../functions/auto-assignment/src/trips.js');
+const { handleStartTrip, handleReportLocation, handleEndTrip, handleOnMyWay, endTripsForOrder } = require('../functions/auto-assignment/src/trips.js');
 
 const M_PER_DEG = (Math.PI * 6371000) / 180;
 const at = (east, north) => ({ lat: 40 + north / M_PER_DEG, lng: -100 + east / (M_PER_DEG * Math.cos((40 * Math.PI) / 180)) });
@@ -163,5 +163,23 @@ describe('gather alert', () => {
     for (const e of approach) await report(db, body.tripId, e, 20, { speed: 6 });
     expect(db.tables.orders.o1.gatherAlertAt).toBe('earlier');
     expect(db.tables.trips[body.tripId].gatherAlertAt).toBeDefined();
+  });
+});
+
+describe('manual on my way', () => {
+  test('stamps onMyWayAt once, never gatherAlertAt', async () => {
+    const db = fakeDb(seed());
+    expect((await handleOnMyWay(db, customer, { orderId: 'o1' }, log)).status).toBe(200);
+    const first = db.tables.orders.o1.onMyWayAt;
+    expect(first).toBeTruthy();
+    await handleOnMyWay(db, customer, { orderId: 'o1' }, log);
+    expect(db.tables.orders.o1.onMyWayAt).toBe(first);
+    expect(db.tables.orders.o1.gatherAlertAt).toBeUndefined();
+  });
+  test("rejects someone else's order and a finished one", async () => {
+    const db = fakeDb(seed());
+    expect((await handleOnMyWay(db, { $id: 'other' }, { orderId: 'o1' }, log)).status).toBe(403);
+    db.tables.orders.o1.status = 'completed';
+    expect((await handleOnMyWay(db, customer, { orderId: 'o1' }, log)).status).toBe(409);
   });
 });

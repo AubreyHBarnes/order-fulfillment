@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 import { beginTrip, TripHandle } from '../../services/tripReporter';
+import { notifyOnMyWay } from '../../services/functionActionService';
 import { geolocationSource, requestLocationPermission } from '../../services/geolocationSource';
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
   onArrived: () => void;
 }
 
-type State = 'idle' | 'starting' | 'sharing' | 'error';
+type State = 'idle' | 'starting' | 'sharing' | 'error' | 'notified';
 
 const OnMyWayCard: React.FC<Props> = ({ orderId, onArrived }) => {
   const [state, setState] = useState<State>('idle');
@@ -49,6 +50,13 @@ const OnMyWayCard: React.FC<Props> = ({ orderId, onArrived }) => {
     setState('sharing');
   };
 
+  // Fallback when location can't be shared: tell the shopper without a location. Not a gather alert.
+  const notify = async () => {
+    const res = await notifyOnMyWay(orderId);
+    if (res.success) setState('notified');
+    else setMessage(res.error ?? 'Could not notify the store');
+  };
+
   const stop = async () => {
     const t = trip.current;
     trip.current = null;
@@ -66,6 +74,16 @@ const OnMyWayCard: React.FC<Props> = ({ orderId, onArrived }) => {
             : 'Share your location and we will let staff know when you reach the pickup area.'}
         </Text>
         {state === 'error' && <Text style={styles.error}>{message}</Text>}
+        {state === 'notified' && (
+          <Text variant="bodyMedium" style={styles.body}>
+            The store knows you're on the way. Tap "I have arrived" when you get there.
+          </Text>
+        )}
+        {state === 'error' && (
+          <Button mode="outlined" onPress={notify} style={styles.fallback}>
+            Tell the store I'm on my way anyway
+          </Button>
+        )}
         {state === 'sharing' ? (
           <Button mode="outlined" onPress={stop}>Stop sharing</Button>
         ) : (
@@ -81,6 +99,7 @@ const OnMyWayCard: React.FC<Props> = ({ orderId, onArrived }) => {
 const styles = StyleSheet.create({
   card: { marginHorizontal: 16, marginBottom: 16 },
   body: { marginVertical: 8 },
+  fallback: { marginBottom: 8 },
   error: { color: '#B00020', marginBottom: 8 },
 });
 

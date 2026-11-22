@@ -51,6 +51,7 @@ import {
   handleStartTrip,
   handleReportLocation,
   handleEndTrip,
+  handleOnMyWay,
   endTripsForOrder,
   expireStaleTrips,
 } from './trips.js';
@@ -1487,6 +1488,8 @@ async function handleHttpAction(databases, payload, log) {
       return await handleReportLocation(databases, caller, payload, log);
     case 'endTrip':
       return await handleEndTrip(databases, caller, payload, log);
+    case 'onMyWay':
+      return await handleOnMyWay(databases, caller, payload, log);
     case 'createOrder':
       return await handleCreateOrder(databases, caller, payload, log);
     default:

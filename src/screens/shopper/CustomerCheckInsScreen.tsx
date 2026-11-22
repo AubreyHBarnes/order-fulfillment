@@ -192,7 +192,7 @@ const CustomerCheckInsScreen: React.FC = () => {
 
       // An order stamped with gatherAlertAt appeared or changed (e.g. completed): refresh both lists.
       const unsubscribeOrders = subscribeToOrders((event) => {
-        if (event.payload.gatherAlertAt) {
+        if (event.payload.gatherAlertAt || event.payload.onMyWayAt) {
           fetchCheckIns();
         }
       });
@@ -289,7 +289,10 @@ const CustomerCheckInsScreen: React.FC = () => {
                   {customerName}
                 </Text>
                 <Text variant="bodyMedium" style={dynamicStyles.infoText}>
-                  Order #{getShortOrderId(order.$id)} - about a minute away, bring it out
+                  Order #{getShortOrderId(order.$id)} -{' '}
+                  {order.gatherAlertAt
+                    ? 'about a minute away, bring it out'
+                    : "says they're on the way (no live location)"}
                 </Text>
               </View>
             </Card.Content>
