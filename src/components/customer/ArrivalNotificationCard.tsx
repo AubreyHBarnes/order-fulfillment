@@ -66,7 +66,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Alert } from 'react-native';
-import { Card, Text, Button, TextInput, ActivityIndicator } from 'react-native-paper';
+import {
+  Card,
+  Text,
+  Button,
+  TextInput,
+  ActivityIndicator,
+  SegmentedButtons,
+} from 'react-native-paper';
 import { useAppTheme } from '../../theme';
 import {
   recordArrival,
@@ -104,6 +111,11 @@ interface ArrivalNotificationCardProps {
  * - Self-documenting possible states
  */
 type ArrivalState = 'loading' | 'not_arrived' | 'submitting' | 'arrived' | 'error';
+
+// The live CustomerArrivals.parkingSpot attribute is an integer constrained to 1-5
+const PARKING_SPOTS = ['1', '2', '3', '4', '5'];
+// Lot full, customer is circling/waiting. No schema slot for this, so it travels in `notes`
+const NO_SPOT = 'none';
 
 // ============================================================
 // COMPONENT
@@ -232,7 +244,13 @@ const ArrivalNotificationCard: React.FC<ArrivalNotificationCardProps> = ({
       arrivedAt: new Date().toISOString(),
       status: 'waiting',
       vehicleDescription: vehicleDescription.trim() || undefined,
-      parkingSpot: parkingSpot.trim() || undefined,
+      // 'none' has no integer; recordArrival defaults the required field and `notes` carries the truth
+      parkingSpot: parkingSpot && parkingSpot !== NO_SPOT ? parkingSpot : undefined,
+      notes: !parkingSpot
+        ? undefined
+        : parkingSpot === NO_SPOT
+          ? 'No spot available, waiting in the lot'
+          : `Spot ${parkingSpot}`,
     });
 
     if (result.success && result.data) {
@@ -451,16 +469,22 @@ const ArrivalNotificationCard: React.FC<ArrivalNotificationCardProps> = ({
           maxLength={100}
         />
 
-        {/* Optional: Parking Spot Input */}
-        <TextInput
-          label="Parking Spot (optional)"
-          placeholder="e.g., Spot 5, Near entrance"
+        {/* Parking spot: tap 1-5 (the schema's range) instead of typing free text */}
+        <Text variant="labelLarge" style={[styles.spotLabel, dynamicStyles.subtitle]}>
+          Parking spot (optional; "None" if the lot is full)
+        </Text>
+        <SegmentedButtons
           value={parkingSpot}
-          onChangeText={setParkingSpot}
-          mode="outlined"
-          style={[styles.input, dynamicStyles.inputBackground]}
-          dense
-          maxLength={50}
+          onValueChange={setParkingSpot}
+          buttons={[
+            ...PARKING_SPOTS.map((n) => ({
+              value: n,
+              label: n,
+              accessibilityLabel: `Parking spot ${n}`,
+            })),
+            { value: NO_SPOT, label: 'None', accessibilityLabel: 'No spot available' },
+          ]}
+          style={styles.input}
         />
 
         {/* I've Arrived Button */}
@@ -551,6 +575,9 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 12,
+  },
+  spotLabel: {
+    marginBottom: 6,
   },
   button: {
     marginTop: 8,
