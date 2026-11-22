@@ -560,6 +560,35 @@ export const getOutForDeliveryOrdersByShopperId = async (
 };
 
 /**
+ * Ready pickup orders whose customer is about 90s out (Orders.gatherAlertAt is stamped by the
+ * reportLocation Function). Store-wide, like the check-in queue it sits above: any shopper can
+ * bring the order out. The caller drops orders that already have a waiting arrival.
+ */
+export const getArrivingSoonOrders = async (): Promise<OrderListResponse> => {
+  try {
+    const response = await databases.listDocuments<Order>(
+      config.databaseId,
+      config.ordersCollectionId,
+      [
+        Query.equal('status', 'ready_for_pickup'),
+        Query.isNotNull('gatherAlertAt'),
+        Query.orderAsc('gatherAlertAt'),
+        Query.limit(25),
+      ]
+    );
+    return { success: true, data: response.documents, total: response.total };
+  } catch (error) {
+    console.error('Error fetching arriving-soon orders:', error);
+    return {
+      success: false,
+      data: [],
+      total: 0,
+      error: error instanceof Error ? error.message : 'Failed to fetch arriving-soon orders',
+    };
+  }
+};
+
+/**
  * Get count of a shopper's orders that are out for delivery but not yet
  * dropped off - same limit(1)/response.total efficiency pattern as
  * getAvailableTasksCount

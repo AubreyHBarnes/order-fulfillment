@@ -95,6 +95,10 @@ export interface Order extends Models.Document {
   // null/undefined on every order that was never interrupted.
   interruptedAt?: string | null;
   interruptReason?: string | null;
+  // Stamped once by reportLocation (functions/auto-assignment) when a customer sharing their
+  // location is about 90s from the lot: the shopper-visible gather alert. A timestamp only, no
+  // location (the trip itself stays owner-only). null/undefined until/unless the alert fires.
+  gatherAlertAt?: string | null;
   // Format: "productId:oos,productId:sub:subProductId:pending|approved|rejected,..."
   // (empty = no issues). See src/utils/orderItems.ts for parse/format helpers.
   itemIssues?: string;

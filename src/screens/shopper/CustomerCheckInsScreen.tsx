@@ -42,9 +42,9 @@ import { Text, Icon, Card, Button } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppTheme } from '../../theme';
 import { getActiveArrivals } from '../../services/arrivalService';
-import { getOrderById } from '../../services/orderService';
+import { getOrderById, getArrivingSoonOrders } from '../../services/orderService';
 import { getUserProfilesByIds, getCustomerDisplayName } from '../../services/userService';
-import { subscribeToCustomerArrivals } from '../../services/realtimeService';
+import { subscribeToCustomerArrivals, subscribeToOrders } from '../../services/realtimeService';
 import { completeArrivalHandoff } from '../../services/functionActionService';
 import type { CustomerArrival, Order, UserProfile } from '../../types';
 
@@ -66,6 +66,12 @@ interface CheckInWithDetails {
   arrival: CustomerArrival;
   order: Order | null;
   customerProfile: UserProfile | null;
+}
+
+// A ready order whose customer is about 90s out (Orders.gatherAlertAt), not checked in yet
+interface ArrivingSoon {
+  order: Order;
+  customerName: string;
 }
 
 // ============================================================
@@ -100,6 +106,20 @@ const CustomerCheckInsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [handingOffId, setHandingOffId] = useState<string | null>(null);
+  const [arrivingSoon, setArrivingSoon] = useState<ArrivingSoon[]>([]);
+
+  /** Persistent copy of the gather-alert toast; orders that already checked in leave this list. */
+  const loadArrivingSoon = async (checkedInOrderIds: string[]): Promise<void> => {
+    const result = await getArrivingSoonOrders();
+    const soon = result.success ? result.data.filter((o) => !checkedInOrderIds.includes(o.$id)) : [];
+    const profiles = soon.length ? await getUserProfilesByIds(soon.map((o) => o.customerID)) : null;
+    setArrivingSoon(
+      soon.map((order) => ({
+        order,
+        customerName: getCustomerDisplayName(profiles?.success ? profiles.data[order.customerID] ?? null : null),
+      }))
+    );
+  };
 
   const fetchCheckIns = useCallback(async (isRefresh: boolean = false): Promise<void> => {
     if (isRefresh) {
@@ -119,6 +139,7 @@ const CustomerCheckInsScreen: React.FC = () => {
       }
 
       const arrivals = arrivalsResult.data;
+      await loadArrivingSoon(arrivals.map((a) => a.orderID));
 
       if (arrivals.length === 0) {
         setCheckIns([]);
@@ -169,7 +190,17 @@ const CustomerCheckInsScreen: React.FC = () => {
         }
       });
 
-      return unsubscribe;
+      // An order stamped with gatherAlertAt appeared or changed (e.g. completed): refresh both lists.
+      const unsubscribeOrders = subscribeToOrders((event) => {
+        if (event.payload.gatherAlertAt) {
+          fetchCheckIns();
+        }
+      });
+
+      return () => {
+        unsubscribe();
+        unsubscribeOrders();
+      };
     }, [fetchCheckIns])
   );
 
@@ -242,6 +273,30 @@ const CustomerCheckInsScreen: React.FC = () => {
       color: theme.colors.error,
     },
   };
+
+  const renderArrivingSoon = (): React.ReactElement | null =>
+    arrivingSoon.length === 0 ? null : (
+      <View style={styles.soonSection}>
+        <Text variant="labelMedium" style={dynamicStyles.infoText}>
+          ARRIVING SOON
+        </Text>
+        {arrivingSoon.map(({ order, customerName }) => (
+          <Card key={order.$id} style={[styles.card, dynamicStyles.card]} elevation={1}>
+            <Card.Content style={styles.soonRow}>
+              <Icon source="clock-fast" size={24} color={theme.colors.primary} />
+              <View style={styles.soonText}>
+                <Text variant="titleMedium" style={dynamicStyles.customerName}>
+                  {customerName}
+                </Text>
+                <Text variant="bodyMedium" style={dynamicStyles.infoText}>
+                  Order #{getShortOrderId(order.$id)} - about a minute away, bring it out
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        ))}
+      </View>
+    );
 
   const renderCheckInCard = ({ item }: { item: CheckInWithDetails }): React.ReactElement => {
     const { arrival, order, customerProfile } = item;
@@ -361,6 +416,7 @@ const CustomerCheckInsScreen: React.FC = () => {
         renderItem={renderCheckInCard}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={renderArrivingSoon()}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
           <RefreshControl
@@ -386,6 +442,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  soonSection: {
+    marginBottom: 8,
+  },
+  soonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  soonText: {
+    flex: 1,
+  },
   listContent: {
     padding: 16,
     paddingBottom: 32,

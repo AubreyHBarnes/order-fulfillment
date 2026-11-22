@@ -98,6 +98,8 @@ import {
 } from '../services/realtimeService';
 import OrderInterruptedModal from '../components/shopper/OrderInterruptedModal';
 import UrgentOrderToast from '../components/shopper/UrgentOrderToast';
+import GatherAlertToast from '../components/shopper/GatherAlertToast';
+import { isFreshGatherAlert } from '../utils/gatherAlert';
 import NewAssignmentModal from '../components/shopper/NewAssignmentModal';
 import ArrivalNotificationModal from '../components/shopper/ArrivalNotificationModal';
 import type {
@@ -213,6 +215,10 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    * shopperId - see handleArrivalEvent.
    */
   const [pendingArrival, setPendingArrival] = useState<ArrivalNotificationData | null>(null);
+  // Gather alert (customer ~90s out): the toast text, and the orders already announced so a
+  // replayed or repeated realtime event never raises a second toast for the same order.
+  const [gatherAlertMessage, setGatherAlertMessage] = useState<string | null>(null);
+  const seenGatherAlertsRef = useRef<Set<string>>(new Set());
   const [declineArrivalLoading, setDeclineArrivalLoading] = useState(false);
 
   /**
@@ -456,8 +462,22 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
      * shopper's own current order itself changing (e.g. its due time,
      * though that's rare in practice).
      */
+    const announceGatherAlert = async (order: Order): Promise<void> => {
+      const customerResult = await getUserProfileById(order.customerID);
+      setGatherAlertMessage(
+        `${getCustomerDisplayName(customerResult.data)} is about a minute away ` +
+          `(order #${generateShortOrderId(order.$id)}). Bring it out.`
+      );
+    };
+
     const handleOrderEvent = (event: RealtimeEvent<Order>): void => {
       const order = event.payload;
+      // Before the current-order guard below: a shopper whose order is already ready usually has
+      // no current order, which is exactly when this alert matters.
+      if (isFreshGatherAlert(order, shopperId, seenGatherAlertsRef.current)) {
+        seenGatherAlertsRef.current.add(order.$id);
+        announceGatherAlert(order);
+      }
       const currentOrderId = lastKnownOrderIdRef.current;
       if (!currentOrderId || !hasBaselineRef.current) {
         return;
@@ -677,6 +697,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         dueTime={urgentOrderDueTime}
         onDismiss={dismissUrgentOrderToast}
       />
+      <GatherAlertToast message={gatherAlertMessage} onDismiss={() => setGatherAlertMessage(null)} />
       <NewAssignmentModal
         visible={!!pendingAssignment}
         task={pendingAssignment?.taskData ?? null}
