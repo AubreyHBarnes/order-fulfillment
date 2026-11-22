@@ -366,6 +366,33 @@ This closes the loop on the first frustration from section 2 — the meaningless
 
 **What this version is not:** it stops when the screen locks or the app goes to the background — by design, and documented. Background tracking, the staff lot map, a per-reading log for reviewing real drives, and the real-phone field test (the checklist is written; it hasn't been run) are all still open — section 15.
 
+### Comparison piece: how production apps typically handle GPS, and where this one differs
+
+`[SCREEN: a two-column slide, "Typical production approach" vs "This app", then back to DECISIONS.md "Gather alert by ETA"]`
+
+**Say this first, on camera:** "I haven't seen the inside of any retailer's app. What follows is how the platforms document that this is *meant* to be done, plus what I've felt as a customer. Where a real app differs, I'd like to hear it."
+
+That sentence matters: everything in the left column below comes from Apple's and Google's own location documentation and general industry practice, not from any company's source code. Don't attribute a specific technique to a named retailer unless you have a source for it.
+
+| | Typical production approach (platform-documented) | This app |
+|---|---|---|
+| **Where "arrived" is decided** | On the phone: the OS watches a circular region and wakes the app on entry (iOS region monitoring, Android `GeofencingClient`); the app then tells the backend "customer is here". | On the server. The phone only reports readings; the Function decides. The client can't declare arrival. |
+| **App closed or screen off** | Works. OS geofencing and significant-change updates run without the app open, and are far kinder to the battery. | Foreground only: it stops when the screen locks. This is the biggest gap, and it is documented as open. |
+| **Shape and size** | A circle. The platforms recommend a radius of roughly 100 m or more because smaller ones are unreliable, so the trigger fires well before the lot. | A real polygon of the lot plus a 100 m buffer, tunable in the database without an app release. |
+| **Noisy GPS** | Mostly left to the OS's fused location (GPS + Wi-Fi + cell). Entry events can arrive late, and the usual safety net is a manual "I'm here" button. | Two inside readings in a row, a speed gate, and rejection of mocked, jumpy or inaccurate fixes. The manual buttons stay as the fallback. |
+| **"How far away are they"** | Commonly a routing service with live traffic, run from the phone or the server, which is why those ETAs follow the road. | Straight-line distance divided by smoothed measured speed, with no routing API. Traffic is already inside the measured speed. |
+| **Permissions and policy** | Needs "always on" background location, a two-step prompt on Android 10+ and 11+, and store policy review. | Foreground location only, so there is no background prompt and no foreground service to justify. |
+| **Trust** | The client claims arrival, so the same trust as a button. | The client submits facts and the server concludes. It still can't defeat a deliberately spoofed GPS, which the log says out loud. |
+
+**The honest ledger (this is the strong part of the segment):**
+- **Where production is simply ahead:** background operation, battery efficiency, and road-aware ETA. Those are real gaps, and the right framing is "built the smaller version first and wrote down what it can't do."
+- **Where this design is deliberately different:** the arrival rule lives on the server and is tunable per store, and the gather alert is a separate signal from arrival, so the shopper gets lead time instead of a ten-second warning.
+- **The failure I can demonstrate:** a car driving past on the road toward the lot fires the gather alert early but never arrives. Straight-line ETA can't see the road. That is exactly where a routing API earns its cost, and `DECISIONS.md` says to revisit it only if measured-speed ETA proves too noisy on a real drive.
+
+`[DEMO: emulator route replay, approach from the north at 6 m/s - the shopper's "Arriving soon" row and toast appear about 90 s out, before the arrival; then the drive-past route showing the early alert and no arrival]`
+
+**Before filming, verify:** (1) the 100 m geofence guidance and the Android permission steps against the current Android and Apple developer docs, since platform numbers change; (2) any claim about a specific retailer, which should be a thing you observed ("in my experience the app asks me to tap when I'm close"), not a claim about how it works inside; (3) the real-phone drive test, so the demo uses a real route and not only the emulator.
+
 ---
 
 ## 15. What's still open
