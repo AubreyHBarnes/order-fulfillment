@@ -126,3 +126,42 @@ test('endTripsForOrder closes active trips when the hand-off completes', async (
   await endTripsForOrder(db, 'o1', log);
   expect(db.tables.trips[body.tripId].status).toBe('ended');
 });
+
+describe('gather alert', () => {
+  const approach = [-720, -630, -540, -450, -360]; // 6 m/s, one reading per call; fires on the 4th
+
+  test('stamps the order once when the ETA is under 90s, and records state on the trip', async () => {
+    const db = fakeDb(seed());
+    const { body } = await handleStartTrip(db, customer, { orderId: 'o1' }, log);
+    const fired = [];
+    for (const e of approach) fired.push((await report(db, body.tripId, e, 20, { speed: 6 })).body.gather);
+    expect(fired).toEqual([false, false, false, true, false]);
+    const stamp = db.tables.orders.o1.gatherAlertAt;
+    expect(typeof stamp).toBe('string');
+    expect(db.tables.trips[body.tripId]).toMatchObject({ gatherAlertAt: stamp, etaUnderCount: 2 });
+    await report(db, body.tripId, -270, 20, { speed: 6 });
+    expect(db.tables.orders.o1.gatherAlertAt).toBe(stamp); // never restamped
+  });
+
+  test('a stopped customer and an immediate arrival do not alert', async () => {
+    const stopped = fakeDb(seed());
+    const t1 = (await handleStartTrip(stopped, customer, { orderId: 'o1' }, log)).body.tripId;
+    for (let i = 0; i < 6; i++) await report(stopped, t1, -200, 20, { speed: 0 });
+    expect(stopped.tables.orders.o1.gatherAlertAt).toBeUndefined();
+
+    const arriving = fakeDb(seed());
+    const t2 = (await handleStartTrip(arriving, customer, { orderId: 'o1' }, log)).body.tripId;
+    await report(arriving, t2, -50, 20, { speed: 3 });
+    expect((await report(arriving, t2, -10, 20, { speed: 3 })).body.arrived).toBe(true);
+    expect(arriving.tables.orders.o1.gatherAlertAt).toBeUndefined();
+  });
+
+  test('an order already stamped (a retried write) keeps its original timestamp', async () => {
+    const db = fakeDb(seed());
+    db.tables.orders.o1.gatherAlertAt = 'earlier';
+    const { body } = await handleStartTrip(db, customer, { orderId: 'o1' }, log);
+    for (const e of approach) await report(db, body.tripId, e, 20, { speed: 6 });
+    expect(db.tables.orders.o1.gatherAlertAt).toBe('earlier');
+    expect(db.tables.trips[body.tripId].gatherAlertAt).toBeDefined();
+  });
+});

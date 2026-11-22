@@ -13,7 +13,7 @@
  * that shows up in field tests.
  */
 import { ID, Permission, Query, Role } from 'node-appwrite';
-import { DEFAULT_ZONE_RULES, evaluateReading } from './zone.js';
+import { DEFAULT_ZONE_RULES, evaluateEta, evaluateReading } from './zone.js';
 
 // `env` alias: the app's babel dotenv plugin would inline `process.env.X` reads under Jest
 const env = process.env;
@@ -102,6 +102,14 @@ async function createArrivalOnce(databases, trip, nowIso) {
   });
 }
 
+/** The shopper-visible half of the gather alert: a timestamp on the order, no location. */
+async function stampGatherAlert(databases, orderId, atIso, log) {
+  const order = await databases.getDocument(IDS.db, IDS.orders, orderId).catch(() => null);
+  if (!order || order.gatherAlertAt) return; // already stamped (retry) or order gone
+  await databases.updateDocument(IDS.db, IDS.orders, orderId, { gatherAlertAt: atIso });
+  log(`gather alert: order ${orderId} customer is ~90s out`);
+}
+
 /** reportLocation - one reading in, one decision out. Arrival is concluded here, never by the client. */
 export async function handleReportLocation(databases, caller, payload, log) {
   const { tripId, lat, lng, accuracy, speed, isMock } = payload;
@@ -132,6 +140,29 @@ export async function handleReportLocation(databases, caller, payload, log) {
     insideCount: result.insideCount,
     distanceMeters: Math.round(result.distanceMeters),
   };
+
+  // Gather alert: how soon will this customer arrive? State lives on the trip row. Columns added
+  // after a row exists read as null, hence `??`. Arrival (below) supersedes the alert.
+  let gather = false;
+  if (trip.status === 'active' && !result.arrived) {
+    const eta = evaluateEta(
+      {
+        smoothedSpeed: trip.smoothedSpeed ?? undefined,
+        prevDistance: trip.etaDistance ?? undefined,
+        underCount: trip.etaUnderCount ?? 0,
+        alerted: !!trip.gatherAlertAt,
+      },
+      result
+    );
+    // Untrusted fixes return the state unchanged; only write what the ETA actually tracks.
+    if (eta.state.smoothedSpeed !== undefined) update.smoothedSpeed = eta.state.smoothedSpeed;
+    if (eta.state.prevDistance !== undefined) update.etaDistance = eta.state.prevDistance;
+    update.etaUnderCount = eta.state.underCount;
+    if (eta.fire) {
+      gather = true;
+      update.gatherAlertAt = new Date(now).toISOString();
+    }
+  }
   if (result.last && result.last.reportedAt === now) {
     // only trusted fixes move the pin; ignored ones keep the previous position
     Object.assign(update, { lat: lat, lng: lng, accuracy, reportedAt: new Date(now).toISOString() });
@@ -139,8 +170,11 @@ export async function handleReportLocation(databases, caller, payload, log) {
 
   // Already arrived: keep the pin current for the staff map, nothing else to decide.
   if (trip.status === 'arrived' || !result.arrived) {
+    // Tell the shopper before the trip row records the alert: if this order write fails, the trip
+    // is still un-alerted and the next reading retries. The order is only stamped once.
+    if (gather) await stampGatherAlert(databases, trip.orderID, update.gatherAlertAt, log);
     await databases.updateDocument(IDS.db, IDS.trips, trip.$id, update);
-    return { status: 200, body: { ok: true, decision: result.decision, distanceMeters: update.distanceMeters, arrived: trip.status === 'arrived' } };
+    return { status: 200, body: { ok: true, decision: result.decision, distanceMeters: update.distanceMeters, arrived: trip.status === 'arrived', gather } };
   }
 
   // Arrival: create the arrival first (guarded against duplicates), then flip the trip and open
