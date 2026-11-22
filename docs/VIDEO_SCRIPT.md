@@ -378,10 +378,10 @@ That sentence matters: everything in the left column below comes from Apple's an
 |---|---|---|
 | **Where "arrived" is decided** | On the phone: the OS watches a circular region and wakes the app on entry (iOS region monitoring, Android `GeofencingClient`); the app then tells the backend "customer is here". | On the server. The phone only reports readings; the Function decides. The client can't declare arrival. |
 | **App closed or screen off** | Works. OS geofencing and significant-change updates run without the app open, and are far kinder to the battery. | Foreground only: it stops when the screen locks. This is the biggest gap, and it is documented as open. |
-| **Shape and size** | A circle. The platforms recommend a radius of roughly 100 m or more because smaller ones are unreliable, so the trigger fires well before the lot. | A real polygon of the lot plus a 100 m buffer, tunable in the database without an app release. |
-| **Noisy GPS** | Mostly left to the OS's fused location (GPS + Wi-Fi + cell). Entry events can arrive late, and the usual safety net is a manual "I'm here" button. | Two inside readings in a row, a speed gate, and rejection of mocked, jumpy or inaccurate fixes. The manual buttons stay as the fallback. |
+| **Shape and size** | A circle. Android's docs recommend a radius of at least 100 m for best results (Apple documents no minimum; developers report about 100 m in practice), so the trigger fires well before the lot. | A real polygon of the lot plus a 100 m buffer, tunable in the database without an app release. |
+| **Noisy GPS** | Mostly left to the OS's fused location (GPS + Wi-Fi + cell). Entry events can arrive late (Android's docs say a backgrounded app is told about geofence events only every couple of minutes on Android 8+), and the usual safety net is a manual "I'm here" button. | Two inside readings in a row, a speed gate, and rejection of mocked, jumpy or inaccurate fixes. The manual buttons stay as the fallback. |
 | **"How far away are they"** | Commonly a routing service with live traffic, run from the phone or the server, which is why those ETAs follow the road. | Straight-line distance divided by smoothed measured speed, with no routing API. Traffic is already inside the measured speed. |
-| **Permissions and policy** | Needs "always on" background location, a two-step prompt on Android 10+ and 11+, and store policy review. | Foreground location only, so there is no background prompt and no foreground service to justify. |
+| **Permissions and policy** | Needs background location: on Android 10+ the app can't read location in the background without the separate `ACCESS_BACKGROUND_LOCATION` permission, plus store policy review. Apple limits an app to 20 monitored regions at once. | Foreground location only, so there is no background prompt and no foreground service to justify. |
 | **Trust** | The client claims arrival, so the same trust as a button. | The client submits facts and the server concludes. It still can't defeat a deliberately spoofed GPS, which the log says out loud. |
 
 **The honest ledger (this is the strong part of the segment):**
@@ -391,7 +391,13 @@ That sentence matters: everything in the left column below comes from Apple's an
 
 `[DEMO: emulator route replay, approach from the north at 6 m/s - the shopper's "Arriving soon" row and toast appear about 90 s out, before the arrival; then the drive-past route showing the early alert and no arrival]`
 
-**Before filming, verify:** (1) the 100 m geofence guidance and the Android permission steps against the current Android and Apple developer docs, since platform numbers change; (2) any claim about a specific retailer, which should be a thing you observed ("in my experience the app asks me to tap when I'm close"), not a claim about how it works inside; (3) the real-phone drive test, so the demo uses a real route and not only the emulator.
+**Sources checked (2026-11-22):**
+- Android, [Create and monitor geofences](https://developer.android.com/training/location/geofencing): 100 m minimum-radius recommendation; `ACCESS_FINE_LOCATION` plus `ACCESS_BACKGROUND_LOCATION` on Android 10+; background apps get geofence events about every couple of minutes on Android 8+.
+- Android, [Background location limits](https://developer.android.com/about/versions/oreo/background-location-limits): why background updates are throttled.
+- Apple, [Region Monitoring and iBeacon](https://developer.apple.com/library/mac/documentation/UserExperience/Conceptual/LocationAwarenessPG/RegionMonitoring/RegionMonitoring.html) (archived guide): at most 20 regions monitored per app. It's an old page, so confirm against the current Core Location docs.
+- **Not found in an official source:** an Apple minimum geofence radius. The ~100 m figure for iOS comes from a developer-forum observation (thread 769113 era posts), so say "developers report" and not "Apple requires". Any third-party vendor numbers (e.g. 150 m, 100 geofences) are vendor advice, not platform limits.
+
+**Before filming, verify:** (1) the sources above once more, since platform behavior changes and the Apple page is archived; (2) any claim about a specific retailer, which should be something you observed ("in my experience the app asks me to tap when I'm close"), not a claim about how it works inside; (3) the real-phone drive test, so the demo uses a real route and not only the emulator.
 
 ---
 
