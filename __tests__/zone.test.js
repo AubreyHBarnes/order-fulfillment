@@ -1,6 +1,8 @@
 import {
+  DEFAULT_ETA_RULES,
   DEFAULT_ZONE_RULES,
   distanceToZoneMeters,
+  evaluateEta,
   evaluateReading,
 } from '../functions/auto-assignment/src/zone.js';
 
@@ -121,5 +123,64 @@ describe('fixture trips', () => {
     const d = run([[30, 20], [5030, 20], [30, 20], [30, 20]]);
     expect(d[1]).toBe('ignored-implausible');
     expect(arrivedAt(d)).toBe(2); // glitch leaves the count at 1, next sane reading confirms
+  });
+});
+
+// Gather alert: feed each reading through evaluateReading then evaluateEta, one reading per 15s.
+function runEta(points, { speed, extra = {}, rules = {} } = {}) {
+  let state = { insideCount: 0 };
+  let eta = { underCount: 0, alerted: false };
+  const fires = [];
+  const decisions = [];
+  points.forEach(([e, n], i) => {
+    const { lat, lng } = at(e, n);
+    const r = evaluateReading(zone, state, { lat, lng, accuracy: 10, speed, reportedAt: i * INTERVAL_MS, ...extra });
+    state = { insideCount: r.insideCount, last: r.last };
+    const x = evaluateEta(eta, r, { ...DEFAULT_ETA_RULES, ...rules });
+    eta = x.state;
+    fires.push(x.fire);
+    decisions.push(r.decision);
+  });
+  return { fires, decisions, fireAt: fires.indexOf(true), arrivedAt: decisions.indexOf('arrived') };
+}
+const line = (from, to, step, n = 20) => {
+  const out = [];
+  for (let e = from; e <= to; e += step) out.push([e, n]);
+  return out;
+};
+
+describe('gather alert (ETA)', () => {
+  test('approach at 6 m/s -> fires once ETA <= 90s on two readings, well before arrival', () => {
+    const t = runEta(line(-720, 0, 90), { speed: 6 });
+    expect(t.fireAt).toBe(3); // 540m (90s) is the first qualifying reading, 450m the second
+    expect(t.fires.filter(Boolean)).toHaveLength(1); // fires once, never repeats
+    expect(t.arrivedAt).toBeGreaterThan(t.fireAt);
+  });
+
+  test('customer parked 200m away (speed 0) -> never fires', () => {
+    const t = runEta(Array.from({ length: 10 }, () => [-200, 20]), { speed: 0 });
+    expect(t.fires).not.toContain(true);
+  });
+
+  test('driving away -> never fires', () => {
+    const t = runEta(line(-100, -700, -90), { speed: 6 });
+    expect(t.fires).not.toContain(true);
+  });
+
+  test('GPS jitter around a fixed point while moving -> never fires', () => {
+    const t = runEta([[-300, 20], [-302, 20], [-299, 20], [-303, 20], [-300, 20], [-301, 20]], { speed: 6 });
+    expect(t.fires).not.toContain(true);
+  });
+
+  test('mocked readings do not advance the alert', () => {
+    const t = runEta(line(-720, 0, 90), { speed: 6, extra: { isMock: true } });
+    expect(t.fires).not.toContain(true);
+  });
+
+  test('known limit: a drive-past on the road fires on the way in, but never arrives', () => {
+    // Indistinguishable from an arriving car until it passes the lot; arrival's speed gate still holds.
+    const t = runEta(line(-540, 720, 180, 80), { speed: 12 });
+    expect(t.fireAt).toBe(2);
+    expect(t.decisions).not.toContain('arrived');
   });
 });

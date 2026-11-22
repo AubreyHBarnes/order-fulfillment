@@ -77,17 +77,6 @@ export function evaluateReading(zone, state, reading, { allowMock = false } = {}
   const prev = state.last;
   const last = { lat: reading.lat, lng: reading.lng, reportedAt: reading.reportedAt };
   const distance = distanceToZoneMeters(reading.lat, reading.lng, zone.polygon);
-  const keep = (decision) => ({
-    decision,
-    insideCount: state.insideCount,
-    distanceMeters: distance,
-    arrived: false,
-    // untrustworthy fixes must not become the baseline for the next speed estimate
-    last: ['ignored-mock', 'ignored-implausible', 'ignored-accuracy'].includes(decision) ? prev : last,
-  });
-
-  if (reading.isMock && !allowMock) return keep('ignored-mock');
-
   // Prefer the device's own speed; fall back to displacement over time.
   let speed = reading.speed;
   if (speed == null && prev && reading.reportedAt > prev.reportedAt) {
@@ -95,10 +84,22 @@ export function evaluateReading(zone, state, reading, { allowMock = false } = {}
       distanceMeters(prev.lat, prev.lng, reading.lat, reading.lng) /
       ((reading.reportedAt - prev.reportedAt) / 1000);
   }
+  const keep = (decision) => ({
+    decision,
+    insideCount: state.insideCount,
+    distanceMeters: distance,
+    speed,
+    arrived: false,
+    // untrustworthy fixes must not become the baseline for the next speed estimate
+    last: ['ignored-mock', 'ignored-implausible', 'ignored-accuracy'].includes(decision) ? prev : last,
+  });
+
+  if (reading.isMock && !allowMock) return keep('ignored-mock');
+
   if (speed != null && speed > zone.maxPlausibleSpeedMps) return keep('ignored-implausible');
   if (reading.accuracy > zone.minAccuracyMeters) return keep('ignored-accuracy');
   if (distance > zone.bufferMeters) {
-    return { decision: 'outside', insideCount: 0, distanceMeters: distance, arrived: false, last };
+    return { decision: 'outside', insideCount: 0, distanceMeters: distance, speed, arrived: false, last };
   }
   if (speed != null && speed > zone.maxQualifyingSpeedMps) return keep('ignored-speed');
 
@@ -108,6 +109,7 @@ export function evaluateReading(zone, state, reading, { allowMock = false } = {}
     decision: arrived ? 'arrived' : 'inside',
     insideCount,
     distanceMeters: distance,
+    speed,
     arrived,
     last,
   };
@@ -120,3 +122,49 @@ export const DEFAULT_ZONE_RULES = {
   maxQualifyingSpeedMps: 8,
   maxPlausibleSpeedMps: 70,
 };
+
+export const DEFAULT_ETA_RULES = {
+  etaThresholdSeconds: 90, // alert when the customer is this close in time...
+  requiredUnderReadings: 2, // ...for this many consecutive trusted readings (15s apart = ~30s)
+  minSpeedMps: 1.5, // slower than a walk-pace crawl has no meaningful ETA (parked, queued, stopped)
+  speedSmoothing: 0.5, // weight of the newest speed in the moving average
+  minShrinkMeters: 5, // distance must fall by more than GPS jitter to count as approaching
+};
+
+/**
+ * Gather alert: is the customer about to arrive? Pure like evaluateReading; feed it the
+ * result of evaluateReading for the same reading. ETA = distance to the lot / smoothed speed,
+ * straight-line (no routing API; measured speed already reflects traffic). The alert fires
+ * once, when the ETA stays under the threshold on consecutive readings AND the distance is
+ * shrinking (so a car driving past on the road never fires). Arrival itself is unchanged.
+ *
+ * state: { smoothedSpeed?, prevDistance?, underCount, alerted }
+ * returns { fire, etaSeconds (Infinity if no usable speed), state }
+ * ponytail: straight-line distance understates a route that bends (highway between stores);
+ * swap in a routing API only if real-phone tests show too many early or late alerts.
+ */
+export function evaluateEta(state, result, rules = DEFAULT_ETA_RULES) {
+  // untrusted fixes (mock, bad accuracy, impossible speed) must not move the ETA either way
+  if (state.alerted || result.decision.startsWith('ignored-') && result.decision !== 'ignored-speed') {
+    return { fire: false, etaSeconds: Infinity, state };
+  }
+  const smoothedSpeed =
+    result.speed == null
+      ? state.smoothedSpeed
+      : state.smoothedSpeed == null
+        ? result.speed
+        : rules.speedSmoothing * result.speed + (1 - rules.speedSmoothing) * state.smoothedSpeed;
+  const etaSeconds =
+    smoothedSpeed != null && smoothedSpeed >= rules.minSpeedMps
+      ? result.distanceMeters / smoothedSpeed
+      : Infinity;
+  const approaching =
+    state.prevDistance != null && result.distanceMeters < state.prevDistance - rules.minShrinkMeters;
+  const underCount = approaching && etaSeconds <= rules.etaThresholdSeconds ? state.underCount + 1 : 0;
+  const fire = underCount >= rules.requiredUnderReadings;
+  return {
+    fire,
+    etaSeconds,
+    state: { smoothedSpeed, prevDistance: result.distanceMeters, underCount, alerted: fire },
+  };
+}
