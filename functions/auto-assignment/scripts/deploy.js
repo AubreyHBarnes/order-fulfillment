@@ -9,18 +9,19 @@
  * would need an interactive browser-based login this environment can't
  * do unattended. This script does the same job - package the function's
  * code, create/update the Function resource, upload+activate a
- * deployment - using the already-installed `node-appwrite` server SDK
- * and the project's existing dev API key (now widened with Functions
- * scope), which the harness *can* run directly.
+ * deployment - using the project's existing dev API key (now widened with
+ * Functions scope), which the harness *can* run directly.
+ *
+ * It calls Appwrite's REST API with plain `fetch`, not the `node-appwrite`
+ * SDK: the SDK's HTTP layer fails on Node 26 ("invalid onError method"),
+ * and the handful of calls used here are simple.
  *
  * USAGE: node functions/auto-assignment/scripts/deploy.js
  * (reads the repo root .env for endpoint/project/key - same file every
  * other server-side script in this project already uses)
  */
-import { Client, Functions, Runtime, Role } from 'node-appwrite';
-import { InputFile } from 'node-appwrite/file';
 import { execSync } from 'node:child_process';
-import { readFileSync, existsSync, mkdtempSync } from 'node:fs';
+import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,17 +74,29 @@ const EVENTS = [
 // worst case, not a precise 60s.
 const SCHEDULE = '* * * * *';
 
-const client = new Client()
-  .setEndpoint(APPWRITE_ENDPOINT)
-  .setProject(APPWRITE_PROJECT_ID)
-  .setKey(APPWRITE_API_KEY);
-const functions = new Functions(client);
+async function api(method, path, body) {
+  const headers = { 'x-appwrite-project': APPWRITE_PROJECT_ID, 'x-appwrite-key': APPWRITE_API_KEY };
+  const isForm = body instanceof FormData; // fetch sets the multipart boundary itself
+  if (body && !isForm) headers['content-type'] = 'application/json';
+  const res = await fetch(`${APPWRITE_ENDPOINT}${path}`, {
+    method,
+    headers,
+    body: body && (isForm ? body : JSON.stringify(body)),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    // code/type mirror the SDK's AppwriteException, which the callers below branch on
+    throw Object.assign(new Error(`${method} ${path}: ${res.status} ${json.message}`), { code: res.status, type: json.type });
+  }
+  return json;
+}
+const fn = `/functions/${FUNCTION_ID}`;
 
 async function ensureFunction() {
   const config = {
     functionId: FUNCTION_ID,
     name: FUNCTION_NAME,
-    runtime: Runtime.Node22,
+    runtime: 'node-22',
     events: EVENTS,
     schedule: SCHEDULE,
     timeout: 15,
@@ -99,7 +112,7 @@ async function ensureFunction() {
     // its own caller via a JWT it verifies internally
     // (resolveCaller() in main.js) - that check, not this permission,
     // is the real authorization boundary.
-    execute: [Role.any()],
+    execute: ['any'],
   };
 
   // The project's plan stopped allowing cron schedules (found 2026-10-22:
@@ -121,14 +134,15 @@ async function ensureFunction() {
   };
 
   try {
-    const existing = await functions.get({ functionId: FUNCTION_ID });
+    const existing = await api('GET', fn);
     console.log(`Function ${FUNCTION_ID} already exists - updating config (events/runtime).`);
-    await withScheduleFallback((c) => functions.update(c));
+    console.log(`  previous active deployment (rollback target): ${existing.deploymentId || '(none)'}`);
+    await withScheduleFallback((c) => api('PUT', fn, c));
     return existing;
   } catch (err) {
     if (err.code !== 404) throw err;
     console.log(`Creating function ${FUNCTION_ID}...`);
-    return withScheduleFallback((c) => functions.create(c));
+    return withScheduleFallback((c) => api('POST', '/functions', c));
   }
 }
 
@@ -142,16 +156,16 @@ async function ensureVariables() {
     ...(APPWRITE_PICKUP_ZONES_COLLECTION_ID && { APPWRITE_PICKUP_ZONES_COLLECTION_ID }),
     ...(APPWRITE_CUSTOMER_TRIPS_COLLECTION_ID && { APPWRITE_CUSTOMER_TRIPS_COLLECTION_ID }),
   };
-  const existing = await functions.listVariables({ functionId: FUNCTION_ID });
+  const existing = await api('GET', `${fn}/variables`);
   for (const [key, value] of Object.entries(required)) {
     const found = existing.variables.find((v) => v.key === key);
     if (found) {
       if (found.value !== value) {
-        await functions.updateVariable({ functionId: FUNCTION_ID, variableId: found.$id, key, value });
+        await api('PUT', `${fn}/variables/${found.$id}`, { key, value });
         console.log(`Updated variable ${key}`);
       }
     } else {
-      await functions.createVariable({ functionId: FUNCTION_ID, key, value });
+      await api('POST', `${fn}/variables`, { key, value });
       console.log(`Created variable ${key}`);
     }
   }
@@ -178,13 +192,12 @@ async function deploy() {
 
   const tarPath = packageSource();
   console.log(`Uploading deployment from ${tarPath}...`);
-  const deployment = await functions.createDeployment({
-    functionId: FUNCTION_ID,
-    code: InputFile.fromPath(tarPath, 'code.tar.gz'),
-    activate: true,
-    entrypoint: 'src/main.js',
-    commands: 'npm install',
-  });
+  const form = new FormData();
+  form.append('code', new Blob([readFileSync(tarPath)]), 'code.tar.gz'); // small: one request, no chunking
+  form.append('activate', 'true');
+  form.append('entrypoint', 'src/main.js');
+  form.append('commands', 'npm install');
+  const deployment = await api('POST', `${fn}/deployments`, form);
   console.log(`Deployment ${deployment.$id} created, status: ${deployment.status}`);
 
   // Poll until the build finishes (ready/failed) - createDeployment
@@ -194,7 +207,7 @@ async function deploy() {
   const start = Date.now();
   while (!['ready', 'failed'].includes(current.status) && Date.now() - start < 120000) {
     await new Promise((r) => setTimeout(r, 3000));
-    current = await functions.getDeployment({ functionId: FUNCTION_ID, deploymentId: deployment.$id });
+    current = await api('GET', `${fn}/deployments/${deployment.$id}`);
     console.log(`  ...status: ${current.status}`);
   }
 
@@ -212,7 +225,7 @@ async function deploy() {
 
   console.log(`Deployment ${current.$id} is READY and active.`);
   // Read back rather than echo SCHEDULE - the plan fallback above may have dropped it.
-  const live = await functions.get({ functionId: FUNCTION_ID });
+  const live = await api('GET', fn);
   console.log(`Function ${FUNCTION_ID} is now listening for:\n  - ${live.events.join('\n  - ')}\n  - schedule: ${live.schedule || '(none)'}`);
 }
 
