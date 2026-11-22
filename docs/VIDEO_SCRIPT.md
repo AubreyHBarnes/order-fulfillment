@@ -447,6 +447,27 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 
 > "I found and fixed a version of this class of bug already — a declined arrival reopening the modal because two writes raced. The pattern is the same: the notification has to be tied to a *change*, not to a *state*."
 
+### Comparison piece: how notification systems are meant to prevent this, and where this app differs
+
+`[SCREEN: two-column slide, "What the platforms provide" vs "This app", then the Arriving soon list and the once-per-order toast on the shopper emulator]`
+
+**Say this first:** "I can't see how the production app is built, so I'm not saying what *they* do. This is what Apple and Google document as the intended tools for these exact problems, and how my app uses, or doesn't use, them."
+
+| | What the platforms provide (documented) | This app |
+|---|---|---|
+| **One event, one notification** | Push services let you *collapse* messages: [FCM collapsible messages](https://firebase.google.com/docs/cloud-messaging/customize-messages/collapsible-message-types) and the APNs `apns-collapse-id` header replace an older queued message with a newer one that shares a key. This only covers messages not yet delivered; once shown, a later header can't remove it. | No push channel, so no queue to collapse. Instead, dedup happens in the app on a stable key: the gather-alert toast fires once per order (`isFreshGatherAlert` with a seen set), and the same event also appears as a persistent list row, not a second toast. |
+| **Replace what's on screen** | Android can replace a still-visible notification that reuses the same tag (verify the exact `notify(tag, id)` behavior in the `NotificationManager` docs; I only found forum-level confirmation). | One row per order in "Arriving soon", updated in place over realtime, so the manual "on my way" and the measured alert are the same row, never two stacked ones. |
+| **Interrupt only when it matters** | Apple's [Time Sensitive guidance](https://developer.apple.com/design/human-interface-guidelines/managing-notifications): reserve it for something relevant now, never escalate low-priority information. Android's design guidance says the same about heads-up notifications. | The gather alert is a toast, which can be dismissed and never blocks the screen. The manual "on my way" is deliberately a row with *no* toast, because it's low-confidence information. |
+| **Don't move the user** | Not a platform rule, but a design principle behind both: a notification should never discard what the person is doing. | Still a gap. Accepting an arrival navigates to Customer Check-ins whatever the shopper was doing (cases 2 and 3). The gather alert avoids this: a toast plus a list, and it never navigates. |
+| **Works when the app is closed** | Push (FCM/APNs) is how every closed-app notification arrives. | Not built. A backgrounded shopper gets nothing, which is a bigger gap than duplicates. |
+
+**The honest ledger:**
+- **What I fixed for the new feature, not the old ones:** the gather alert follows the fix pattern from this section: one key per event, handled before the "do I already have an order" guard, a persistent list as the source of truth, no navigation. It's a fresh example of building the rule right the first time.
+- **What I haven't touched:** the arrival handler's missing seen-ID check and the navigate-on-accept behavior. Both are still open and listed in the table above.
+- **What I can't show:** duplicates across two channels, because this app has one channel. Don't imply the problem was reproduced here.
+
+**Before filming, verify:** the two linked pages are current (the FCM page describes collapsing for messages not yet delivered; the Apple page is the Human Interface Guidelines on managing notifications); the Android tag-replacement claim against the `NotificationManager` reference; and that you describe the three cases as your own experience of the production app, never as a diagnosis of it.
+
 **Features deliberately deferred:**
 - **Proximity: the rest of it.** The foreground-only version is built (section 14). Still open: background location (its own large Android project), the staff map of customers in the lot, a per-reading log so a real drive can be reviewed afterward (today only the last reading survives), and the real-phone field test — the checklist is written, including runs that are *expected* to fail, like a locked screen.
 - **Multi-order pickup consolidation** — the "two hand-offs for one trip" problem from the intro. No data-model support yet.
