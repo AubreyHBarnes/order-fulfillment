@@ -22,6 +22,18 @@ A mobile-first grocery shopping application featuring dual user roles (customers
 - Accessible, production-ready UI following Material Design 3
 - Serverless function architecture
 
+### How this was built
+
+The code was written by an AI coding assistant (Claude Code), not by me. My part was deciding what to build and what to leave out, supplying the problems (from customer feedback and my supervisor's knowledge, not from using the customer app myself), approving or rejecting each design, and testing it live on two Android emulators to find what was wrong.
+
+That has consequences you should know about before reading the code:
+
+- **Some choices were made by the assistant without being asked or recorded.** For example, the auto-assignment Function is plain JavaScript in an otherwise TypeScript project; nobody decided that, and it is logged as a gap in [`docs/DECISIONS.md`](docs/DECISIONS.md).
+- **Not everything has been tested on real hardware.** Testing so far is fixture tests for the pure logic plus live runs on emulators. A real-phone test has not been done.
+- **`docs/DECISIONS.md` is the record.** It says what was decided, what else was considered, what was left open, and (where known) who made each call.
+
+The list above reflects what the project demonstrates, not what I hand-wrote.
+
 ---
 
 ## ✨ Features

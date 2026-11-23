@@ -8,7 +8,7 @@ It exists for two reasons: to keep a real record while the project is being acti
 
 ## Pain points this project targets, and where each stands
 
-Source: first-hand experience as a pickup customer and a user of a production seller app (personal experience only, no third-party recordings). Originally listed in `docs/VIDEO_SCRIPT.md` section 2.
+Source: customer feedback and supervisor knowledge reported to the author (not first-hand use of the customer app), plus first-hand use of a production seller app (personal experience only, no third-party recordings). Originally listed in `docs/VIDEO_SCRIPT.md` section 2.
 
 | # | Pain point | Status | Where covered |
 |---|---|---|---|

@@ -53,22 +53,30 @@ Open on something visual and concrete before any talking-head explanation — th
 
 > "This is a shopper mid-order getting bumped onto a rush order automatically — no refresh, no manual dispatch. Nobody's phone made that decision; a function running on the server did, and pushed the result to the shopper's screen live. I'm going to walk through how this app is built, why I built it, and honestly, some of the bugs I only found by breaking it live. One thing up front: this is a work in progress. It's not finished, and I'll be specific at the end about what's still open and what I'd build next."
 
+**Disclosure (about a minute, say it before the first section, on camera, not in the description):**
+
+> "Before I go further, here's who did what. I didn't write this code. An AI coding assistant, Claude Code, wrote it. What I did was decide what to build and what not to build, bring the problems, which come from customer feedback and my supervisor's knowledge, and from using the seller-side app, not from picking up groceries myself, approve or reject each design, and test it live on two emulators and find what was wrong. When this video says 'we,' that means the two of us. When it says 'I,' it's one of those judgments. Where I'm not sure which of us made a call, the script says so.
+>
+> That matters for what you're about to watch, because it means some decisions were made by the AI and I only found out later. One of them, which language the server code was written in, is in the section on production. I'm not showing you a developer who knew everything. I'm showing you what it's like to direct a build you couldn't have written yourself, where the gaps are, and what you'd need to know to catch them."
+
+`[SCREEN: the README "How this was built" section, once it exists; until then, docs/DECISIONS.md]`
+
 ---
 
 ## 2. Why this project exists
 
 `[SCREEN: talking head or slides, no app yet]`
 
-This is the section to make personal and specific — don't generalize to "online grocery shopping is convenient." Name the actual friction points you've hit as a Whole Foods pickup customer, since those are the ones this project explicitly tries to answer:
+This is the section to make personal and specific — don't generalize to "online grocery shopping is convenient." Name the actual friction points, as customers reported them to you and as your supervisor described them (not as a pickup customer yourself; say where each one came from), since those are the ones this project explicitly tries to answer:
 
-- **#1: The ETA jumps around and doesn't mean anything.** You'll watch the in-app "shopper is 2-3 minutes away" estimate bounce up and down, sometimes while you can see you're still half a mile out. That's a GPS-accuracy problem more than a software bug — consumer GPS in a dense retail lot is commonly off by 30-100+ feet — but it's the kind of thing worth understanding *why* it happens before trying to build something similar. Related: the app tells you to tap "I'm on my way" at five minutes out, which is a poor signal when pickup time and traffic can't be predicted.
+- **#1: The ETA jumps around and doesn't mean anything.** Customers report the in-app "shopper is 2-3 minutes away" estimate bouncing up and down, sometimes while they can see they're still half a mile out. That's a GPS-accuracy problem more than a software bug — consumer GPS in a dense retail lot is commonly off by 30-100+ feet — but it's the kind of thing worth understanding *why* it happens before trying to build something similar. Related: the app tells you to tap "I'm on my way" at five minutes out, which is a poor signal when pickup time and traffic can't be predicted.
 - **#3: When you have more than one order ready, there's no single pickup.** You end up doing two separate handoffs for what should be one trip to your trunk. This project's data model doesn't solve that yet — flagged as a real, larger feature gap.
 - **#4: Nothing tells anyone when priorities change.** If something more urgent needs to jump the queue, or a shopper needs to be redirected, that coordination doesn't happen live. This is the one this project fully *solves*, and it's the thread running through the whole video.
 - **#5: Duplicate and mistimed notifications.** As the person using the seller app: the same prompt twice, an unskippable modal that throws you out of what you were scanning. Hypotheses only, since I can't see their code.
 - **#6: You can't change how you receive the order.** Someone who came in for in-store pickup and later needed to rest in their car, and the shopper had to find them. A real case from my own work.
 - **And one I dropped (#2):** parking-spot communication being free text, ambiguous between nearby stores' lots. The premise was wrong, since each pickup-enabled store has its own lot at a separate shopping center. Worth saying out loud: part of the process was checking my own pain points against reality and cutting the ones that didn't hold.
 
-> "I'm not trying to rebuild Whole Foods' entire backend — this is a solo portfolio project built with AI and best guesses. But every decision in it is trying to answer a real, specific piece of friction I've personally hit as a customer, and I wanted the reasoning behind each one to be traceable, not just the code."
+> "I'm not trying to rebuild Whole Foods' entire backend — this is a solo portfolio project built with AI and best guesses. But every decision in it is trying to answer a real, specific piece of friction that customers and my supervisor described to me, plus what I've seen using the seller-side app, and I wanted the reasoning behind each one to be traceable, not just the code."
 
 `[SCREEN: docs/DECISIONS.md, scroll past the title/intro paragraph]`
 
@@ -365,7 +373,7 @@ Arrival at 100 m gives a moving car only about ten seconds of warning, which is 
 
 `[SCREEN: a two-column slide, "Typical production approach" vs "This app", then back to DECISIONS.md "Gather alert by ETA"]`
 
-**Say this first, on camera:** "I haven't seen the inside of any retailer's app. What follows is how the platforms document that this is *meant* to be done, plus what I've felt as a customer. Where a real app differs, I'd like to hear it."
+**Say this first, on camera:** "I haven't seen the inside of any retailer's app. What follows is how the platforms document that this is *meant* to be done, plus what customers have told me. Where a real app differs, I'd like to hear it."
 
 That sentence matters: everything in the left column below comes from Apple's and Google's own location documentation and general industry practice, not from any company's source code. Don't attribute a specific technique to a named retailer unless you have a source for it.
 
