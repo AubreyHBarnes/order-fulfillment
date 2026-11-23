@@ -1275,3 +1275,19 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 - **Manual "I'm on my way" fallback built (2026-11-22).** When location sharing can't start (permission denied, error), `OnMyWayCard` offers "Tell the store I'm on my way anyway". It calls a new `onMyWay` Function action that stamps `Orders.onMyWayAt` (new datetime column, applied live; the Function does the write because customers can't update `Orders` directly after the permission tightening). It never sets `gatherAlertAt`, so it cannot fire the gather alert (point 4). The shopper sees it as a row in "Arriving soon" ("says they're on the way (no live location)") and gets no toast, to avoid adding to pain point #5. Verified live: Function stamps onMyWayAt only, and the shopper emulator's list updated over realtime. Not verified in the emulator: the customer-side button itself (needs location to fail); covered by typecheck only. Known gaps: the row stays until the order leaves `ready_for_pickup`; no "cancel on my way". Deployment 6b0345cd0ce921aa2317; rollback 6b033c13a1da313044fa.
 - **Correction to decision 3:** the "distance is shrinking" check does *not* stop a drive-past on the road from firing. Until the car passes the lot it looks identical to one arriving, so the alert fires on the way in (the test `known limit: a drive-past...` pins this). Arrival is unaffected: its speed gate still stops a drive-past from checking in. What the shrinking check does stop is a car driving away, and GPS jitter around a fixed point. Accept the occasional early alert for a drive-past, or revisit if real-phone tests show it is common.
 
+
+---
+
+## Auto-assignment Function is plain JavaScript (found 2026-11-23, left as a documented gap)
+
+**Context:** The app is TypeScript, but `functions/auto-assignment/src/` (`main.js`, `trips.js`, `zone.js`) is plain ESM JavaScript on Node 22. It was scaffolded that way in `e5f5712` (2026-09-13) by the AI assistant, without being asked for and without a recorded reason. The probable reason is that Appwrite runs `.js` directly and a TypeScript Function needs a build step; that is a guess.
+
+**Decision:** Leave it as JavaScript for now. Revisit as its own branch off `main`.
+
+**Pros of leaving it:** no build step (`deploy.js` ships the source as written); the Function is small; it is deployed and verified live, so a conversion risks live auto-assignment.
+
+**Cons:** nothing checks that the app and the Function agree on message shapes (the `{ success, data }` shape was already kept in sync by hand once); the most important logic in the project has the least checking; inconsistent with the rest of the repo.
+
+**Options when revisited:** (1) `// @ts-check` with JSDoc types, no build step, cheapest; (2) full TypeScript with shared order/arrival types and `deploy.js` running `tsc` then uploading `dist/` (rollback already exists in the deploy script).
+
+**Lesson:** the choice was made silently by the AI. Knowing this class of gap in advance is what lets the developer ask at the moment the choice is made.

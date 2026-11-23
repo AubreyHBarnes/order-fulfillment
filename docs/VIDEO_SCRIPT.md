@@ -19,7 +19,7 @@
 1. Cold open / hook
 2. Why this project exists, and the pain points overview
 
-**Part 2: How I built it**
+**Part 2: How it was built**
 3. Tech stack and why each piece was chosen
 4. Foundation and auth
 5. Customer shopping experience + pickup time slots
@@ -68,7 +68,7 @@ This is the section to make personal and specific — don't generalize to "onlin
 - **#6: You can't change how you receive the order.** Someone who came in for in-store pickup and later needed to rest in their car, and the shopper had to find them. A real case from my own work.
 - **And one I dropped (#2):** parking-spot communication being free text, ambiguous between nearby stores' lots. The premise was wrong, since each pickup-enabled store has its own lot at a separate shopping center. Worth saying out loud: part of the process was checking my own pain points against reality and cutting the ones that didn't hold.
 
-> "I'm not trying to rebuild Whole Foods' entire backend — this is a solo portfolio project. But every decision in it is trying to answer a real, specific piece of friction I've personally hit as a customer, and I wanted the reasoning behind each one to be traceable, not just the code."
+> "I'm not trying to rebuild Whole Foods' entire backend — this is a solo portfolio project built with AI and best guesses. But every decision in it is trying to answer a real, specific piece of friction I've personally hit as a customer, and I wanted the reasoning behind each one to be traceable, not just the code."
 
 `[SCREEN: docs/DECISIONS.md, scroll past the title/intro paragraph]`
 
@@ -78,13 +78,13 @@ Mention here that this project keeps a running engineering decision log, not jus
 
 ---
 
-# PART 2: HOW I BUILT IT
+# PART 2: HOW IT WAS BUILT
 
 ## 3. Tech stack and why each piece was chosen
 
 `[SCREEN: README.md "Built With" section]`
 
-Frame this less as a list and more as "what problem was each piece solving, and what did I get out of learning it":
+Frame this less as a list and more as "what problem was each piece solving, and what I could learn from it":
 
 - **React Native (bare, not Expo), TypeScript.** Cross-platform from one codebase, and bare RN specifically (not Expo) to actually deal with native tooling — Gradle, the Android SDK, emulators — instead of it being abstracted away. More setup pain up front, but the skills transfer to any real native RN project.
   **In plain terms:** React Native lets you write one app in JavaScript and run it on both Android and iPhone. TypeScript is JavaScript with type labels, so mistakes like passing text where a number belongs get caught before the app runs. "Bare" means I manage the Android build tools myself instead of letting a framework hide them.
@@ -96,7 +96,7 @@ Frame this less as a list and more as "what problem was each piece solving, and 
   **In plain terms:** a serverless function is a small piece of code that lives on the server and runs automatically when something happens — like "an order was just created" — without you managing a server yourself.
 - **AsyncStorage.** Simple on-device storage for the cart — deliberately not a database, since a cart is per-device, temporary state.
 
-> "None of these are exotic choices — that's kind of the point. The goal wasn't to show off an unusual stack, it was to use the stack you'd actually find at a company doing this kind of app, and go deep enough into each piece that the tradeoffs are real, not textbook."
+> "None of these are exotic choices — that's kind of the point. The goal wasn't to show off an unusual stack, it was to use the stack you'd actually find at a company doing this kind of app, and build each piece far enough that the tradeoffs are real, not textbook."
 
 ---
 
@@ -200,7 +200,7 @@ This is where the "temporary" polling from section 14 got replaced — and the i
 2. **No replay after a disconnect.** If the connection drops — a network blip, or the app going to the background — any changes during that gap are simply gone. So the app does a fresh fetch after every reconnect and every time it comes back to the foreground.
    **In plain terms:** it's like a live radio broadcast, not a podcast. If you step away, you miss that part — so when you come back, you have to check the news to catch up.
 
-> "I deliberately didn't add a backup poll 'just in case.' If the live connection is broken, I'd rather the data visibly go stale than have a timer quietly paper over it with data that looks live but isn't. A problem you can see is a problem you can fix."
+> "We deliberately didn't add a backup poll 'just in case.' If the live connection is broken, we'd rather the data visibly go stale than have a timer quietly paper over it with data that looks live but isn't. A problem you can see is a problem you can fix."
 
 **A small, satisfying fix worth one minute:** the spike did find one real SDK problem — the SDK reads browser-only storage that doesn't exist in React Native, in two places where the SDK's own authors had forgotten a safety check they'd added everywhere else. Rather than hide the warning, Claude Code patched those two lines using `patch-package`, which reapplies the fix automatically on every install.
 
@@ -522,11 +522,11 @@ Be direct: this is unfinished, and knowing *exactly* how it's unfinished is the 
 
 > "Anyone can point at a finished feature. Being able to explain why something isn't built yet, what could go wrong because of it, and what it would take to fix, is the more useful signal."
 
-**Say this first, on camera:** "I can't see how Amazon built Whole Foods' pickup system, and as far as I can find, no engineering write-up of it is public. So this isn't a comparison to their internals. It's what a system like this needs to be usable and scalable, and where mine stops. While I'm unable to finish this for practical use, here's what I would do, in this order."
+**Say this first, on camera:** "I can't see how Amazon built Whole Foods' pickup system, and as far as I can find, no engineering write-up of it is public. So this isn't a comparison to their internals. It's what a system like this needs to be usable and scalable, and where mine stops. While I'm unable to finish this for practical use, here's what Claude Code and I would do, in this order."
 
 ### The production map `[TO DRAFT]`
 
-One short passage per axis: what's built, the gap, what I'd do, and when. Estimates should be honest and informed, not measured, and labeled as estimates. Material that already exists is noted.
+One short passage per axis: what's built, the gap, what the fix would be (a proposal from Claude Code, for me to approve), and when. Estimates should be honest and informed, not measured, and labeled as estimates. Material that already exists is noted.
 
 | Axis | What exists (from this repo) | To draft |
 |---|---|---|
@@ -534,7 +534,7 @@ One short passage per axis: what's built, the gap, what I'd do, and when. Estima
 | 2. Reliability | The every-minute sweep is off in production; no retry or idempotency beyond event-state guards. | A job queue or scheduled trigger, retries with idempotency keys, stuck-state repair. |
 | 3. Dispatch quality | Assignment is sort-by-due-time. Section 6 explains why that was deliberate. | What published dispatch systems do (batching and matching) and when this app would need it. See sources below, unverified. |
 | 4. Notifications and location | No push channel; foreground-only location. Covered in sections 13 and 15. | Push and background location, as one rollout. |
-| 5. Scale | One event-triggered Function; realtime delivers events to everyone allowed to read. Nothing load-tested. | What I'd measure first, and an honest estimate of where it breaks. Don't claim a number without measuring. |
+| 5. Scale | One event-triggered Function; realtime delivers events to everyone allowed to read. Nothing load-tested. | What to measure first, and an honest estimate of where it breaks. Don't claim a number without measuring. |
 | 6. Security and privacy | Orders and writes locked; reads on `CustomerArrivals` and `ShopperStatus` not yet (below). | Finish the read scoping; audit PII. |
 | 7. Testing and operations | Fixture tests for zone, trips and gather alert; the rest verified live. No CI; server code untyped; only the last location reading survives. | CI, shared types or `@ts-check`, a per-reading log, deploy checks that diff live against the repo. |
 | 8. Product breadth | Pickup only for proximity; Android only. | Multi-order pickup, iOS, multi-store zones. |
@@ -553,7 +553,9 @@ One short passage per axis: what's built, the gap, what I'd do, and when. Estima
 - **Some updates can stop halfway.** Assigning an order updates two records separately; a crash between them leaves them disagreeing. The fix is transactions, or a regular cleanup job that finds and repairs mismatches.
 - **The every-minute sweep isn't running in production** (section 12). The plan rejects cron; options are an upgrade, Appwrite's interval option (not yet investigated), or an external trigger. Until then, an ignored arrival prompt or an unanswered auto check-in isn't timed out or reassigned.
 - **The app still sets a few things the server should,** like the order total (price trust is deliberately still open) and arrival timestamps — both should be calculated on the server.
-- **The server logic isn't type-checked.** The app is TypeScript, but the Function (`main.js`, `trips.js`, `zone.js`) is plain JavaScript running on Node 22 — so nothing verifies that the app and the Function agree on the shape of their messages. I've already had a near-miss of this kind: the `{ success, data }` response shape had to be kept in sync by hand during the deploy-gap merge. Say it as a known gap, not a deliberate choice — the decision log doesn't record one. In production I'd share one set of types between client and server; a cheaper first step is `// @ts-check` with JSDoc comments, which needs no build step.
+- **The server logic isn't type-checked.** The app is TypeScript, but the Function (`main.js`, `trips.js`, `zone.js`) is plain JavaScript running on Node 22 — so nothing verifies that the app and the Function agree on the shape of their messages. We've already had a near-miss of this kind: the `{ success, data }` response shape had to be kept in sync by hand during the deploy-gap merge. Say it as a known gap, not a deliberate choice: the AI assistant scaffolded the Function as plain JavaScript on 2026-09-13 (commit `e5f5712`), I never asked for that, and nobody wrote down a reason. In production we'd share one set of types between client and server; a cheaper first step is `// @ts-check` with JSDoc comments, which needs no build step. Left as a documented gap on purpose (DECISIONS.md, "Auto-assignment Function is plain JavaScript").
+  **Leaving it as JS, pros:** no build step, so the deploy script ships the source as written; the Function is small; it's already deployed and verified live. **Cons:** nothing checks that the app and the Function agree on message shapes; it's the file that decides who gets which order, so the project's biggest risk sits in the one place with no type checking; it's inconsistent with the rest of the repo.
+  **Lesson to say on camera:** "This gap exists because I didn't know to ask. The AI picked plain JavaScript for the most important file in the project, never mentioned it, and I only found out months later by reading the code. It built what worked, not what a developer who'd been burned by this would insist on. Knowing the failure modes yourself, such as typed boundaries, who decides what, and what's checked where, is what lets you catch these choices at the moment they're made. An AI model will make a default choice without telling you unless you know to ask.
   **In plain terms:** type checking is spell-check for your data's shape — it catches "the app sent `readyForPickup` but the server expects `ready_for_pickup`" before anything runs. Plain JavaScript has no such check, so that mistake only shows up when something breaks.
 - **Testing is partly automated now, mostly manual.** The pure logic for the pickup zone and trips has fixture-based tests, but the rest was verified live on emulators, which is thorough but slow. The Function's assignment rules are the best next candidates.
 
