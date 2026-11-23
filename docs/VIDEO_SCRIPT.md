@@ -142,7 +142,7 @@ Worth one sentence of foreshadowing: at this point in the project, this logic ra
 
 **In plain terms:** a *schema* is the database's definition of what each record looks like — which fields exist, their exact names and types. "Schema drift" is when the code and the database quietly disagree about that, like the code writing to `shopperId` while the database only knows `shopperID`.
 
-> "Debugging this one error message at a time would have taken forever, and worse, been actively misleading. What actually worked was getting the *ground truth*: I pulled every collection's real field list straight from Appwrite's API and compared it against every place in the code that read or wrote those fields. That found all four problems — two capitalization bugs, two permission gaps — in one pass instead of four separate debugging sessions."
+> "Debugging this one error message at a time would have taken forever, and worse, been actively misleading. What actually worked was getting the *ground truth*: Claude Code pulled every collection's real field list straight from Appwrite's API and compared it against every place in the code that read or wrote those fields. That found all four problems — two capitalization bugs, two permission gaps — in one pass instead of four separate debugging sessions."
 
 Teaching point to state explicitly: **silent empty results are a specific hazard in query-based backends.** A query filtering on a field that doesn't exist didn't throw an error — it just returned nothing, which would have quietly broken availability toggling for every shopper without anyone seeing an error.
 
@@ -174,7 +174,7 @@ Good spot to show the **dual-emulator setup** if you haven't already — two ind
 
 Quick pass through finishing the last placeholder screens:
 
-- **Customer Check-ins is store-wide** — any on-duty shopper sees every waiting customer, like a real curbside desk. (Section 11 revisits how the *notification* for an arrival works — that one I got wrong the first time.)
+- **Customer Check-ins is store-wide** — any on-duty shopper sees every waiting customer, like a real curbside desk. (Section 11 revisits how the *notification* for an arrival works — that one we got wrong the first time, until I caught it in live use.)
 - **Drop Offs needed a status that didn't exist yet** — delivery orders jumped straight from `shopping` to `completed`, so a new `out_for_delivery` status was added to give the screen something real to act on.
 - **A second, more severe schema-drift bug**, this time on `CustomerArrivals`: required fields the database enforced (arrival times, `parkingSpot` as a required number 1-5) didn't match what the code sent, breaking the customer's "I've Arrived" button outright. Same resolution as the first drift story: fix the code to match the live schema.
 
@@ -188,7 +188,7 @@ Loop back to the intro: `parkingSpot` being a required number 1-5 on the real sc
 
 This is where the "temporary" polling from section 14 got replaced — and the interesting part is *how* the decision was made.
 
-> "Twice, I'd set Realtime aside because the SDK's React Native behavior was 'unverified.' The third time, I realized that if I kept writing 'unverified' without ever testing it, it would become a permanent excuse instead of a real blocker. So instead of reasoning about it, I ran an experiment."
+> "Twice, Claude Code set Realtime aside because the SDK's React Native behavior was 'unverified.' The third time, it was clear that if we kept writing 'unverified' without ever testing it, it would become a permanent excuse instead of a real blocker. So instead of reasoning about it, we ran an experiment."
 
 **The spike:** a throwaway listener, mounted on both emulators for over a minute — through several heartbeat cycles, backgrounding and foregrounding the app, and writes from one device observed on the other. The feared crash never happened. Events arrived in 1-4 seconds, reliably.
 
@@ -202,7 +202,7 @@ This is where the "temporary" polling from section 14 got replaced — and the i
 
 > "I deliberately didn't add a backup poll 'just in case.' If the live connection is broken, I'd rather the data visibly go stale than have a timer quietly paper over it with data that looks live but isn't. A problem you can see is a problem you can fix."
 
-**A small, satisfying fix worth one minute:** the spike did find one real SDK problem — the SDK reads browser-only storage that doesn't exist in React Native, in two places where the SDK's own authors had forgotten a safety check they'd added everywhere else. Rather than hide the warning, I patched those two lines using `patch-package`, which reapplies the fix automatically on every install.
+**A small, satisfying fix worth one minute:** the spike did find one real SDK problem — the SDK reads browser-only storage that doesn't exist in React Native, in two places where the SDK's own authors had forgotten a safety check they'd added everywhere else. Rather than hide the warning, Claude Code patched those two lines using `patch-package`, which reapplies the fix automatically on every install.
 
 **In plain terms:** `patch-package` lets you make a small fix to someone else's library and keep it in your project, so it isn't lost the next time the library gets reinstalled.
 
@@ -240,11 +240,11 @@ There's a second problem, about **trust**: if the phone makes the decision, anyo
 
 This section is worth including partly *because* it starts with a mistake.
 
-**What I built first:** when a customer taps "I've Arrived," every on-duty shopper got the same notification toast — treating it like the shared check-in queue.
+**What was built first:** when a customer taps "I've Arrived," every on-duty shopper got the same notification toast — treating it like the shared check-in queue.
 
 **What was actually right:** based on how the real app works, the arrival should go to **one specific shopper** — whoever shopped that order — as a prompt they have to accept or decline. If they don't respond within 60 seconds, they're marked unavailable and the hand-off goes to the next free shopper.
 
-> "I'd built a reasonable design for the wrong requirement. The lesson I took isn't 'ask more questions' in the abstract — it's that I'd assumed a notification pattern from a similar-looking feature instead of checking how the real thing behaves. The fix took a day; building the wrong thing well could have taken much longer to notice."
+> "We built a reasonable design for the wrong requirement. The lesson I took isn't 'ask more questions' in the abstract — it's that the notification pattern was assumed from a similar-looking feature instead of checking how the real thing behaves. The fix took a day; building the wrong thing well could have taken much longer to notice."
 
 **Why the timeout had to live on the server:** a countdown timer inside the app stops the moment the shopper's phone locks or the app is closed — exactly when the timeout matters most. So the same Function gained a schedule: every minute, it sweeps for arrivals that have waited too long.
 
@@ -301,7 +301,7 @@ The flip itself was scripted with checks built in and an automatic rollback to t
 
 `[SCREEN: DECISIONS.md "Deploy gap and the lost cron schedule"]`
 
-> "Before flipping that switch, I did a pre-flight — and part of it was downloading the Function that was actually live and diffing it against my repo. They didn't match."
+> "Before flipping that switch, Claude Code ran a pre-flight — and part of it was downloading the Function that was actually live and diffing it against the repo. They didn't match."
 
 - **The deploy gap.** `createOrder` was committed on `main` and marked done. But the live Function was an October 17 build from the proximity feature branch: it had the trip actions and no `createOrder`. Checkout on `main` would have failed against production — and deploying `main` as-is would have silently deleted the trip actions. Both choices broke something. The fix was merging `main` into the proximity branch, resolving two conflicts (keep both sides of the action switch; keep the branch's response shape so the trip reporter's reads still work), and deploying from there.
 - **The schedule that vanished.** The first deploy attempt failed with `403 billing_feature_unsupported` — the plan no longer allows cron. The live schedule had been cleared on October 19, so the every-minute sweep (arrival timeouts, reassignment, stale-trip expiry) had silently not run in production for three days — and still isn't. Nothing errored, because everything triggered by events or HTTP calls kept working. The deploy script now warns loudly and reports the schedule that's actually live instead of echoing the one requested.
@@ -421,7 +421,7 @@ Getting an idle shopper a rush order is one query. **Taking an order away from a
 3. **Live notification** — the interrupt modal on the shopper's screen. At the time, this was done by **polling**: the shopper's app asked the server "anything new for me?" every 8 seconds.
    **In plain terms:** polling is like refreshing your email every few seconds to check for new mail, versus push, where the mail shows up on its own. Polling is simpler and more predictable, but always a little late.
 
-> "Push notifications over WebSockets were the plan from day one, and I looked at them here — but the SDK had some React Native behavior I couldn't vouch for yet. Polling was slower, up to 8 seconds late, but it used code I'd already proven worked. I picked predictability over speed, on purpose, and wrote down that it was a temporary choice. Section 9 is where I came back and replaced it."
+> "Push notifications over WebSockets were the plan from day one, and we looked at them here — but the SDK had some React Native behavior we couldn't vouch for yet. Polling was slower, up to 8 seconds late, but it used code already proven to work. I approved predictability over speed, on purpose, and we wrote down that it was a temporary choice. Section 9 is where I came back and replaced it."
 
 **Then tell the bug story from testing this live** — a concrete example of "type-checking doesn't save you from a live schema": the first interrupt reason was a dynamic string (`Interrupted for rush order ${orderId}`), which failed on save because the live database caps `interruptReason` at 40 characters. TypeScript said `string`, which is true and says nothing about a server-side length limit. Caught immediately in a live two-emulator test, fixed to a short fixed string.
 
@@ -469,7 +469,7 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 - Cases 2 and 3 above are the other kind of problem: a notification that moves you away from work in progress. Here the arrival modal can be declined and times out, but *accepting* an arrival navigates to Customer Check-ins regardless of what the shopper was doing. Gentler than an unskippable modal, but the same class.
 - The arrival handler is the exception — it's closer to level-triggered, with no memory of arrivals it already showed. It's guarded only because those updates are rare. A seen-ID check is a few lines; I haven't added it.
 
-> "I found and fixed a version of this class of bug already — a declined arrival reopening the modal because two writes raced. The pattern is the same: the notification has to be tied to a *change*, not to a *state*."
+> "We found and fixed a version of this class of bug already — a declined arrival reopening the modal because two writes raced. The pattern is the same: the notification has to be tied to a *change*, not to a *state*."
 
 ### How notification systems are meant to prevent this, and where this app differs
 
@@ -486,8 +486,8 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 | **Works when the app is closed** | Push (FCM/APNs) is how every closed-app notification arrives. | Not built. A backgrounded shopper gets nothing, which is a bigger gap than duplicates. |
 
 **The honest ledger:**
-- **What I fixed for the new feature, not the old ones:** the gather alert follows the fix pattern from this section: one key per event, handled before the "do I already have an order" guard, a persistent list as the source of truth, no navigation. It's a fresh example of building the rule right the first time.
-- **What I haven't touched:** the arrival handler's missing seen-ID check and the navigate-on-accept behavior. Both are still open and listed in the table above.
+- **What we fixed for the new feature, not the old ones:** the gather alert follows the fix pattern from this section: one key per event, handled before the "do I already have an order" guard, a persistent list as the source of truth, no navigation. It's a fresh example of building the rule right the first time.
+- **What we haven't touched:** the arrival handler's missing seen-ID check and the navigate-on-accept behavior. Both are still open and listed in the table above.
 - **What I can't show:** duplicates across two channels, because this app has one channel. Don't imply the problem was reproduced here.
 
 **Before filming, verify:** the two linked pages are current (the FCM page describes collapsing for messages not yet delivered; the Apple page is the Human Interface Guidelines on managing notifications); the Android tag-replacement claim against the `NotificationManager` reference; and that you describe the three cases as your own experience of the production app, never as a diagnosis of it.
