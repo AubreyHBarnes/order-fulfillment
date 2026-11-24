@@ -8,7 +8,7 @@ It exists for two reasons: to keep a real record while the project is being acti
 
 `**Provenance:** proposed by <author | Claude Code | unknown> · evidence <live test, fixture test, source link, or "none"> · approved by <author | not asked | unknown>`
 
-"Not asked" means the assistant made the choice without surfacing it, which is itself worth recording (see the plain-JavaScript Function entry). Entries written before 2026-11-23 are not backfilled; treat a missing line as "unknown", not as "the author decided".
+"Not asked" means the assistant made the choice without surfacing it, which is itself worth recording (see the plain-JavaScript Function entry). Entries written before 2026-11-23 were backfilled with a default (proposed by Claude Code, approved by the author) that was not confirmed entry by entry; where the author actually proposed or decided something, correct the line.
 
 ---
 
@@ -25,6 +25,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 | 5 | Duplicate and mistimed notifications in the live seller app (first-hand, three cases): (a) with no assigned order, a new-assignment modal and a toast both appear; accepting through either works, but a second toast and sound then fire saying there is an order to accept, after it was already accepted; (b) mid-order, a customer-arrived modal (OK only, cannot be skipped) starts the drop-off steps; (c) during those staging or pickup-scan steps, another unskippable "order ready to pickup" modal appears, and OK sends the shopper to the home screen, so they must navigate back to the order they were scanning | Mockup, from reading the code (not run): the assignment modal is edge-triggered and there is no push channel, so (a) and (c) as described should not occur; open gaps are that the arrival handler has no seen-ID check and accepting an arrival navigates away from the current screen. Fix pattern: one notification per event (modal and toast share an ID, dedup on it); cancel pending reminders when the event is handled; notifications must not move the user or discard in-progress work (queue a banner instead of an unskippable modal that navigates away); stable IDs for dedup | Script section 14 talking point |
 | 6 | A pickup customer cannot change how they receive the order once it is placed: a customer who came in for in-store pickup and shopped while items were gathered later needed to rest in their car, and the shopper had to find them there. Related: the lot can be full while the customer waits in it for a spot | Partly built (2026-11-22): the arrival card now offers spots 1 to 5 as buttons plus "No spot available", which tells the shopper the customer is waiting in the lot (carried in `notes`, no schema change). NOT built: a switch between "I'm in store" and "bring it to my car at spot N". It is a mode change on a live order the shopper must see, so it likely needs a new order or arrival field (a schema change), handling of a switch mid-gather and after check-in, and a decision on how it interacts with proximity check-in and the manual buttons. Come back to it in the next planning pass | This table only |
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Auto-assignment via sort order, not a routing algorithm
@@ -38,6 +40,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Alternatives considered:** A serverless Appwrite Function that runs assignment logic server-side (more realistic architecture, matches the README's stated "Functions (Node.js serverless)" tech goal) was considered but deferred — the client-side version proves the same data flow with far less infrastructure to stand up first.
 
 **Consequences / left open:** This is explicitly flagged in the README as a simplification ("a simple client-side flag today, not yet a ranking/routing algorithm or serverless function"). It also means assignment only happens at the moment a shopper *becomes* available — an order placed while a shopper is already active and idle-available doesn't get pushed to anyone until the next status change or manual pull. That gap is directly what motivated the rush-order interrupt discussion below.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -53,6 +57,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** This also caught a real, independent bug in passing: `getShopperStatus()` querying a nonexistent field (`shopperId`) silently returned zero results instead of throwing — meaning it would have quietly broken availability toggling and order auto-assignment for every registered shopper without ever raising an error. Silent empty-result failures like this are worth specifically watching for in Appwrite (or any query-based) code, since they don't announce themselves. **The debug API key is dev-only** — it's deliberately never shipped in the client app; the client SDK's inability to do things like delete Auth accounts is an intentional Appwrite platform boundary, not a workaround target.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Pickup time slots scoped to pickup only, not delivery
@@ -66,6 +72,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Alternatives considered:** A single generic "scheduled time" picker for both fulfillment types was considered and rejected for the same reason — it would've had to either fake delivery-window semantics or leave half its options meaningless for a delivery order.
 
 **Consequences / left open:** Delivery orders still have no real scheduling story. That's a known, intentional gap, not an oversight.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -81,6 +89,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** `priority` is now implicitly a two-state (0/1) rush flag rather than a general-purpose priority scale, which is a semantic narrowing worth knowing about if a future feature wants "priority" to mean something more granular. Verified end-to-end in the Android emulator, including confirming the placed order's Appwrite document had `priority: 1` and a `scheduledReadyTime` exactly 30 minutes after `orderDate`.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Releasing a shopper's order when they go unavailable
@@ -95,6 +105,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** `reassignIfMostUrgent` only ever acts on an order that has *already* been released back to `pending` — it does not, and was never designed to, take an order away from a *different* shopper who's actively working it. That distinction is the crux of the rush-order interrupt gap discussed below.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Pull-based data, not realtime — a scope boundary, not an oversight
@@ -108,6 +120,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Alternatives considered:** None seriously — this was more a sequencing choice than a considered tradeoff at the time each feature was built. It's called out explicitly here because it stopped being a free simplification the moment a *live* interrupt notification was requested (see next section): a shopper mid-shop won't see anything change on their screen until they navigate away and back, no matter what the backend does, until realtime is actually wired in.
 
 **Consequences / left open:** This is the single biggest piece of infrastructure the app is currently missing relative to its own stated goals. Concretely blocks: live order-status updates for customers, and any kind of push notification to a shopper (new assignment, interruption, etc.) without them manually refreshing.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -125,6 +139,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Update:** Both sub-features were built next - see "Accept/decline on new assignment" and "Rush-order interrupt: decision logic, polling, and notification UI" below.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Dual-emulator setup for live cross-role testing
@@ -139,6 +155,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** Two emulator instances is noticeably heavier on the dev machine (RAM/CPU) than one — fine on the current 12-core/30GB machine, but worth knowing as a cost if this pattern gets reused for a machine with less headroom. That cost was hit in practice: running both emulators on a 14-core/15GB machine crashed it, so the dual-emulator setup is reserved for the 12-core/30GB PC. On lower-RAM machines, use a single emulator, or pair one emulator with a physical device over `adb` for the second role.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Accept/decline on new assignment
@@ -152,6 +170,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Alternatives considered:** A `react-native-paper` `Dialog`/`Portal` was considered for the modal itself, since the library's already a dependency, but set aside in favor of the same bare `Modal` + `Pressable`-backdrop pattern already proven in this codebase (`ShopperStatusDropdown`) - untested library components didn't need to be introduced for something the existing pattern already handles well. One correction carried over from that component: its inner content wasn't actually wrapped in its own `Pressable` to stop touch propagation, despite a comment claiming it was - fixed properly in the new component.
 
 **Consequences / left open:** None significant - this is fully self-contained, no schema or realtime changes, verified end-to-end in the emulator (toggle Available, modal appears with correct order #/time; Decline confirmed via Appwrite REST to release the order back to `pending`; Accept confirmed to populate the current task).
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -172,6 +192,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Verified end-to-end (2026-08-17):** two busy shoppers set up across the dual-emulator setup, a rush order placed while both were mid-order; the interrupt logic correctly picked the shopper with the furthest-out `scheduledReadyTime`, released their order (confirmed via Appwrite REST: `status: pending`, `interruptedAt`/`interruptReason` set), assigned the rush order to them instead, and the polling-driven `OrderInterruptedModal` appeared on their device within the poll window with the correct order details.
 
 **Consequences / left open:** If the shopper is actively viewing `TaskDetailScreen` for the exact order that gets interrupted, that screen doesn't auto-refresh or auto-navigate away (a pre-existing limitation of that screen - it fetches once on mount - not something this feature introduces). Realtime remains a documented future upgrade over polling, should the up-to-8-second latency ever matter more than the integration risk did at the time this was built.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -199,6 +221,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 3. **Claiming an order didn't check whether the shopper already had one in flight.** `TaskDetailScreen`'s claim action offered "Claim & Start Shopping" on any pending order regardless of the shopper's own `ShopperStatus.currentOrderId` - claiming a second order while mid-task on a first would silently orphan the first (its `shopperID` stays set, but nothing points `ShopperStatus.currentOrderId` at it any more, so it's unreachable by the release-back-to-queue path). Same failure mode the "releasing a shopper's order when they go unavailable" fix (above) exists to prevent, just reachable through a different door. Fixed by fetching the shopper's own status on `TaskDetailScreen` mount and gating the `claim` branch on `!shopperActiveOrderId`, mirroring the exact guard `updateShopperAvailability` already uses (`isAvailable && !previousOrderId`). Verified live: with a task already assigned, opening a different pending order's detail screen now shows no claim action.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Manual order swap + non-blocking "more urgent order" toast
@@ -220,6 +244,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** During rapid dev-loop testing (repeated `am force-stop` + relaunch cycles within seconds of each other, not a realistic usage pattern), the toast's first firing after a fresh app launch showed inconsistent timing - sometimes on the first eligible poll tick, sometimes not for several minutes, despite the underlying comparison logic (traced with temporary debug logging) evaluating correctly and identically every time it ran. Root cause not conclusively identified; suspected Metro/Hermes bundle-cache interaction with unusually frequent cold-start cycles rather than an app logic bug, since a real shopper session mounts this provider once and polls continuously rather than restarting every few seconds. Worth a closer look if it's ever observed to be slow on a real device across a normal session.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Back button restored on Shopping/OrderCompletion; current-task tap skips TaskDetail
@@ -234,6 +260,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** None significant - back navigation mid-shop is exactly as safe as the existing Home → reopen-task path already was. `AvailableTasks`, `DropOffs`, `CustomerCheckIns`, `TaskDetail`, and `ShopperSettings` were unaffected - they already had default back buttons and were never part of the original restriction.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Urgent-order toast fired for orders already in the queue, not just new arrivals
@@ -247,6 +275,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Alternatives considered:** None seriously weighed - once the reset-to-`null` was identified as the root cause, baselining per-order was the direct fix; no other approach was considered.
 
 **Consequences / left open:** The 8-second poll latency and dev-loop cold-start timing flakiness noted in the swap/toast entry above are unchanged by this fix - it only corrects *which* candidates count as "new," not the underlying polling mechanism.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -268,6 +298,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** #3 is a real mitigation for the reported failure mode but not a full fix - a customer can still dismiss the warning and pick up a partial order on purpose (rush, mistake, whatever), and the store still has no single combined pickup to hand over even when the customer does wait. #2 is the actual production-matching behavior but is a separate, larger initiative (data model + at least two roles' UI) and stays out of scope until explicitly picked up. Like everything else in this app's notification story, #1 remains foreground-only - no OS-level push exists or is scoped here.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Proximity-based arrival notification: two options weighed, neither built yet
@@ -283,6 +315,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Decision (as made at the time; both later outcomes noted):** Neither built. Option 1 was later dropped, since its shared-lot premise was wrong. Option 2 was later pursued as the proximity check-in entry below. As originally written: if pursued, option 1 first (small, reuses existing infrastructure) with option 2 treated as a separate, larger initiative gated on whether the manual flow proves insufficient in practice - and prototyped against real GPS accuracy in the actual lot before committing to a 0.1 mi threshold specifically.
 
 **Consequences / left open:** This app has no background-process or realtime-push infrastructure at all yet (see "Pull-based data, not realtime" above), which option 2 would also need to build on top of, independent of the location work itself.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -306,6 +340,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** The parking-spot field is still free text on a schema that only meaningfully supports 5 fixed stalls - functionally fine (nothing breaks, nothing is lost), but the structured-picker redesign this points at is no longer planned (dropped 2026-11-21: there is no shared lot, so no spot ambiguity). Shopper Settings intentionally excludes notification preferences (no push infrastructure exists anywhere in this app) and an availability schedule (a distinct, larger scheduling feature) - both were on the original placeholder's planned-features comment but neither has real infrastructure to back it yet.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Rush badge visibility, and proactive assignment for every order
@@ -323,6 +359,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Why extend the existing poll instead of a dedicated one:** Same reasoning already established for the urgent-order toast - one provider, already polling this shopper's status every 8 seconds for a different reason, gains one more comparison on data it's already fetching, rather than a second independent poll loop running in parallel against the same endpoint.
 
 **Consequences / left open:** This closes the "orders don't get pushed to an idle shopper unless they just changed status" gap from the original auto-assignment decision, but only for the idle-handoff case - if literally every shopper is busy when a normal order is placed, it still just sits pending with no interrupt fallback, unchanged from before. The up-to-8-second poll latency for the async notification path (vs. instant for the toggle-triggered one) is the same tradeoff already accepted for rush interrupts and the urgent-order toast. Not yet reflected in the README roadmap's Phase 5 framing ("auto-assignment serverless function" is still listed as the only planned change there) - worth a pass to reconcile since the client-side mechanism just grew materially without a backend function.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -347,6 +385,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** The empirical result supersedes the "unverified territory" language in the two prior decision entries - Realtime is no longer a deferred/investigated-and-set-aside item, it's implemented and load-bearing for every real-time feature in the app. The README's Phase 5 roadmap line ("Appwrite Realtime subscriptions (currently 8s polling instead)") is now stale and should be updated in a follow-up pass - deliberately not done as part of this change, since it wasn't asked for here.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## CustomerArrivals status enum drift - the same class of bug, found by re-auditing schema against live truth
@@ -361,6 +401,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 
 **Consequences / left open:** `notified` and `in_progress` are now valid in the type but still have zero writers - there's no staff-acknowledgment UI, so those two states are reachable in the schema and the type but not in practice yet. That's an intentional, named gap (not a bug) - the same "flagged, not built" treatment as the other deferred arrival-flow items above (structured parking-spot selection, multi-order pickup consolidation, pre-flight warning on incomplete order sets). Building the actual acknowledgment step is a real Phase 6 candidate if a future session wants it, but wasn't in scope for this pass.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Clearing ESLint's 6 real errors (leaving the 14 style warnings alone)
@@ -372,6 +414,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Why not just add `eslint-disable` comments instead?** Every one of these was either genuinely dead code (safe to delete, so deleting is strictly better than suppressing) or a real bug the rule was correctly catching (the stale-closure risk in `fetchDashboardData`) - suppressing that one would have hidden a real correctness gap rather than fixed it, for the sake of a quieter lint run.
 
 **Consequences / left open:** The 14 remaining ESLint findings are all **warnings**, not errors, and were deliberately left alone - they're either `react-native/no-inline-styles` (a style preference, not a bug: several screens use one-off inline styles for a single override rather than a full `StyleSheet.create` entry) or `react/no-unstable-nested-components` in `AppNavigator.tsx` (component definitions created inside another component's render - a real perf/identity concern in principle, but the two flagged spots are simple header-button renderers that would need a small refactor to hoist out, not a one-line fix). `npx tsc --noEmit` and `npx eslint .` both now exit clean of errors; `npx jest` still fails for the unrelated reason documented in the next entry.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -392,6 +436,8 @@ Source: customer feedback and supervisor knowledge reported to the author (not f
 **Why `App.test.tsx` fails today, as a concrete worked example:** Running `npx jest` throws `[@RNC/AsyncStorage]: NativeModule: AsyncStorage is null` before any test logic even executes. The test renders the real `<App />` component tree, which (via `ThemeContext.tsx`) imports `@react-native-async-storage/async-storage` - a *native* module, meaning its real implementation is Java/Kotlin and Swift/Objective-C code that only exists once compiled into an actual Android or iOS app. Jest runs in plain Node.js, with no emulator or native runtime underneath it, so the real `AsyncStorage` module has nothing to load - it's `null`, and the import throws the moment `App.tsx` requires it. This is an extremely common first-timer trap, not a bug specific to this codebase: any RN project that touches a native module in code a test imports needs that module *mocked* (a fake, JS-only stand-in that behaves like the real thing well enough for the test's purposes) before the test can run at all. React Native's Jest preset (already configured here) mocks most core native modules automatically, but third-party ones like AsyncStorage need one line of explicit setup (a `jest.config.js` `setupFiles` entry pointing at the mock AsyncStorage ships with itself) that this project's `jest.config.js` never added.
 
 **Consequences / left open:** No tests were added or fixed as part of this entry - this was a documentation pass, not an implementation one, per what was asked. If a future session wants this project's testing story to actually demonstrate something (worth having before an interview, if testing comes up as a topic), the natural entry points, roughly in order of effort: (1) wire up the AsyncStorage mock so the existing boilerplate test at least runs, (2) write a handful of pure-logic unit tests against functions that need no mocking at all - `getAvailableTimeSlots()`/`getRushReadyTime()` in `orderService.ts` and the `parkingSpot` clamping logic in `arrivalService.ts`'s `recordArrival()` are both good first candidates, being deterministic and already isolated from Appwrite, and (3), further out, component tests for something like `RushOrderToggle` or `TimeSlotSelector` using React Native Testing Library (not yet installed) to verify rendering/interaction without a full emulator. None of this is started - named here as a clearly-scoped Phase 6 candidate, same treatment as the other deferred items in this log.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -428,6 +474,8 @@ The property that actually matters for this project: a Function can run under it
 - Tightening `Orders`/`ShopperStatus` permissions has to be audited against every *other* legitimate client write to those collections first (a shopper's own `isAvailable` toggle, `pickedItems` updates mid-shop, etc.) - narrowing too broadly would break real features that have nothing to do with assignment. Not done as part of this entry; it's the first real step before any permission change ships, not something to do casually alongside the Function itself.
 - Nothing is implemented yet. This entry documents the plan and the concrete problems motivating it, the same way the rush-order interrupt feature and the Realtime migration were both written up before/alongside implementation rather than only after the fact.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Auto-assignment Function: built, deployed, and verified live (event-triggered, chosen over HTTP-triggered)
@@ -453,6 +501,8 @@ The property that actually matters for this project: a Function can run under it
 - The permission-tightening half of the original plan turned out to have a real wrinkle worth resolving before touching it: Appwrite's permission model is collection/document-level, not field-level, so "only the Function may write `shopperID`, but a shopper may still write their own `isAvailable`/`pickedItems`" can't be expressed as a single permission rule the way the primer above implied - it would need either leaving collection permissions as they are (closes the concurrency problem via the Function, but leaves the "no gate on the write" problem exactly as open as before), or routing every write to those fields through Function executions instead of direct client writes, including the manual-claim/swap flow (`swapCurrentOrder`, `TaskDetailScreen`) which the auto-assignment work above deliberately left alone as a distinct, human-decided action rather than "assignment." Neither option was chosen yet - flagged here rather than decided unilaterally, since it changes how much of the app this migration actually touches.
 - Test data consequence, noted for transparency: verifying this live meant mutating real documents in the shared Appwrite Cloud project's `orders`/`shopperstatus` collections (a handful of already-stale test orders from a prior session were cancelled to get a clean queue for the create-path test, and one fresh test order was created and left in its assigned state) - all pre-existing test fixtures, not anything representing real customer data.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Client-side assignment logic removed - the Function is now the only path, scoped to auto-assignment only
@@ -472,6 +522,8 @@ The property that actually matters for this project: a Function can run under it
 
 **Consequences / left open:** The permission-tightening gap named in the primer is unchanged and still open - flagged, not fixed, by explicit choice. The larger write-path lockdown (routing every Orders/ShopperStatus write through Functions) remains a clearly-scoped, separate future project if full lockdown is ever wanted, not something this pass started. `functions/auto-assignment/scripts/deploy.js` is the reproducible path to redeploy the Function after any future change to `src/main.js` - no Appwrite CLI needed, same dev API key already in `.env` (now with the widened Functions/Documents scopes this work required).
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Cookie-fallback `getItem` error: the real fix, superseding "left as-is"
@@ -487,6 +539,8 @@ The property that actually matters for this project: a Function can run under it
 **Verified live (2026-09-12, dual-emulator):** rebuilt with the patched SDK, relaunched the app, and drove the *exact* originally-reported scenario - Settings → Logout → confirm - end to end. `adb logcat` showed **zero** occurrences of "cookie fallback" (or `localStorage`, or any `LogBox` mention) across the whole flow, compared to it appearing on every single fresh Realtime connection before the patch (confirmed moments earlier via the same relaunch-and-check method, still throwing pre-patch). `npx tsc --noEmit` and `npx eslint .` both clean afterward (same 0 errors as before this change).
 
 **Consequences / left open:** This is a local patch to a third-party dependency, not an upstream fix - it needs to be regenerated (`npx patch-package appwrite`) if the `appwrite` version is ever bumped, since the exact line numbers/text it targets could shift. Filing the equivalent fix upstream against the Appwrite JS SDK's own repo (`npx patch-package appwrite --create-issue` scaffolds exactly this) would let a future SDK release make the local patch unnecessary entirely - not done as part of this pass, since it wasn't asked for, but a natural next step if this project's maintainer wants to close the loop with upstream.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -505,6 +559,8 @@ The property that actually matters for this project: a Function can run under it
 **Verified live (2026-09-12, dual-emulator + direct REST writes to simulate the customer's tap, same technique as the auto-assignment work above):** with the shopper sitting on the Dashboard the whole time, no navigation - a fresh `CustomerArrival` document appearing via REST ticked the badge live (1→2→3 across three test arrivals) and popped `NewArrivalToast` reading "Rush Tester has arrived for pickup - #77247401." each time. Tapping "View" navigated correctly to Customer Check-ins, showing the live list with the right vehicle/parking-note details already present. Deleting the test arrivals afterward ticked the badge back down live, confirming the subscription isn't create-only. `npx tsc --noEmit` and `npx eslint .` both clean (0 errors, same 15 pre-existing warnings).
 
 **Consequences / left open:** The toast fires identically for every on-duty shopper, same as the badge already did and same as `UrgentOrderToast` already does for urgent orders - not scoped to "whoever's most free," since this app has no per-shopper targeting concept for store-wide queue items and building one wasn't asked for here. If multiple shoppers are active, everyone sees the same toast for the same arrival - consistent with the existing shared-queue pattern, not a new inconsistency introduced by this change.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -534,6 +590,8 @@ The property that actually matters for this project: a Function can run under it
 **Consequences / left open:**
 - A shopper holding more than one `ready_for_pickup` order that both get arrivals close together will only ever see a modal for whichever arrived most recently - `pendingArrival` isn't a queue. Matches how `NewAssignmentModal`'s `pendingAssignment` already behaves for the same reason; not a new inconsistency.
 - This session's own REST-driven test methodology (directly POSTing an order already in `ready_for_pickup` status, bypassing the real checkout→shopping→completion lifecycle) tripped the Function's *own* `orders` create-event handler (`handleNewOrderPlacement`, which assumes any newly created order is `pending`+unassigned - true for every order the real app ever creates, never true for a test script inserting one directly at `ready_for_pickup`). No idle shopper happened to exist at the moment this test order was created, so it was a near-miss rather than an observed corruption - but it means future live testing of arrival hand-off should `PATCH` an existing, normally-created order into `ready_for_pickup` rather than `POST` a new one directly in that status, to avoid re-tripping this same test-only edge.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -618,6 +676,8 @@ So the actual test ran from the real app instead: a temporary long-press handler
 **Consequences / left open (of the plan itself, before any of it is built):** This is sized as several sessions' worth of work, consistent with how it was originally flagged - 13 new Function actions and 6+ screens/contexts to cut over. The caller-identity mechanics are no longer an open unknown (see above) - the next real step is writing the first action (`claimOrder` is the natural start, since it's also the one path that's been racy this whole time, not just forgeable) with its JWT check and permanently opening `execute: [Role.any()]` as part of that first deploy, not before. Nothing beyond the spike has been implemented yet; this entry exists so the next session (or the next hour of this one) has an exact, already-reasoned-through target instead of re-deriving the write inventory or the permission mechanics from scratch.
 - The `declinedByShopperID` live-schema addition was made directly via the project's dev API key (same technique as every other live schema change in this log), not through any migration tooling - there is none in this project.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## claimOrder: the first Permission-tightening action, built, shipped, and a real bug found live
@@ -638,6 +698,8 @@ This was never a bug `claimOrder` introduced - the *old* three-write client sequ
 
 **Consequences / left open:** `claimOrder` is the first of 13 planned actions - `swapOrder` is the natural next one (shares `assign()`/`release()`, and the same `isAvailable` fix applies there too, unverified until built). The `assign()` fix is a shared helper change, so every future action that reuses it inherits the fix automatically - worth remembering *why* it's there (the WHY-comment on `assign()` itself) rather than treating it as an unexplained extra field if this code is touched again later.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## What Appwrite's Role.any() actually means (a primer)
@@ -657,6 +719,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 
 **What this means concretely for `execute: [Role.any()]` on `functions/auto-assignment`:** Appwrite itself imposes zero restriction on who can even attempt to invoke the Function - a shopper, a customer, or a request with no login at all can all reach it. That's exactly why `resolveCaller()`'s JWT verification *inside* the Function's own code is doing the real authorization work, not Appwrite's permission system - and it's also why any future action that needs to tell "a shopper did this" from "a customer did this" has to check the resolved caller's own `Users` document `role` field itself, in code, the same way any other app-level authorization decision gets made here. Appwrite's `Role.*` primitives could never express that distinction directly, with or without this Function.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## swapOrder: the second Permission-tightening action, built and verified clean (no new bugs this time)
@@ -668,6 +732,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 **Verified live (2026-09-13/14, dual-emulator + REST + execution logs) - clean on the first real attempt, no bug this time:** with the test shopper already holding order `#B28C25C2` (from the `claimOrder` entry above) and every other test shopper busy, placed a second real order (`#D47E9F1F`, Romaine Lettuce) via checkout - confirmed `pending`/unassigned via REST before proceeding, same discipline as before. Navigated to Available Tasks, opened it, confirmed the UI correctly offered "Swap for This Order" (not "Claim") since the shopper had an active order, confirmed through the swap confirmation dialog. Result, confirmed via REST immediately after: old order back to `pending`/`shopperID: ""`/`autoAssigned: false`; new order `status: "shopping"`, `shopperID` set to the shopper, `autoAssigned: false`; `ShopperStatus.currentOrderId` pointing at the new order, `isAvailable: true` - stable, no reversion. Execution logs confirmed the full picture: the `http` execution logged the swap itself, one resulting `event` execution correctly logged "most urgent pending, but no idle shopper - left queued" for the released order (every other shopper was genuinely busy), and the rest were inert - no spurious release, no self-reassignment loop. App itself landed cleanly on the Shopping screen for the new order. `npx tsc --noEmit` and `npx eslint .` both clean (0 errors, same 15 pre-existing warnings).
 
 **Consequences / left open:** 2 of 13 actions done. `declineArrivalHandoff`/`acceptArrivalHandoff`/`completeArrivalHandoff` (the `CustomerArrivals` trio) are next in the inventory - none of them reuse `assign()`/`release()` directly, so they're the first real test of whether `resolveCaller()`'s pattern generalizes cleanly to a collection this work hasn't touched yet.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -690,6 +756,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 
 **Consequences / left open:** 5 of 13 actions done - the pattern (`resolveCaller()` + per-action authorization + a shared lookup helper where it fits) generalized cleanly to a collection with no shared write helpers at all, no new mechanics needed. Remaining: `releaseAfterCompletion`, `completeOrder`, `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`, `startShopping`, `toggleAvailability` - all Orders/ShopperStatus fields, none touching CustomerArrivals again.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## completeOrder and releaseAfterCompletion: actions 6-7, and two dead client functions removed outright
@@ -705,6 +773,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 **Verified live (2026-09-13/14, dual-emulator + REST + execution logs):** placed a pickup order, claimed and shopped it, tapped "Mark Ready for Pickup." Execution log confirmed both actions ran in the right order: `completeOrder: <id> -> ready_for_pickup by <shopperID>`, immediately followed by `releaseAfterCompletion: <shopperID> freed`. Confirmed via REST: `Order.status: "ready_for_pickup"` with `shopperID` still correctly retained (not cleared - only `completeArrivalHandoff`/`declineArrivalHandoff` clear it, not this), `ShopperStatus.currentOrderId: ""`, `isAvailable: true`. The resulting `shopperStatus` update event correctly re-ran `handleShopperBecameAvailable` and logged "no pending orders" (none existed to auto-grab) - the same intentional cascade this write has always triggered, unaffected by the migration. `npx tsc --noEmit` and `npx eslint .` both clean (0 errors, same 15 pre-existing warnings).
 
 **Consequences / left open:** `DropOffsScreen`'s `completeOrder`-alone call site (`nextStatus: 'completed'`) was wired identically but not separately live-verified this pass - the delivery-checkout address form proved too fiddly to drive reliably via ADB text input in the time available, and the server-side logic being exercised is the exact same `handleCompleteOrder` function already proven correct for the `ready_for_pickup` transition, just a different valid status string from the same fixed list. Worth a real live pass if this path is touched again, rather than treated as equivalently proven. 7 of 13 actions done - remaining: `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`, `startShopping`, `toggleAvailability`.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -727,6 +797,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 
 **Consequences / left open:** 9 of 13 actions done - remaining: `cancelOrder`, `respondToSubstitution`, `updatePickedItems`, `updateItemIssues`, all four on `OrderDetailScreen`/`ShoppingScreen`, none reusing `assign()`/`release()`/`getShopperStatusDoc()` the way the shopper-side actions have. `cancelOrder` is also notable as the first action whose caller is a **customer**, not a shopper - every authorization check up to now has assumed `getShopperStatusDoc(caller.$id)` resolves; `cancelOrder`/`respondToSubstitution` need to check `order.customerID === caller.$id` instead, a pattern not yet exercised anywhere in this Function.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## cancelOrder and respondToSubstitution: actions 10-11, the first customer-authorized actions in this Function
@@ -745,6 +817,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 
 **Consequences / left open:** 11 of 13 actions done - remaining: `updatePickedItems`, `updateItemIssues`, both on `ShoppingScreen`, both shopper-authorized (back to the `order.shopperID === caller.$id` pattern already proven several times over). Once those two ship, every direct client write to `Orders`/`ShopperStatus`/`CustomerArrivals` will have a server-side replacement, and the actual permission-removal step (the last item in the original rollout plan) becomes live-reachable for the first time.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## updatePickedItems and updateItemIssues: actions 12-13, the last two - every planned write-path action is now built
@@ -758,6 +832,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 **One cosmetic-only oddity noted, not chased down:** immediately after completing the order and landing back on the Dashboard, the status pill briefly rendered "Unavailable" even though the underlying `ShopperStatus` document was already confirmed `isAvailable: true` via REST at that exact moment - a stale local render, not a real state bug (a fresh app relaunch immediately showed "Available" correctly, matching the server). Pre-existing behavior in `ShopperDashboardScreen`'s post-completion re-render path, untouched by this pass's two actions - worth a closer look if it's ever seen blocking a real interaction rather than just a flicker on the way back to Home.
 
 **Consequences / left open:** All 13 of 13 planned Function actions are now built, deployed, and live-verified. Every direct client `updateDocument` call the original write-path inventory identified against `Orders`/`ShopperStatus`/`CustomerArrivals` has a server-side, JWT-authenticated replacement. What's left is exactly the final rollout step the original plan named and deferred until this point: removing `update` from the `Role.any()` grant on all three collections, now that nothing in the app still depends on writing to them directly. Not done as part of this pass - it's a one-way, live-breaking-if-anything-was-missed change to the production Appwrite project, deliberately saved for its own dedicated pass with a full call-site re-audit first, not bundled into "and also flip the permission switch" at the end of the twelfth/thirteenth action.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -778,6 +854,8 @@ That's the entire vocabulary. Nothing else exists for Appwrite to check a caller
 **Verified:** `npx tsc --noEmit` and `npx eslint .` both clean (0 errors, same 15 pre-existing warnings) after the removal - confirms nothing in the app actually referenced any of the six beyond the stale comments now fixed.
 
 **Consequences / left open:** This is purely a local, reversible code change - no live Appwrite state touched. The actual permission flip (the next step) is unblocked by this audit's result (nothing live depends on a direct client write to these three collections) but still not done - see the rollout sequencing (one collection at a time, live-verify after each, rollback via the same REST call) discussed when this step was first scoped out.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -812,6 +890,8 @@ Rollback for each was the same `PUT` with `update(\"any\")` added back - never n
 - The cosmetic "Unavailable" pill flicker after completion (actions 12-13 entry) is unchanged - unrelated to permissions.
 - Leftover test data: several stale `ready_for_pickup` orders from September remain in the live database.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Post-lock verification pass: the four untested paths, one real bug, two hardening fixes
@@ -835,6 +915,8 @@ Rollback for each was the same `PUT` with `update(\"any\")` added back - never n
 **Also observed, not chased:** the "Unavailable" status-pill flicker from the actions 12-13 entry didn't reproduce this pass. A request made while both emulators were CPU-starved left a stale dev-mode "WebSocket error" LogBox toast (the known reconnect artifact) - dismissed, no functional effect.
 
 **Consequences / left open:** Every write path is now verified under the lock, including the DropOffs call site carried as open since the actions 6-7 entry. Stale `ready_for_pickup` test orders from September are still in the live database. Testing note for next time: to put an order in a non-pending state for a test, create it `pending` and PATCH it afterwards - creating it directly in that state is now (correctly) ignored by the Function, but any shopper who is idle and Available at that moment will get the pending order first, so set them Unavailable before creating it.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -1028,6 +1110,8 @@ After each run, review the `TripReadingsLog` for that trip on a map rather than 
 - **Execution volume:** roughly one Function execution per reading. At one every ~15s, a 15-minute drive is about 60 executions - fine at demo scale, and one of the dials (report interval vs. responsiveness) worth naming for a production conversation.
 - **Real coordinates for the demo zone:** the geometry (100m threshold, nearest competitor at 356m) comes from a real store and its real neighbours. Whether its exact coordinates get committed to a public repo is a separate choice - they'd identify a specific real location - versus keeping them in `.env`/console-only config, or shifting the same geometry to a stand-in location for the published demo.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Open issues from a system-design review (not yet addressed)
@@ -1057,6 +1141,8 @@ The same shape exists wherever a handler reads state and then acts on it (swap, 
 
 **Consequences / left open:** All of the above is open. For a portfolio walkthrough, items 1, 2 and 5 are the ones most worth being able to explain even unfixed - "claim is check-then-act, here's the race, here's how I'd close it" demonstrates the understanding either way. Item 1 is the best candidate to actually fix first: it's small, reproducible with a script, and a first hands-on concurrency exercise.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Jest runs again: the two setup steps the template test was missing
@@ -1075,6 +1161,8 @@ The same shape exists wherever a handler reads state and then acts on it (swap, 
 - The one test is still the template's render smoke test - it proves the whole app tree can mount without crashing, which is worth having, but asserts nothing about behaviour. The pure-logic candidates the primer named, and the Function's assignment/authorization rules (see "Open issues from a system-design review"), are still the real testing work.
 - Rendering `<App />` runs `AuthContext`'s mount-time `account.get()`, which makes a real network call to whatever `.env` points at (it fails as unauthenticated and is handled, so the test passes). For a clean, offline test, the Appwrite client should be mocked too - not done here.
 - Node prints a harmless `--localstorage-file was provided without a valid path` warning at startup; it comes from the Node/Jest environment, not this project.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
@@ -1114,6 +1202,8 @@ The same shape exists wherever a handler reads state and then acts on it (swap, 
 - `cancelOrder` on an `assigned` order still leaves the shopper's `currentOrderId` pointing at the cancelled order (a pre-existing gap, not introduced here). The order's lock is cleared, so a swap from it now fails with `409` instead of silently reviving the cancelled order as `pending`, but the shopper still has to go Unavailable/Available to clear it.
 - `Orders` keeps `create("any")`, so a crafted create could set `claimLock: 1` and make that order unassignable. Harmless beyond that order, and covered by item 4's proposed fix (server-side order creation).
 - The Function's API key scopes are unchanged (`databases.*`, `documents.*`). If transactions turn out to need another scope, the first live execution will say so in its error.
+
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ## Issue #5, smallest slice: who can read an order (Orders only)
 
@@ -1203,11 +1293,13 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 
 *A privacy gap found by reviewing my own system, fixed the way a production system would be.* The interesting part is not "add a permission" - it's seeing that the obvious fix (turn on row security) is unsafe on its own, because of who owns the row at creation time, and that the real fix is architectural: **the client never writes rows it can later control; the server owns creation, permissions and group membership.** Concretely: row-level security, Teams as an access-control primitive for roles the platform doesn't natively model, server-owned membership so users can't self-promote, a staged rollout that stays reversible until the final flip, and live verification from both sides (the person who should see the data and the person who shouldn't). It builds directly on the earlier work - the JWT-verified Function actions, the permission lockdown and the live dual-emulator verification method - so it reads as one coherent security story rather than a one-off patch.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Rush notifications and order swapping: before and after (a code and database audit)
 
-**Context:** A first-hand observation (to be worded by the author, dated, from personal experience only; no recordings or screenshots of any third-party app) is that a production seller app I use has no alert when a rush order arrives and no way to swap off an auto-assigned order. This entry answers "what would it take to build that?" with the actual changes in this repo.
+**Context:** A first-hand observation is that a production seller app I use has no alert when a rush order arrives and no way to swap off an auto-assigned order. This entry answers "what would it take to build that?" with the actual changes in this repo.
 
 **Short answer:** the part that *decides and notifies* is about 100 lines. The rest of the work was making it fast, safe, and correct under concurrency. Counts below are `git show --shortstat` per commit; they include docs (DECISIONS.md/README), and `e5f5712` also carries the arrival hand-off work, so treat them as upper bounds for this feature.
 
@@ -1254,6 +1346,8 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 
 **Consequence:** roughly 100 lines to make it work, roughly 2,500 net lines across the commits to make it fast, safe and correct.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
+
 ---
 
 ## Gather alert by ETA, with manual buttons as the fallback (designed 2026-11-21, not built)
@@ -1281,6 +1375,7 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 - **Manual "I'm on my way" fallback built (2026-11-22).** When location sharing can't start (permission denied, error), `OnMyWayCard` offers "Tell the store I'm on my way anyway". It calls a new `onMyWay` Function action that stamps `Orders.onMyWayAt` (new datetime column, applied live; the Function does the write because customers can't update `Orders` directly after the permission tightening). It never sets `gatherAlertAt`, so it cannot fire the gather alert (point 4). The shopper sees it as a row in "Arriving soon" ("says they're on the way (no live location)") and gets no toast, to avoid adding to pain point #5. Verified live: Function stamps onMyWayAt only, and the shopper emulator's list updated over realtime. Not verified in the emulator: the customer-side button itself (needs location to fail); covered by typecheck only. Known gaps: the row stays until the order leaves `ready_for_pickup`; no "cancel on my way". Deployment 6b0345cd0ce921aa2317; rollback 6b033c13a1da313044fa.
 - **Correction to decision 3:** the "distance is shrinking" check does *not* stop a drive-past on the road from firing. Until the car passes the lot it looks identical to one arriving, so the alert fires on the way in (the test `known limit: a drive-past...` pins this). Arrival is unaffected: its speed gate still stops a drive-past from checking in. What the shrinking check does stop is a car driving away, and GPS jitter around a fixed point. Accept the occasional early alert for a drive-past, or revisit if real-phone tests show it is common.
 
+**Provenance:** proposed by Claude Code · evidence see entry (not individually re-checked) · approved by author (default; not confirmed per entry)
 
 ---
 
