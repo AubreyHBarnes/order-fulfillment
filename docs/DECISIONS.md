@@ -1394,3 +1394,18 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 **Provenance:** proposed by Claude Code · evidence none (no reason recorded; the build-step explanation is a guess) · approved by not asked
 
 **Lesson:** the choice was made silently by the AI. Knowing this class of gap in advance is what lets the developer ask at the moment the choice is made.
+
+---
+## Arrival modal: remember what it already showed, and stop moving the shopper on accept
+
+**Context:** Two gaps named in the notification before/after audit (see "Rush notifications and order swapping"). (1) `handleArrivalEvent` had no memory of arrivals it had already shown, so any replayed or unrelated realtime update of a still-`waiting` arrival could reopen the modal. (2) `acceptArrival` always navigated to Customer Check-ins, discarding whatever screen the shopper was on.
+
+**Decision:** (1) `isNewArrivalNotice` (`src/utils/arrivalNotice.ts`) keeps a seen set keyed `arrivalId:notifiedShopperAt`, checked after the ownership test so a notice for someone else's order is never marked seen. (2) `acceptArrival` no longer navigates; the now-unused `useNavigation` wiring was removed from the context.
+
+**Why the timestamp is in the key:** the Function reassigns a stuck arrival by resetting `notifiedShopperAt` on the same document. An ID-only key would swallow that reassignment, defeating the hand-off timeout. Including the timestamp makes each assignment a distinct notice while still blocking replays.
+
+**Alternatives considered:** ID-only key (rejected, above); a time-window dedup (arbitrary threshold, same failure on slow reconnects); keeping the navigate but skipping it when already on a related screen (more branching than just not navigating).
+
+**Consequences / left open:** accepting is now quiet, so a shopper who accepts and does nothing must find Customer Check-ins on their own (the Dashboard's live arrival badge points there). The seen set lives in memory, so an app restart forgets it; a still-waiting arrival is then re-fetched and shown once, which is acceptable. **Verified:** fixture test (`__tests__/arrivalNotice.test.ts`, 35 tests pass) and typecheck only; not yet emulator-verified.
+
+**Provenance:** proposed by Claude Code · evidence fixture test, typecheck (no live test yet) · approved by author

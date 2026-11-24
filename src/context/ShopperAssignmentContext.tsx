@@ -78,8 +78,6 @@ import React, {
   type ReactNode,
 } from 'react';
 import { Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getShopperStatus } from '../services/shopperStatusService';
 import { getOrderById, getNextOrderForAssignment } from '../services/orderService';
 import { getUserProfileById, getCustomerDisplayName } from '../services/userService';
@@ -100,6 +98,7 @@ import OrderInterruptedModal from '../components/shopper/OrderInterruptedModal';
 import UrgentOrderToast from '../components/shopper/UrgentOrderToast';
 import GatherAlertToast from '../components/shopper/GatherAlertToast';
 import { isFreshGatherAlert } from '../utils/gatherAlert';
+import { isNewArrivalNotice } from '../utils/arrivalNotice';
 import NewAssignmentModal from '../components/shopper/NewAssignmentModal';
 import ArrivalNotificationModal from '../components/shopper/ArrivalNotificationModal';
 import type {
@@ -108,7 +107,6 @@ import type {
   CustomerArrival,
   TaskCardData,
   ArrivalNotificationData,
-  ShopperStackParamList,
 } from '../types';
 
 const formatDueTime = (scheduledReadyTime: string): string =>
@@ -195,7 +193,6 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   shopperId,
   children,
 }) => {
-  const navigation = useNavigation<NativeStackNavigationProp<ShopperStackParamList>>();
 
   const [interruptedOrder, setInterruptedOrder] = useState<Order | null>(null);
 
@@ -219,6 +216,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   // replayed or repeated realtime event never raises a second toast for the same order.
   const [gatherAlertMessage, setGatherAlertMessage] = useState<string | null>(null);
   const seenGatherAlertsRef = useRef<Set<string>>(new Set());
+  const seenArrivalNoticesRef = useRef<Set<string>>(new Set());
   const [declineArrivalLoading, setDeclineArrivalLoading] = useState(false);
 
   /**
@@ -525,6 +523,10 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       if (!orderResult.success || !orderResult.data || orderResult.data.shopperID !== shopperId) {
         return;
       }
+      // After the ownership check so a notice for someone else's order isn't burned.
+      if (!isNewArrivalNotice(arrival, seenArrivalNoticesRef.current)) {
+        return;
+      }
       const customerResult = await getUserProfileById(arrival.customerID);
       setPendingArrival({
         arrivalId: arrival.$id,
@@ -563,9 +565,10 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
   /**
    * Accept the arrival hand-off: acknowledges it (status -> 'in_progress',
    * so it stays visible in Customer Check-ins - see arrivalService.ts's
-   * getActiveArrivals) and navigates there so the shopper can complete
-   * the physical hand-off ("Hand Off Order") once they've actually
-   * brought the order out. Doesn't touch Order.shopperID - accepting
+   * getActiveArrivals). Deliberately does NOT navigate: it used to jump to
+   * Customer Check-ins and discard whatever screen the shopper was on;
+   * they open it themselves to complete the physical hand-off ("Hand Off
+   * Order") once they've actually brought the order out. Doesn't touch Order.shopperID - accepting
    * keeps this shopper as the one responsible, only declining or timing
    * out hands it to someone else. Verified and written server-side now
    * (docs/DECISIONS.md's "Permission tightening" entry) - the Function
@@ -595,7 +598,6 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       return;
     }
     setPendingArrival(null);
-    navigation.navigate('CustomerCheckIns');
   };
 
   /**
