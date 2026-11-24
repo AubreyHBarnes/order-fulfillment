@@ -9,7 +9,7 @@
 
 **Estimated total runtime:** roughly 40 minutes with live demos; per-chapter timings need re-estimating now that the script is regrouped. If you need to cut time, shorten Part 2 (sections 4-8) first. Sections 9-13 and 17 are the strongest material for an engineering audience.
 
-**How the script is organized (regrouped 2026-11-22):** four parts. Part 1 is the hook and the pain points. Part 2 is how it was built, in the order the engineering happened, with the cross-cutting stories (schema drift, races, locking the database) that don't belong to any one pain point. Part 3 takes each pain point in detail, and each one ends with a "how production systems handle this, and where mine stops" comparison. Part 4 is the cross-cutting "what it would take to make this a real production system" section. **Sections marked `[TO DRAFT]` are outlined but not yet written.**
+**How the script is organized (regrouped 2026-11-22):** four parts. Part 1 is the hook and the pain points. Part 2 is how it was built, in the order the engineering happened, with the cross-cutting stories (schema drift, races, locking the database) that don't belong to any one pain point. Part 3 takes each pain point in detail, and each one ends with a "how production systems handle this, and where mine stops" comparison. Part 4 is the cross-cutting "what it would take to make this a real production system" section. Sections 14 and 17 were drafted on 2026-11-24 from the sources named in them; the DoorDash, INFORMS and Apple sources could not be read and are flagged as unread.
 
 ---
 
@@ -441,13 +441,26 @@ When a shopper gets auto-assigned an order, they see an accept/decline prompt in
 
 > "When two user actions produce the same underlying state change, you don't need two code paths for it. Writing a second one just to feel purpose-built would've been two ways to do one thing."
 
-### How production systems handle this, and where this one stops `[TO DRAFT]`
+### How production systems handle this, and where this one stops
 
-Same pattern as sections 13 and 15: what well-documented systems do, then an honest ledger. Starting points that come from this repo, not from any outside claim:
-- **Built:** one priority signal, an idle-first-then-furthest-due interrupt rule, a live modal, and decline reusing the release path.
-- **Gaps to state:** the interrupt reaches only a shopper with the app open (no push); `priority` is effectively a yes/no flag; the choice of whom to interrupt is a single rule with no cost model.
-- **To research before drafting:** how published dispatch systems pick whom to reassign (see the dispatch material in section 17), and what the platforms document for urgent, time-sensitive alerts. Cite only what is sourced.
+`[SCREEN: two-column slide, "What published systems say" vs "This app", then the rush-interrupt entries in DECISIONS.md]`
 
+**Say this first, on camera:** "I can't see inside any retailer's dispatch system, and the public write-ups are thin on exactly this problem: taking an order *away* from someone mid-task. So this is what two published sources say about assignment, what the platforms document for urgent alerts, and an honest list of where mine stops."
+
+| | What the sources say | This app |
+|---|---|---|
+| **How work gets assigned** | Instacart's engineers describe a Matching Algorithm that "applies rules of thumb and machine-learning models" to balance shoppers against demand, and say it reruns "as often as every few minutes" ([IEEE Spectrum, 2021](https://spectrum.ieee.org/the-algorithms-that-make-instacart-roll)). A 2021 Q&A says they were building a system that "re-computes order batches every minute" ([Instacart](https://company.instacart.com/tech-innovation/building-an-on-demand-fulfillment-engine-is-hard)); the page describes that as work in progress. | One rule: sort by due time, idle shopper first, otherwise interrupt whoever's current order is due furthest out. No batching, no model. Section 6 says why that was deliberate. |
+| **Taking work from someone mid-task** | Neither Instacart page describes it. The IEEE piece says customers can edit orders "until the shoppers start picking" and says nothing about moving an order to another shopper. Treat this as unpublished, not as "nobody does it". | Built and verified live: a modal on the busy shopper's screen, with accept and decline. This is the part I can show and the sources can't. |
+| **Telling a shopper right now** | Android's FCM docs: high-priority messages "wake a sleeping device when necessary" and are "meant for time sensitive, user visible content". Google may downgrade an app that sends high priority without a visible notification ([FCM message priority](https://firebase.google.com/docs/cloud-messaging/android-message-priority)). Android's heads-up notifications appear only "if the device is unlocked" ([Android notifications](https://developer.android.com/develop/ui/compose/notifications)). | In-app realtime only, so the interrupt reaches a shopper whose app is open. A backgrounded or locked shopper gets nothing. |
+| **Reserve urgency for what's urgent** | The same FCM page ties high priority to urgent, user-visible events. | Only rush orders trigger the interrupt; the simple `priority` flag keeps that rule honest. |
+
+**The honest ledger:**
+- **Built:** one priority signal, idle-first-then-furthest-due, a live modal, decline reusing the release path, and a server-side decision verified live.
+- **Gaps:** no push (so no interrupt for a closed app); `priority` is a yes/no flag; whom to interrupt is a single rule with no cost model (a shopper nearly done with a big order can still be chosen); no batching.
+- **What I can't claim:** how any retailer actually reassigns. The sources above are from 2021 and don't say.
+- **Not read, so not cited:** DoorDash's dispatch write-ups (the engineering pages refused automated access), and Apple's Time Sensitive notification pages (they rendered as empty stubs). Read them in a browser before saying anything about Apple or DoorDash on camera.
+
+> "The part of this I can't find a published answer to is the part I built: pulling a task away from someone who's already started it. I'd rather tell you that than invent how a bigger company does it."
 
 ---
 
@@ -532,22 +545,20 @@ Be direct: this is unfinished, and knowing *exactly* how it's unfinished is the 
 
 **Say this first, on camera:** "I can't see how Amazon built Whole Foods' pickup system, and as far as I can find, no engineering write-up of it is public. So this isn't a comparison to their internals. It's what a system like this needs to be usable and scalable, and where mine stops. While I'm unable to finish this for practical use, here's what Claude Code and I would do, in this order."
 
-### The production map `[TO DRAFT]`
+### The production map
 
-One short passage per axis: what's built, the gap, what the fix would be (a proposal from Claude Code, for me to approve), and when. Estimates should be honest and informed, not measured, and labeled as estimates. Material that already exists is noted.
+One short passage per axis: what's built, the gap, the fix (a proposal from Claude Code, for me to approve), and when. **Sizes are estimates, not measurements.** Say that out loud.
 
-| Axis | What exists (from this repo) | To draft |
-|---|---|---|
-| 1. Correctness under concurrency | Claim locks and transactions, verified live (below). | Price and arrival timestamps are still client-set; assignment still touches two records. Server-calculate them. |
-| 2. Reliability | The every-minute sweep is off in production; no retry or idempotency beyond event-state guards. | A job queue or scheduled trigger, retries with idempotency keys, stuck-state repair. |
-| 3. Dispatch quality | Assignment is sort-by-due-time. Section 6 explains why that was deliberate. | What published dispatch systems do (batching and matching) and when this app would need it. See sources below, unverified. |
-| 4. Notifications and location | No push channel; foreground-only location. Covered in sections 13 and 15. | Push and background location, as one rollout. |
-| 5. Scale | One event-triggered Function; realtime delivers events to everyone allowed to read. Nothing load-tested. | What to measure first, and an honest estimate of where it breaks. Don't claim a number without measuring. |
-| 6. Security and privacy | Orders and writes locked; reads on `CustomerArrivals` and `ShopperStatus` not yet (below). | Finish the read scoping; audit PII. |
-| 7. Testing and operations | Fixture tests for zone, trips and gather alert; the rest verified live. No CI; server code untyped; only the last location reading survives. | CI, shared types or `@ts-check`, a per-reading log, deploy checks that diff live against the repo. |
-| 8. Product breadth | Pickup only for proximity; Android only. | Multi-order pickup, iOS, multi-store zones. |
+1. **Correctness under concurrency.** *Built:* claim locks and transactions, verified live (below). *Gap:* the order total and arrival timestamps are still set by the client, and assignment still writes two records separately. *Fix:* compute price and timestamps in the Function, and move the paired writes into one transaction. *When:* first, because everything else assumes the data is right. *Estimate:* days, mostly in testing the migration.
+2. **Reliability.** *Built:* event-state guards so a replayed event doesn't double-act. *Gap:* the every-minute sweep isn't running in production, so an ignored arrival prompt isn't timed out or reassigned; there are no retries. *Fix:* a scheduled trigger or external scheduler, retries with idempotency keys, and a repair job that finds half-finished updates. *When:* second. *Estimate:* about a week.
+3. **Dispatch quality.** *Built:* sort-by-due-time, kept simple on purpose (section 6). *Gap:* no batching, no capacity model. *Fix:* don't build it until volume needs it. Published systems rerun matching every few minutes (Instacart, via IEEE Spectrum and its 2021 Q&A), which is a sign of the scale where sort-by-due stops being enough, not a target for this app. *When:* only after real order volume exists. *Not read, so not cited:* the INFORMS paper on when to dispatch a batch (403 from the publisher) and DoorDash's dispatch posts. Read both first.
+4. **Notifications and location.** *Built:* in-app realtime, foreground-only location (sections 13 and 15). *Gap:* a locked or backgrounded phone gets nothing. *Fix:* push and background location as one rollout, because the arrival alert needs both. *When:* before any real-customer trial. *Estimate:* the largest single item on this list, weeks, mostly Android background-location policy and a real-phone test.
+5. **Scale.** *Built:* one event-triggered Function; realtime delivers each event to everyone allowed to read it. *Gap:* nothing has been load-tested. *Fix:* measure first: Function run time per event, realtime fan-out with many shoppers, and database query cost. *Estimate:* I won't give a breaking point without a measurement. The honest answer today is "unknown".
+6. **Security and privacy.** *Built:* writes locked to the Function; Orders reads scoped per row. *Gap:* reads on `CustomerArrivals` and `ShopperStatus` aren't scoped; arrival and location data is personal data. *Fix:* finish the read scoping, then audit what personal data is stored and for how long. *When:* before real users. *Estimate:* days for scoping, longer for the audit.
+7. **Testing and operations.** *Built:* fixture tests for zone, trips, gather alert and arrival notices; the rest verified live. *Gap:* no CI, the Function is untyped plain JavaScript, only the last location reading survives. *Fix:* CI running the tests, `// @ts-check` on the Function then shared types, a per-reading log, and a deploy check that diffs live against the repo. *When:* cheap, so early. *Estimate:* a day or two for CI and `@ts-check`.
+8. **Product breadth.** *Built:* pickup proximity, Android only. *Gap:* multi-order pickup, iOS, multi-store zones. *When:* demand-driven; none of it matters before the axes above.
 
-**Sources for the dispatch axis (found 2026-11-22, not yet verified):** no public Whole Foods or Amazon pickup architecture was found. The nearest public material is about other companies: Instacart's [fulfillment engine post](https://company.instacart.com/tech-innovation/building-an-on-demand-fulfillment-engine-is-hard) and [IEEE Spectrum's piece on its algorithms](https://spectrum.ieee.org/the-algorithms-that-make-instacart-roll); DoorDash's DeepRed dispatch system (not yet read); and academic batching work such as this [INFORMS paper on when to dispatch a batch](https://pubsonline.informs.org/doi/pdf/10.1287/serv.2022.0042). Read them before citing; use them as "published systems do X", never as claims about Amazon.
+**Sources for the dispatch axis:** no public Whole Foods or Amazon pickup architecture was found. Read and cited: Instacart's [2021 Q&A](https://company.instacart.com/tech-innovation/building-an-on-demand-fulfillment-engine-is-hard) (describes a goal of recomputing batches every minute; no algorithm detail) and [IEEE Spectrum, 2021](https://spectrum.ieee.org/the-algorithms-that-make-instacart-roll) (matching rerun every few minutes; no description of reassignment). Both describe 2021 and may be out of date. Not read: the [INFORMS batching paper](https://pubsonline.informs.org/doi/pdf/10.1287/serv.2022.0042) and DoorDash's dispatch posts, both blocked to automated access. Use these as "published systems do X", never as claims about Amazon.
 
 ### What's closed, and what's still open
 
