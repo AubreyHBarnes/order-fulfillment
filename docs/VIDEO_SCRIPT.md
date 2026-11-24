@@ -495,7 +495,7 @@ The fixes, in the same order: make triggers edge-based (compare old and new docu
 
 **The honest ledger:**
 - **What we fixed for the new feature, not the old ones:** the gather alert follows the fix pattern from this section: one key per event, handled before the "do I already have an order" guard, a persistent list as the source of truth, no navigation. It's a fresh example of building the rule right the first time.
-- **What we fixed afterwards:** the arrival handler's missing seen check and the navigate-on-accept behavior, both found by comparing this app against the cases above. Fixture-tested and typechecked; not yet re-run on the emulator, so don't say it was verified live.
+- **What we fixed afterwards:** the arrival handler's missing seen check and the navigate-on-accept behavior, both found by comparing this app against the cases above. Verified live on the emulator for the accept path: the modal showed once over the Shopping screen, accepting it didn't move the shopper. The replay case is fixture-tested only; don't claim it was reproduced live.
 - **What I can't show:** duplicates across two channels, because this app has one channel. Don't imply the problem was reproduced here.
 
 **Before filming, verify:** the two linked pages are current (the FCM page describes collapsing for messages not yet delivered; the Apple page is the Human Interface Guidelines on managing notifications); the Android tag-replacement claim against the `NotificationManager` reference; and that you describe the three cases as your own experience of the production app, never as a diagnosis of it.
