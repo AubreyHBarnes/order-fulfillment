@@ -1409,3 +1409,15 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 **Consequences / left open:** accepting is now quiet, so a shopper who accepts and does nothing must find Customer Check-ins on their own (the Dashboard's live arrival badge points there). The seen set lives in memory, so an app restart forgets it; a still-waiting arrival is then re-fetched and shown once, which is acceptable. **Verified:** fixture test (`__tests__/arrivalNotice.test.ts`, 35 tests pass), typecheck, and live on the emulator (2026-11-24, shopper.tester sitting on the Shopping screen of its current order, arrival created over REST as the customer): the modal appeared once on top of the Shopping screen, accepting it set the arrival to `in_progress` server-side, and the shopper stayed on the Shopping screen. **Not live-verified:** the replay case (a second realtime update of the same waiting arrival); that is covered by the fixture test only, because accepting changes the status and the modal has no dismiss that leaves the arrival `waiting`.
 
 **Provenance:** proposed by Claude Code · evidence fixture test, typecheck, live emulator test (accept path) · approved by author
+
+---
+## Real-phone drive test dropped from the video, replaced by a verbal walkthrough (2026-11-24)
+
+**Decision:** the real-phone field test (checklist in "Proximity check-in and the staff lot map") will not be run for the video. The talk presents the emulator route replay and fixture tests as what was verified, says plainly that a real-phone drive was not done, and describes verbally what it would check, including the runs expected to fail (locked screen, backgrounded app).
+
+**Why:** the author's call; the real drive is the last, most expensive layer of the test plan, and the foreground-only version's limits are already documented.
+
+**Consequences / left open:** the 90 s, two-reading and smoothing values stay starting guesses; nothing here has been shown to hold on real GPS. The checklist stays in this file as the plan if the test is ever run. Also dropped in the same pass: time estimates in the script's production map, because none were measured.
+
+**Provenance:** proposed by author · evidence none · approved by author
+

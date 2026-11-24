@@ -353,7 +353,7 @@ This answers the first frustration from section 2 — the meaningless "2-3 minut
 
 **Also hit:** the Appwrite project had auto-paused after inactivity (403 `project_paused`). Worth checking before any demo.
 
-**What this version is not:** it stops when the screen locks or the app goes to the background — by design, and documented. Background tracking, the staff lot map, a per-reading log for reviewing real drives, and the real-phone field test (the checklist is written; it hasn't been run) are all still open — section 17.
+**What this version is not:** it stops when the screen locks or the app goes to the background — by design, and documented. Background tracking, the staff lot map, a per-reading log for reviewing real drives, and a real-phone drive test (not being done; I'll walk through what it would check, verbally) are all still open — section 17.
 
 ### Built since: the gather alert, parking-spot buttons, and the manual fallback
 
@@ -366,7 +366,7 @@ Arrival at 100 m gives a moving car only about ten seconds of warning, which is 
 - **What the shopper sees:** an "Arriving soon" list on Customer Check-ins, the source of truth, plus one toast per order. It is deduped on purpose, which ties it to pain point #5 (section 15).
 - **Parking spot:** five buttons for spots 1-5 plus "No spot available" (the lot can be full while the customer waits in it).
 - **Manual fallback:** if location can't be shared, the customer can still tap "Tell the store I'm on my way". The server stamps a separate timestamp, the shopper sees a row with no toast, and it can never fire the gather alert.
-- **Verified:** unit tests on the ETA decision; a live run against the deployed Function; the shopper emulator showing the toast and the list updating over realtime. **Not verified:** a real phone on a real drive. The 90 seconds, two readings and smoothing are starting guesses until then.
+- **Verified:** unit tests on the ETA decision; a live run against the deployed Function; the shopper emulator showing the toast and the list updating over realtime. **Not verified:** a real phone on a real drive, which I'm not filming; I'll describe it verbally. The 90 seconds, two readings and smoothing are starting guesses until then.
 - **A failure I can demonstrate:** a car on the road driving toward the lot fires the alert early but never arrives, because straight-line distance can't see the road. It's pinned in a test and written in the decision log.
 
 ### How production apps typically handle GPS, and where this one differs
@@ -400,7 +400,7 @@ That sentence matters: everything in the left column below comes from Apple's an
 - Apple, [Region Monitoring and iBeacon](https://developer.apple.com/library/mac/documentation/UserExperience/Conceptual/LocationAwarenessPG/RegionMonitoring/RegionMonitoring.html) (archived guide): at most 20 regions monitored per app. It's an old page, so confirm against the current Core Location docs.
 - **Not found in an official source:** an Apple minimum geofence radius. The ~100 m figure for iOS comes from a developer-forum observation (thread 769113 era posts), so say "developers report" and not "Apple requires". Any third-party vendor numbers (e.g. 150 m, 100 geofences) are vendor advice, not platform limits.
 
-**Before filming, verify:** (1) the sources above once more, since platform behavior changes and the Apple page is archived; (2) any claim about a specific retailer, which should be something you observed ("in my experience the app asks me to tap when I'm close"), not a claim about how it works inside; (3) the real-phone drive test, so the demo uses a real route and not only the emulator.
+**Before filming, verify:** (1) the sources above once more, since platform behavior changes and the Apple page is archived; (2) any claim about a specific retailer, which should be something you observed ("in my experience the app asks me to tap when I'm close"), not a claim about how it works inside; (3) that the demo is clearly the emulator route replay, and that you say plainly the real-phone drive wasn't done and describe verbally what it would check (the checklist in `DECISIONS.md`).
 
 ---
 
@@ -449,16 +449,16 @@ When a shopper gets auto-assigned an order, they see an accept/decline prompt in
 
 | | What the sources say | This app |
 |---|---|---|
-| **How work gets assigned** | Instacart's engineers describe a Matching Algorithm that "applies rules of thumb and machine-learning models" to balance shoppers against demand, and say it reruns "as often as every few minutes" ([IEEE Spectrum, 2021](https://spectrum.ieee.org/the-algorithms-that-make-instacart-roll)). A 2021 Q&A says they were building a system that "re-computes order batches every minute" ([Instacart](https://company.instacart.com/tech-innovation/building-an-on-demand-fulfillment-engine-is-hard)); the page describes that as work in progress. | One rule: sort by due time, idle shopper first, otherwise interrupt whoever's current order is due furthest out. No batching, no model. Section 6 says why that was deliberate. |
+| **How work gets assigned** | Instacart's engineers describe a Matching Algorithm that "applies rules of thumb and machine-learning models" to balance shoppers against demand, and say it reruns "as often as every few minutes" ([IEEE Spectrum, 2021](https://spectrum.ieee.org/the-algorithms-that-make-instacart-roll), S2). A 2021 Q&A says they were building a system that "re-computes order batches every minute" ([Instacart](https://company.instacart.com/tech-innovation/building-an-on-demand-fulfillment-engine-is-hard), S1); the page describes that as work in progress. | One rule: sort by due time, idle shopper first, otherwise interrupt whoever's current order is due furthest out. No batching, no model. Section 6 says why that was deliberate. |
 | **Taking work from someone mid-task** | Neither Instacart page describes it. The IEEE piece says customers can edit orders "until the shoppers start picking" and says nothing about moving an order to another shopper. Treat this as unpublished, not as "nobody does it". | Built and verified live: a modal on the busy shopper's screen, with accept and decline. This is the part I can show and the sources can't. |
-| **Telling a shopper right now** | Android's FCM docs: high-priority messages "wake a sleeping device when necessary" and are "meant for time sensitive, user visible content". Google may downgrade an app that sends high priority without a visible notification ([FCM message priority](https://firebase.google.com/docs/cloud-messaging/android-message-priority)). Android's heads-up notifications appear only "if the device is unlocked" ([Android notifications](https://developer.android.com/develop/ui/compose/notifications)). | In-app realtime only, so the interrupt reaches a shopper whose app is open. A backgrounded or locked shopper gets nothing. |
+| **Telling a shopper right now** | Android's FCM docs: high-priority messages "wake a sleeping device when necessary" and are "meant for time sensitive, user visible content". Google may downgrade an app that sends high priority without a visible notification ([FCM message priority](https://firebase.google.com/docs/cloud-messaging/android-message-priority), S3). Android's heads-up notifications appear only "if the device is unlocked" ([Android notifications](https://developer.android.com/develop/ui/compose/notifications), S4). | In-app realtime only, so the interrupt reaches a shopper whose app is open. A backgrounded or locked shopper gets nothing. |
 | **Reserve urgency for what's urgent** | The same FCM page ties high priority to urgent, user-visible events. | Only rush orders trigger the interrupt; the simple `priority` flag keeps that rule honest. |
 
 **The honest ledger:**
 - **Built:** one priority signal, idle-first-then-furthest-due, a live modal, decline reusing the release path, and a server-side decision verified live.
 - **Gaps:** no push (so no interrupt for a closed app); `priority` is a yes/no flag; whom to interrupt is a single rule with no cost model (a shopper nearly done with a big order can still be chosen); no batching.
 - **What I can't claim:** how any retailer actually reassigns. The sources above are from 2021 and don't say.
-- **Not read, so not cited:** DoorDash's dispatch write-ups (the engineering pages refused automated access), and Apple's Time Sensitive notification pages (they rendered as empty stubs). Read them in a browser before saying anything about Apple or DoorDash on camera.
+- **Not read, so not cited (S6, S7, S8):** DoorDash's dispatch write-ups (the engineering pages refused automated access), and Apple's Time Sensitive notification pages (they rendered as empty stubs). Read them in a browser before saying anything about Apple or DoorDash on camera.
 
 > "The part of this I can't find a published answer to is the part I built: pulling a task away from someone who's already started it. I'd rather tell you that than invent how a bigger company does it."
 
@@ -547,18 +547,18 @@ Be direct: this is unfinished, and knowing *exactly* how it's unfinished is the 
 
 ### The production map
 
-One short passage per axis: what's built, the gap, the fix (a proposal from Claude Code, for me to approve), and when. **Sizes are estimates, not measurements.** Say that out loud.
+One short passage per axis: what's built, the gap, the fix (a proposal from Claude Code, for me to approve), and when. No time estimates: none were measured, so none are given.
 
-1. **Correctness under concurrency.** *Built:* claim locks and transactions, verified live (below). *Gap:* the order total and arrival timestamps are still set by the client, and assignment still writes two records separately. *Fix:* compute price and timestamps in the Function, and move the paired writes into one transaction. *When:* first, because everything else assumes the data is right. *Estimate:* days, mostly in testing the migration.
-2. **Reliability.** *Built:* event-state guards so a replayed event doesn't double-act. *Gap:* the every-minute sweep isn't running in production, so an ignored arrival prompt isn't timed out or reassigned; there are no retries. *Fix:* a scheduled trigger or external scheduler, retries with idempotency keys, and a repair job that finds half-finished updates. *When:* second. *Estimate:* about a week.
-3. **Dispatch quality.** *Built:* sort-by-due-time, kept simple on purpose (section 6). *Gap:* no batching, no capacity model. *Fix:* don't build it until volume needs it. Published systems rerun matching every few minutes (Instacart, via IEEE Spectrum and its 2021 Q&A), which is a sign of the scale where sort-by-due stops being enough, not a target for this app. *When:* only after real order volume exists. *Not read, so not cited:* the INFORMS paper on when to dispatch a batch (403 from the publisher) and DoorDash's dispatch posts. Read both first.
-4. **Notifications and location.** *Built:* in-app realtime, foreground-only location (sections 13 and 15). *Gap:* a locked or backgrounded phone gets nothing. *Fix:* push and background location as one rollout, because the arrival alert needs both. *When:* before any real-customer trial. *Estimate:* the largest single item on this list, weeks, mostly Android background-location policy and a real-phone test.
-5. **Scale.** *Built:* one event-triggered Function; realtime delivers each event to everyone allowed to read it. *Gap:* nothing has been load-tested. *Fix:* measure first: Function run time per event, realtime fan-out with many shoppers, and database query cost. *Estimate:* I won't give a breaking point without a measurement. The honest answer today is "unknown".
-6. **Security and privacy.** *Built:* writes locked to the Function; Orders reads scoped per row. *Gap:* reads on `CustomerArrivals` and `ShopperStatus` aren't scoped; arrival and location data is personal data. *Fix:* finish the read scoping, then audit what personal data is stored and for how long. *When:* before real users. *Estimate:* days for scoping, longer for the audit.
-7. **Testing and operations.** *Built:* fixture tests for zone, trips, gather alert and arrival notices; the rest verified live. *Gap:* no CI, the Function is untyped plain JavaScript, only the last location reading survives. *Fix:* CI running the tests, `// @ts-check` on the Function then shared types, a per-reading log, and a deploy check that diffs live against the repo. *When:* cheap, so early. *Estimate:* a day or two for CI and `@ts-check`.
+1. **Correctness under concurrency.** *Built:* claim locks and transactions, verified live (below). *Gap:* the order total and arrival timestamps are still set by the client, and assignment still writes two records separately. *Fix:* compute price and timestamps in the Function, and move the paired writes into one transaction. *When:* first, because everything else assumes the data is right.
+2. **Reliability.** *Built:* event-state guards so a replayed event doesn't double-act. *Gap:* the every-minute sweep isn't running in production, so an ignored arrival prompt isn't timed out or reassigned; there are no retries. *Fix:* a scheduled trigger or external scheduler, retries with idempotency keys, and a repair job that finds half-finished updates. *When:* second.
+3. **Dispatch quality.** *Built:* sort-by-due-time, kept simple on purpose (section 6). *Gap:* no batching, no capacity model. *Fix:* don't build it until volume needs it. Published systems rerun matching every few minutes (Instacart, via IEEE Spectrum and its 2021 Q&A; S1, S2), which is a sign of the scale where sort-by-due stops being enough, not a target for this app. *When:* only after real order volume exists. *Not read, so not cited (S5, S6):* the INFORMS paper on when to dispatch a batch (403 from the publisher) and DoorDash's dispatch posts. Read both first.
+4. **Notifications and location.** *Built:* in-app realtime, foreground-only location (sections 13 and 15). *Gap:* a locked or backgrounded phone gets nothing. *Fix:* push and background location as one rollout, because the arrival alert needs both. *When:* before any real-customer trial. The largest single item on this list.
+5. **Scale.** *Built:* one event-triggered Function; realtime delivers each event to everyone allowed to read it. *Gap:* nothing has been load-tested. *Fix:* measure first: Function run time per event, realtime fan-out with many shoppers, and database query cost. The honest answer today is "unknown"; I won't give a breaking point without a measurement.
+6. **Security and privacy.** *Built:* writes locked to the Function; Orders reads scoped per row. *Gap:* reads on `CustomerArrivals` and `ShopperStatus` aren't scoped; arrival and location data is personal data. *Fix:* finish the read scoping, then audit what personal data is stored and for how long. *When:* before real users.
+7. **Testing and operations.** *Built:* fixture tests for zone, trips, gather alert and arrival notices; the rest verified live. *Gap:* no CI, the Function is untyped plain JavaScript, only the last location reading survives. *Fix:* CI running the tests, `// @ts-check` on the Function then shared types, a per-reading log, and a deploy check that diffs live against the repo. *When:* cheap, so early.
 8. **Product breadth.** *Built:* pickup proximity, Android only. *Gap:* multi-order pickup, iOS, multi-store zones. *When:* demand-driven; none of it matters before the axes above.
 
-**Sources for the dispatch axis:** no public Whole Foods or Amazon pickup architecture was found. Read and cited: Instacart's [2021 Q&A](https://company.instacart.com/tech-innovation/building-an-on-demand-fulfillment-engine-is-hard) (describes a goal of recomputing batches every minute; no algorithm detail) and [IEEE Spectrum, 2021](https://spectrum.ieee.org/the-algorithms-that-make-instacart-roll) (matching rerun every few minutes; no description of reassignment). Both describe 2021 and may be out of date. Not read: the [INFORMS batching paper](https://pubsonline.informs.org/doi/pdf/10.1287/serv.2022.0042) and DoorDash's dispatch posts, both blocked to automated access. Use these as "published systems do X", never as claims about Amazon.
+**Sources for the dispatch axis:** no public Whole Foods or Amazon pickup architecture was found. Instacart's two 2021 pieces (S1, S2) were read; they describe a goal of recomputing batches every minute and matching rerun every few minutes, with no algorithm detail and no description of reassignment. They may be out of date. The INFORMS paper and DoorDash's posts (S5, S6) were blocked to automated access and are unread. Use these as "published systems do X", never as claims about Amazon. Full links are in the Sources list at the end.
 
 ### What's closed, and what's still open
 
@@ -579,7 +579,7 @@ One short passage per axis: what's built, the gap, the fix (a proposal from Clau
 - **Testing is partly automated now, mostly manual.** The pure logic for the pickup zone and trips has fixture-based tests, but the rest was verified live on emulators, which is thorough but slow. The Function's assignment rules are the best next candidates.
 
 **Features deliberately deferred:**
-- **Proximity: the rest of it.** The foreground-only version is built (section 13). Still open: background location (its own large Android project), the staff map of customers in the lot, a per-reading log so a real drive can be reviewed afterward (today only the last reading survives), and the real-phone field test — the checklist is written, including runs that are *expected* to fail, like a locked screen.
+- **Proximity: the rest of it.** The foreground-only version is built (section 13). Still open: background location (its own large Android project), the staff map of customers in the lot, a per-reading log so a real drive can be reviewed afterward (today only the last reading survives), and the real-phone drive test, which won't be filmed: I'll walk through the checklist verbally, including the runs that are *expected* to fail, like a locked screen.
 - **Multi-order pickup consolidation** — the "two hand-offs for one trip" problem from the intro (section 16). No data-model support yet.
 - **UI polish** — product images are in; the broader UI/UX pass is what I'm working on next.
 
@@ -590,6 +590,25 @@ One short passage per axis: what's built, the gap, the fix (a proposal from Clau
 `[SCREEN: back to the app, maybe the DECISIONS.md file one more time]`
 
 > "That's the project so far — from a real frustration with an app I use every week, through the tech choices, the parts that turned out simple and the parts that turned out genuinely hard, moving the app's decisions and its rules onto the server, and what it would take to make this a real production system. It's not finished, and the list of what's next is written down in the repo. If you want the full reasoning behind any of these calls, the engineering decision log is public — link in the description. Thanks for watching."
+
+---
+
+## Sources
+
+Every link cited in sections 14 and 17, with whether it was actually read. Only the "read" ones support claims in the script. Section 13's sources are listed in section 13. All fetched 2026-11-24.
+
+| # | Source | Status | Cited in |
+|---|---|---|---|
+| S1 | Instacart, 2021 Q&A: https://company.instacart.com/tech-innovation/building-an-on-demand-fulfillment-engine-is-hard | Read | 14, 17 |
+| S2 | IEEE Spectrum, 2021: https://spectrum.ieee.org/the-algorithms-that-make-instacart-roll | Read | 14, 17 |
+| S3 | Google, FCM message priority: https://firebase.google.com/docs/cloud-messaging/android-message-priority | Read | 14 |
+| S4 | Android, notifications (Compose guide): https://developer.android.com/develop/ui/compose/notifications | Read. The older `/develop/ui/views/notifications` page loaded only a stub | 14 |
+| S5 | INFORMS paper on when to dispatch a batch: https://pubsonline.informs.org/doi/pdf/10.1287/serv.2022.0042 | **Unread** (403 from the publisher) | 17 |
+| S6 | DoorDash engineering: https://doordash.engineering/ | **Unread** (redirected to a careers page; blog returned 403). Specific post URLs never found; search "DoorDash DeepRed dispatch" | 14, 17 |
+| S7 | Apple, interruption levels: https://developer.apple.com/documentation/usernotifications/unnotificationinterruptionlevel | **Unread** (empty stub) | 14 |
+| S8 | Apple, managing notifications: https://developer.apple.com/design/human-interface-guidelines/managing-notifications | **Unread** (empty stub) | 14 |
+
+Both Instacart pieces describe 2021 and may be out of date. Before filming, open S5-S8 in a browser and add what they say.
 
 ---
 
