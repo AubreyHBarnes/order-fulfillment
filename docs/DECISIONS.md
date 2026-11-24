@@ -4,6 +4,12 @@ This is a running log of the non-obvious engineering calls made on this project 
 
 It exists for two reasons: to keep a real record while the project is being actively developed with AI-assisted pairing, and to serve as a reference for explaining the project's design decisions to a technical audience (interviews, a portfolio walkthrough, a talk). Entries are in chronological order. Each one follows roughly the same shape: **Context** (what problem existed), **Decision** (what was actually done), **Why**, **Alternatives considered**, and **Consequences / left open** (the honest tradeoffs and what's deliberately deferred).
 
+**Provenance.** The project is built by an AI assistant (Claude Code) directed by the author, so each entry from 2026-11-23 on carries one line saying who made the call:
+
+`**Provenance:** proposed by <author | Claude Code | unknown> · evidence <live test, fixture test, source link, or "none"> · approved by <author | not asked | unknown>`
+
+"Not asked" means the assistant made the choice without surfacing it, which is itself worth recording (see the plain-JavaScript Function entry). Entries written before 2026-11-23 are not backfilled; treat a missing line as "unknown", not as "the author decided".
+
 ---
 
 ## Pain points this project targets, and where each stands
@@ -1289,5 +1295,7 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 **Cons:** nothing checks that the app and the Function agree on message shapes (the `{ success, data }` shape was already kept in sync by hand once); the most important logic in the project has the least checking; inconsistent with the rest of the repo.
 
 **Options when revisited:** (1) `// @ts-check` with JSDoc types, no build step, cheapest; (2) full TypeScript with shared order/arrival types and `deploy.js` running `tsc` then uploading `dist/` (rollback already exists in the deploy script).
+
+**Provenance:** proposed by Claude Code · evidence none (no reason recorded; the build-step explanation is a guess) · approved by not asked
 
 **Lesson:** the choice was made silently by the AI. Knowing this class of gap in advance is what lets the developer ask at the moment the choice is made.
