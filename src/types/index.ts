@@ -970,6 +970,9 @@ export interface ArrivalNotificationModalProps {
   onAccept: () => void;
   onDecline: () => void;
   declineLoading?: boolean;
+  /** The arrival was deleted, completed, or reassigned while the modal was up: show a notice instead of the actions. */
+  unavailable?: boolean;
+  onDismissUnavailable?: () => void;
 }
 
 /**

@@ -212,8 +212,25 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
    * checking the arrival's order's shopperID against this context's own
    * shopperId - see handleArrivalEvent.
    */
-  const [pendingArrival, setPendingArrival] = useState<ArrivalNotificationData | null>(null);
+  const [pendingArrival, setPendingArrivalState] = useState<ArrivalNotificationData | null>(null);
   const [declineArrivalLoading, setDeclineArrivalLoading] = useState(false);
+  // The shown arrival was deleted/completed/reassigned out from under the
+  // modal: keep it up but swap its content for a "no longer available" notice.
+  const [arrivalUnavailable, setArrivalUnavailable] = useState(false);
+  // Ref mirrors so the realtime handlers (closed over at mount) see current values.
+  const pendingArrivalRef = useRef<ArrivalNotificationData | null>(null);
+  // True while accept/decline is in flight: those writes echo back as realtime
+  // events that would otherwise look like "taken away from you".
+  const actingOnArrivalRef = useRef(false);
+  const setPendingArrival = (value: ArrivalNotificationData | null): void => {
+    pendingArrivalRef.current = value;
+    setPendingArrivalState(value);
+  };
+  const markArrivalUnavailable = (): void => {
+    if (pendingArrivalRef.current && !actingOnArrivalRef.current) {
+      setArrivalUnavailable(true);
+    }
+  };
 
   /**
    * A new order that auto-assigned while the shopper was idle, not yet
@@ -458,6 +475,10 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
      */
     const handleOrderEvent = (event: RealtimeEvent<Order>): void => {
       const order = event.payload;
+      const shown = pendingArrivalRef.current;
+      if (shown && order.$id === shown.orderId && (order.shopperID !== shopperId || order.status === 'cancelled')) {
+        markArrivalUnavailable();
+      }
       const currentOrderId = lastKnownOrderIdRef.current;
       if (!currentOrderId || !hasBaselineRef.current) {
         return;
@@ -498,13 +519,26 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       // still see this shopper as the order's owner below and re-open
       // the modal they just declined. The payload itself says who
       // declined - trust that instead of racing the second write.
-      if (arrival.status !== 'waiting' || arrival.declinedByShopperID === shopperId) {
+      if (arrival.declinedByShopperID === shopperId) {
+        return;
+      }
+      const isShown = pendingArrivalRef.current?.arrivalId === arrival.$id;
+      // A delete event's payload is the last document state (still 'waiting'), so check the event itself.
+      const isDelete = event.events.some((e) => e.endsWith('.delete'));
+      if (isDelete || arrival.status !== 'waiting') {
+        if (isShown) {
+          markArrivalUnavailable();
+        }
         return;
       }
       const orderResult = await getOrderById(arrival.orderID);
       if (!orderResult.success || !orderResult.data || orderResult.data.shopperID !== shopperId) {
+        if (isShown) {
+          markArrivalUnavailable();
+        }
         return;
       }
+      setArrivalUnavailable(false);
       const customerResult = await getUserProfileById(arrival.customerID);
       setPendingArrival({
         arrivalId: arrival.$id,
@@ -556,8 +590,10 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
     if (!pendingArrival) {
       return;
     }
+    actingOnArrivalRef.current = true;
     const result = await acceptArrivalHandoff(pendingArrival.arrivalId);
-    // WHY TREAT "could not be found" AS A SILENT NO-OP, NOT AN ALERT?
+    actingOnArrivalRef.current = false;
+    // WHY TREAT "could not be found" AS A NOTICE, NOT AN ALERT?
     // The arrival this modal is showing can stop existing out from under
     // it - completed/reassigned/deleted by something else while it was
     // up (a race this project's own rapid REST-driven test scripts hit
@@ -568,7 +604,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
     // still alerts normally.
     if (!result.success) {
       if (result.error?.includes('could not be found')) {
-        setPendingArrival(null);
+        setArrivalUnavailable(true);
         return;
       }
       Alert.alert('Error', result.error ?? 'Failed to accept arrival');
@@ -611,12 +647,23 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       return;
     }
     setDeclineArrivalLoading(true);
+    actingOnArrivalRef.current = true;
     const result = await declineArrivalHandoff(pendingArrival.arrivalId);
-    if (!result.success && !result.error?.includes('could not be found')) {
+    actingOnArrivalRef.current = false;
+    setDeclineArrivalLoading(false);
+    if (!result.success && result.error?.includes('could not be found')) {
+      setArrivalUnavailable(true);
+      return;
+    }
+    if (!result.success) {
       Alert.alert('Error', result.error ?? 'Failed to decline arrival');
     }
     setPendingArrival(null);
-    setDeclineArrivalLoading(false);
+  };
+
+  const dismissArrivalUnavailable = (): void => {
+    setArrivalUnavailable(false);
+    setPendingArrival(null);
   };
 
   /**
@@ -690,6 +737,8 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         onAccept={acceptArrival}
         onDecline={declineArrival}
         declineLoading={declineArrivalLoading}
+        unavailable={arrivalUnavailable}
+        onDismissUnavailable={dismissArrivalUnavailable}
       />
     </ShopperAssignmentContext.Provider>
   );

@@ -63,7 +63,8 @@ const SubstitutionPickerModal: React.FC<SubstitutionPickerModalProps> = ({
     }
     setLoading(true);
     const result = await searchProducts(text);
-    setResults(result.success ? result.data : []);
+    // the item being replaced can't substitute for itself
+    setResults(result.success ? result.data.filter((p) => p.$id !== originalProduct?.$id) : []);
     setLoading(false);
   };
 

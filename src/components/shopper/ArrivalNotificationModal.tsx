@@ -30,6 +30,8 @@ const ArrivalNotificationModal: React.FC<ArrivalNotificationModalProps> = ({
   onAccept,
   onDecline,
   declineLoading = false,
+  unavailable = false,
+  onDismissUnavailable,
 }) => {
   const theme = useAppTheme();
 
@@ -56,14 +58,26 @@ const ArrivalNotificationModal: React.FC<ArrivalNotificationModalProps> = ({
       <Pressable style={[styles.modalOverlay, dynamicStyles.modalOverlay]}>
         <Pressable onPress={() => {}} style={[styles.card, dynamicStyles.card]}>
           <View style={styles.iconRow}>
-            <Icon source="account-check" size={40} color={theme.colors.primary} />
+            <Icon
+              source={unavailable ? 'alert-circle-outline' : 'account-check'}
+              size={40}
+              color={theme.colors.primary}
+            />
           </View>
 
           <Text variant="titleLarge" style={[styles.title, dynamicStyles.title]}>
-            Customer Has Arrived
+            {unavailable ? 'No Longer Available' : 'Customer Has Arrived'}
           </Text>
 
-          {arrival && (
+          {unavailable && (
+            <View style={styles.detailsBlock}>
+              <Text variant="bodyMedium" style={[styles.detailText, dynamicStyles.detailText]}>
+                This hand-off is no longer available, or the order is no longer assigned to you.
+              </Text>
+            </View>
+          )}
+
+          {!unavailable && arrival && (
             <View style={styles.detailsBlock}>
               <Text variant="titleMedium" style={[styles.orderId, dynamicStyles.orderId]}>
                 #{arrival.shortOrderId}
@@ -84,6 +98,11 @@ const ArrivalNotificationModal: React.FC<ArrivalNotificationModalProps> = ({
             </View>
           )}
 
+          {unavailable ? (
+            <Button mode="contained" onPress={onDismissUnavailable} style={styles.button}>
+              OK
+            </Button>
+          ) : (
           <View style={styles.buttonRow}>
             <Button
               mode="outlined"
@@ -103,6 +122,7 @@ const ArrivalNotificationModal: React.FC<ArrivalNotificationModalProps> = ({
               Hand Off Order
             </Button>
           </View>
+          )}
         </Pressable>
       </Pressable>
     </Modal>

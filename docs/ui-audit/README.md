@@ -53,10 +53,10 @@ Screens: `shopper/10-substitution-picker-empty-*`, `11-substitution-picker-resul
 
 | # | Severity | Finding | Evidence |
 |---|---|---|---|
-| 11 | Bug | Substitution picker offers the item being replaced as a substitute (searching "lettuce" while replacing Romaine Lettuce lists Romaine Lettuce first) | `11-substitution-picker-results-*.png` |
-| 12 | Polish | Picker search is loose: "lettuce" also returns Lemonade and Lemons. The empty state is only a header and a search box, with no hint or suggestions | `10-*`, `11-*` |
+| 11 | Bug | **Fixed 2026-11-25.** Substitution picker offered the item being replaced as a substitute (searching "lettuce" while replacing Romaine Lettuce listed Romaine Lettuce first); it is now filtered out. Verified in the emulator. | `11-substitution-picker-results-*.png` |
+| 12 | Polish | Picker search showed Lemonade and Lemons for "lettuce" on the first run but not on a rerun, so this is probably a stale-response race (a late result for "le" overwriting "lettuce"), not fuzzy matching. Not yet confirmed or fixed. The empty state is only a header and a search box, with no hint or suggestions | `10-*`, `11-*` |
 | 13 | Polish | Arrival modal has a 60 s timeout and reassigns, but nothing on screen shows the shopper the countdown | `12-arrival-modal-*.png` |
-| 14 | Bug (edge case) | Arrival modal stays up after its arrival row is deleted, until the app restarts. A cancelled or reassigned arrival could leave the same stale modal. Not tested: what Hand Off does on a deleted row | observed live 2026-11-25 |
+| 14 | Bug (edge case) | **Fixed 2026-11-25.** Arrival modal stayed up, with live buttons, after its arrival was deleted, completed or reassigned. It now switches to a "No Longer Available" notice ("This hand-off is no longer available, or the order is no longer assigned to you.") with an OK button. Also shown if Hand Off / Unavailable hits a row that no longer exists. Verified by deleting the row while the modal was up. Not tested live: the reassigned-to-someone-else path and the accept echo guard. | `13-arrival-modal-unavailable-dark.png` |
 | 1 (more) | | The white status bar in dark mode (#1) also shows behind both the picker and the arrival modal | `10-*-dark`, `12-*-dark` |
 
 ## Not yet covered
