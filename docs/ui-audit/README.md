@@ -43,11 +43,25 @@ Screens: `customer/09-search-milk`, `10-search-no-results`, `11-category-dairy`,
 | 7 | Bug | Same white-header-in-dark slab (#1) on Checkout, Reset Password and the search/no-results screen | `10-*-dark`, `13-*-dark`, `22-*-dark` |
 | 8 | Bug | ForgotPassword ignores dark mode entirely (light body, dark text) | `22-forgot-password-dark.png` |
 | 9 | Contrast | Native "Please fill in all fields" alert is a white box in dark mode, and the Login title behind it is near-invisible dark-on-black | `20-login-empty-submit-dark.png` |
-| 10 | Consistency | "All" chip stays checked while a search is active, and a category tap silently clears the search | `09-search-milk-*.png`, `11-category-dairy-*.png` |
+| 10 | Consistency | **Fixed 2026-11-25 (109e13c).** "All" chip stayed checked while a search was active (now no chip is selected; clearing the search restores "All"; pull-to-refresh re-runs the search). A category tap still clears the search, by design. Verified in the emulator. | `09-search-milk-*.png`, `11-category-dairy-*.png` |
+
+## Third pass, 2026-11-25 (shopper modals, current build)
+
+Captured on `fix/ui-audit`. The arrival modal was triggered by inserting a test `CustomerArrivals` row for a leftover ready order via REST as the customer, then deleting it with the API key.
+
+Screens: `shopper/10-substitution-picker-empty-*`, `11-substitution-picker-results-*`, `12-arrival-modal-*` (light and dark).
+
+| # | Severity | Finding | Evidence |
+|---|---|---|---|
+| 11 | Bug | Substitution picker offers the item being replaced as a substitute (searching "lettuce" while replacing Romaine Lettuce lists Romaine Lettuce first) | `11-substitution-picker-results-*.png` |
+| 12 | Polish | Picker search is loose: "lettuce" also returns Lemonade and Lemons. The empty state is only a header and a search box, with no hint or suggestions | `10-*`, `11-*` |
+| 13 | Polish | Arrival modal has a 60 s timeout and reassigns, but nothing on screen shows the shopper the countdown | `12-arrival-modal-*.png` |
+| 14 | Bug (edge case) | Arrival modal stays up after its arrival row is deleted, until the app restarts. A cancelled or reassigned arrival could leave the same stale modal. Not tested: what Hand Off does on a deleted row | observed live 2026-11-25 |
+| 1 (more) | | The white status bar in dark mode (#1) also shows behind both the picker and the arrival modal | `10-*-dark`, `12-*-dark` |
 
 ## Not yet covered
 
 - **Order confirmation:** needs a real order placed against live Appwrite (and the auto-assignment Function would pick it up). Not done without your OK.
-- **Shopper modals** (new assignment, arrival hand-off, interrupted order, urgent toast) and the **substitution picker:** need live orders moving through both emulators.
+- **Shopper modals still to capture:** new assignment, interrupted order, urgent toast. These need orders created or reassigned on live Appwrite while the shopper app is open. (Arrival hand-off and substitution picker are done, see the third pass.)
 - **Tablet layouts:** no tablet AVD exists.
 - Shopper-side large-font.
