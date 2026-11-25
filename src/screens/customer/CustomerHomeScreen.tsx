@@ -288,6 +288,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
      * - Prevents unnecessary API call
      */
     if (query.trim() === '') {
+      setSelectedCategory('All'); // search cleared: back to the unfiltered list
       loadInitialData();
     }
   };
@@ -311,7 +312,7 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
     try {
       setLoading(true);
       setProducts([]); // Clear products to trigger loading state
-      setSelectedCategory('All'); // Reset category filter
+      setSelectedCategory(''); // No chip selected while showing search results
 
       const result = await searchProducts(searchQuery);
       if (result.success) {
@@ -365,7 +366,9 @@ const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
        * - This mirrors the logic in handleCategorySelect
        */
       let result;
-      if (selectedCategory === 'All') {
+      if (selectedCategory === '') {
+        result = await searchProducts(searchQuery); // search results are showing
+      } else if (selectedCategory === 'All') {
         result = await getAllProducts();
       } else {
         result = await getProductsByCategory(selectedCategory);
