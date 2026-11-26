@@ -49,7 +49,9 @@ Screens: `customer/09-search-milk`, `10-search-no-results`, `11-category-dairy`,
 
 Captured on `fix/ui-audit`. The arrival modal was triggered by inserting a test `CustomerArrivals` row for a leftover ready order via REST as the customer, then deleting it with the API key.
 
-Screens: `shopper/10-substitution-picker-empty-*`, `11-substitution-picker-results-*`, `12-arrival-modal-*` (light and dark).
+Screens (light and dark): `shopper/10-substitution-picker-empty-*`, `11-substitution-picker-results-*`, `12-arrival-modal-*`, `13-arrival-modal-unavailable-dark`, `14-urgent-toast-*`, `15-order-reassigned-modal-*`, `16-new-assignment-modal-*`.
+
+The urgent toast, interrupt and new-assignment modals were triggered through the Function the way the app does it: normal orders due earlier than the shopper's current one (toast), a rush order (interrupt), then the shopper toggled unavailable/available (new assignment). The test orders were cancelled and #BB02DC98 was handed back afterwards (status is now `assigned`, not `shopping`; its picked item survived).
 
 | # | Severity | Finding | Evidence |
 |---|---|---|---|
@@ -57,11 +59,13 @@ Screens: `shopper/10-substitution-picker-empty-*`, `11-substitution-picker-resul
 | 12 | Polish | Picker search showed Lemonade and Lemons for "lettuce" on the first run but not on a rerun, so this is probably a stale-response race (a late result for "le" overwriting "lettuce"), not fuzzy matching. Not yet confirmed or fixed. The empty state is only a header and a search box, with no hint or suggestions | `10-*`, `11-*` |
 | 13 | Polish | Arrival modal has a 60 s timeout and reassigns, but nothing on screen shows the shopper the countdown | `12-arrival-modal-*.png` |
 | 14 | Bug (edge case) | **Fixed 2026-11-25.** Arrival modal stayed up, with live buttons, after its arrival was deleted, completed or reassigned. It now switches to a "No Longer Available" notice ("This hand-off is no longer available, or the order is no longer assigned to you.") with an OK button. Also shown if Hand Off / Unavailable hits a row that no longer exists. Verified by deleting the row while the modal was up. Not tested live: the reassigned-to-someone-else path and the accept echo guard. | `13-arrival-modal-unavailable-dark.png` |
+| 15 | Contrast | In the Order Reassigned modal the order number is amber on a white card in light mode, low contrast | `15-order-reassigned-modal-light.png` |
+| 16 | Bug | After a rush order bumped the shopper, the Shopping screen stayed open on the bumped order and kept listing its items, even after the new order was assigned. Nothing navigates away. Not tested: whether edits there still write to the old order | observed live 2026-11-25 |
+| 17 | Bug (edge case) | The New Order Assigned modal only fires if the app sees the shopper go from *no order* to an order. If an order is swapped for another auto-assigned one while the app is backgrounded or the socket is down (one reconcile sees order A, the next sees order B), a non-interrupt swap shows nothing. It took a background/foreground reconcile to show any of the three live modals, because the realtime socket dropped in the emulator | `ShopperAssignmentContext.tsx` `fetchAndReconcile`; reproduced 2026-11-25 |
 | 1 (more) | | The white status bar in dark mode (#1) also shows behind both the picker and the arrival modal | `10-*-dark`, `12-*-dark` |
 
 ## Not yet covered
 
 - **Order confirmation:** needs a real order placed against live Appwrite (and the auto-assignment Function would pick it up). Not done without your OK.
-- **Shopper modals still to capture:** new assignment, interrupted order, urgent toast. These need orders created or reassigned on live Appwrite while the shopper app is open. (Arrival hand-off and substitution picker are done, see the third pass.)
 - **Tablet layouts:** no tablet AVD exists.
 - Shopper-side large-font.
