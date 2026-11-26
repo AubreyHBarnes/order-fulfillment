@@ -55,7 +55,7 @@ const OrderInterruptedModal: React.FC<OrderInterruptedModalProps> = ({
       color: theme.colors.onSurface,
     },
     orderId: {
-      color: theme.custom.warning,
+      color: theme.colors.onSurface,
     },
     detailText: {
       color: theme.custom.textSecondary,
