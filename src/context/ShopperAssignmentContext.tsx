@@ -342,10 +342,31 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
      * interrupt (interruptedAt set) rather than assuming, since a
      * completed/cancelled order also clears currentOrderId.
      */
-    const checkInterrupt = async (previousOrderId: string): Promise<void> => {
+    const checkInterrupt = async (previousOrderId: string): Promise<boolean> => {
       const orderResult = await getOrderById(previousOrderId);
       if (orderResult.success && orderResult.data?.interruptedAt) {
         setInterruptedOrder(orderResult.data);
+        return true;
+      }
+      return false;
+    };
+
+    /**
+     * currentOrderId changed (idle -> order, or order A -> order B).
+     * An interrupt (rush bump) already explains the change with the
+     * Order Reassigned modal, so the new-assignment prompt only follows
+     * when there was no interrupt - otherwise two modals would stack.
+     * A -> B swaps that aren't interrupts (e.g. missed while the app was
+     * backgrounded) get the same accept/decline prompt as idle -> order;
+     * checkNewAssignment still skips the shopper's own manual claim/swap.
+     */
+    const handleOrderChange = async (
+      previousOrderId: string | null,
+      currentOrderId: string | null
+    ): Promise<void> => {
+      const interrupted = previousOrderId ? await checkInterrupt(previousOrderId) : false;
+      if (currentOrderId && !interrupted) {
+        await checkNewAssignment(currentOrderId);
       }
     };
 
@@ -413,12 +434,8 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       const previousOrderId = lastKnownOrderIdRef.current;
       lastKnownOrderIdRef.current = currentOrderId;
 
-      if (!previousOrderId && currentOrderId) {
-        await checkNewAssignment(currentOrderId);
-      }
-
-      if (previousOrderId && previousOrderId !== currentOrderId) {
-        await checkInterrupt(previousOrderId);
+      if (previousOrderId !== currentOrderId) {
+        await handleOrderChange(previousOrderId, currentOrderId);
       }
 
       if (!currentOrderId) {
@@ -449,13 +466,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
       }
       lastKnownOrderIdRef.current = currentOrderId;
 
-      if (!previousOrderId && currentOrderId) {
-        checkNewAssignment(currentOrderId);
-      }
-
-      if (previousOrderId && previousOrderId !== currentOrderId) {
-        checkInterrupt(previousOrderId);
-      }
+      handleOrderChange(previousOrderId, currentOrderId);
 
       if (currentOrderId) {
         checkUrgentOrder(currentOrderId);
