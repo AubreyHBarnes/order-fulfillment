@@ -27,7 +27,8 @@ import { useAppTheme } from '../../theme';
 import { getOrderById } from '../../services/orderService';
 import { updatePickedItems, updateItemIssues } from '../../services/functionActionService';
 import { getProductById } from '../../services/productService';
-import { subscribeToOrders, isUpdateEvent } from '../../services/realtimeService';
+import { subscribeToOrders, isUpdateEvent, onAppForeground } from '../../services/realtimeService';
+import { useAuth } from '../../context/AuthContext';
 import {
   parseItemsString,
   parsePickedItemsString,
@@ -38,6 +39,7 @@ import {
 } from '../../utils/orderItems';
 import ItemChecklistItem from '../../components/shopper/ItemChecklistItem';
 import SubstitutionPickerModal from '../../components/shopper/SubstitutionPickerModal';
+import OrderNoLongerAssignedModal from '../../components/shopper/OrderNoLongerAssignedModal';
 import type { ShopperStackParamList, Product } from '../../types';
 
 type ShoppingScreenProps = NativeStackScreenProps<ShopperStackParamList, 'Shopping'>;
@@ -45,6 +47,9 @@ type ShoppingScreenProps = NativeStackScreenProps<ShopperStackParamList, 'Shoppi
 const ShoppingScreen: React.FC<ShoppingScreenProps> = ({ route, navigation }) => {
   const theme = useAppTheme();
   const { orderId } = route.params;
+  const { userProfile } = useAuth();
+  const shopperId = userProfile?.shopperID;
+  const [orderLost, setOrderLost] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +152,43 @@ const ShoppingScreen: React.FC<ShoppingScreenProps> = ({ route, navigation }) =>
 
     return unsubscribe;
   }, [issues, orderId]);
+
+  // ============================================================
+  // LEAVE IF THE ORDER STOPS BEING THIS SHOPPER'S
+  // ============================================================
+  // Server writes already reject a shopper who no longer owns the order (403),
+  // but until now the stale checklist just stayed up. Realtime can drop, so
+  // also re-check on app resume.
+
+  useEffect(() => {
+    if (!shopperId) return;
+
+    // A bump writes the order more than once: only react to the first.
+    let handled = false;
+    const check = (order: { shopperID?: string; status: string; interruptedAt?: string | null }): void => {
+      if (handled || (order.shopperID === shopperId && order.status !== 'cancelled')) return;
+      handled = true;
+      // A rush bump already gets OrderInterruptedModal's explanation: just leave.
+      if (order.interruptedAt) {
+        navigation.popToTop();
+      } else {
+        setOrderLost(true);
+      }
+    };
+    const recheck = async (): Promise<void> => {
+      const result = await getOrderById(orderId);
+      if (result.success && result.data) check(result.data);
+    };
+
+    const unsubscribe = subscribeToOrders((event) => {
+      if (event.payload.$id === orderId && isUpdateEvent(event)) check(event.payload);
+    });
+    const stopWatchingForeground = onAppForeground(recheck);
+    return () => {
+      unsubscribe();
+      stopWatchingForeground();
+    };
+  }, [orderId, shopperId, navigation]);
 
   // ============================================================
   // PERSISTENCE (optimistic update, revert on failure)
@@ -298,6 +340,8 @@ const ShoppingScreen: React.FC<ShoppingScreenProps> = ({ route, navigation }) =>
         onSelect={handleSelectSubstitute}
         onCancel={() => setSubstitutionTarget(null)}
       />
+
+      <OrderNoLongerAssignedModal visible={orderLost} onDismiss={() => navigation.popToTop()} />
     </View>
   );
 };
