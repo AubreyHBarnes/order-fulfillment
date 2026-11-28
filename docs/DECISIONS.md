@@ -1269,3 +1269,35 @@ Rollback if the app turns out to depend on something missed: the same `updateTab
 - The current build is foreground-only. How Android battery saver or iOS Low Power Mode change location updates on real phones has not been tested; this is the reason the manual fallback exists.
 - Thresholds (90s, 20-30s sustained, smoothing window) are starting points to tune.
 
+
+---
+
+## Arrival hand-off timeout without cron: a client-driven sweep and a visible countdown (2026-11-28)
+
+**Context:** The 60 s arrival hand-off timeout (see "Arrival hand-off corrected" above) depended on an every-minute cron schedule. The Appwrite plan stopped allowing cron (see the 2026-10-22 entry: `403 billing_feature_unsupported`), so since 2026-10-19 an unanswered arrival has waited forever. UI audit #13 also noted the shopper's modal never showed the countdown, which would have been misleading with the timeout not running at all.
+
+**What was tried first:** a one-off delayed execution. When an arrival is created or reassigned, the Function would schedule one run of itself 60 s later with `createExecution` and `scheduledAt`, giving an exact timeout with no cron. Tested live over REST with the project API key: every request was rejected with `400 Execution schedule must be a valid date, and at least 1 minute from now`, for 65 s, 125 s and 1 hour ahead, in ISO, space-separated and zone-less formats, with and without a body. Clocks agree with Appwrite's, so it is not a date problem. Most likely a plan restriction like cron's, but Appwrite did not say so; the cause is unconfirmed. Nothing was written by these attempts.
+
+**Alternatives considered:**
+- External pinger (cron-job.org, Cloudflare Worker cron): works, also covers a future 9 pm cancel sweep, but adds a third service and a secret. Not rejected for good; it is the upgrade path.
+- Lazy sweep on every Function invocation: free, but nothing fires if the system is idle.
+- Self-host Appwrite or upgrade the plan: removes the limit, overkill here.
+
+**Decision:** drive the timeout from the clients, with the server still the only authority on whether an arrival is overdue.
+1. **New HTTP action `sweepArrivals`** (`functions/auto-assignment/src/main.js`). It runs the same `handleScheduledSweep` the cron used. Any signed-in caller may trigger it, because it only acts on arrivals the *server's* clock says are older than 60 s; a call too early, or a repeated call, is a no-op.
+2. **Countdown in `ArrivalNotificationModal`**, computed from the arrival's server-written `notifiedShopperAt` plus 60 s ("Respond within 55s or this goes to another shopper"). At zero it shows "Time expired - reassigning..." and calls `sweepArrivals`, then retries every 10 s while the modal is still up (a device clock running ahead would otherwise call too early and then never again).
+3. **Backstop in the customer's `ArrivalNotificationCard`:** while the customer is waiting, their app calls `sweepArrivals` every 30 s. The customer is at the store with the app open, so this covers a shopper whose app is closed or killed, which is exactly the case the timeout exists for.
+
+**Tradeoffs and limits:**
+- The timeout is no longer a guarantee. If the shopper's app and the customer's app are both closed, nothing fires until someone opens one. Cron (or a pinger) would not have this gap.
+- Worst case is now about 60 s plus up to 30 s from the customer's backstop, when the shopper's app is not open; with the shopper's modal open it is about 60 s.
+- Reassignment itself is unchanged: the sweep marks the timed-out shopper unavailable and the existing `shopperStatus` event handler reassigns. If no one else is free the arrival stays stuck and the modal stays up with live buttons, same as before.
+- `sweepArrivals` also runs `expireStaleTrips`, so stale proximity trips are now cleaned up whenever anyone sweeps, which partly addresses the "sweeps not running" note above.
+- Not solved: the end-of-day (9 pm) cancel sweep. It needs a trigger that works with every app closed, so it points at the external-pinger option.
+
+**Verification (2026-11-28):**
+- REST: a 2-minute-old waiting arrival plus a `sweepArrivals` call as the shopper marked that shopper unavailable; an invalid JWT returned 401.
+- Emulator, shopper side: modal showed "Respond within 55s", 29 s later the count matched the 60 s deadline, and at zero it showed "Time expired - reassigning..." while the shopper went Unavailable (status card and database).
+- **Not yet verified live:** the customer-side 30 s backstop, the reassign-to-a-second-shopper path after a client-driven timeout, and a real device with a skewed clock.
+
+**Operational note:** `deploy.js` fails on Node 26 (`invalid onError method` from the SDK's bundled fetch). `npx -y -p node@22 node functions/auto-assignment/scripts/deploy.js` works.
