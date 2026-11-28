@@ -1489,6 +1489,13 @@ async function handleHttpAction(databases, payload, log) {
       return await handleEndTrip(databases, caller, payload, log);
     case 'createOrder':
       return await handleCreateOrder(databases, caller, payload, log);
+    case 'sweepArrivals':
+      // Client-driven stand-in for the cron schedule this plan doesn't
+      // allow (nor scheduled executions - both rejected live, 2026-11-28).
+      // Any signed-in caller may trigger it: it only acts on arrivals the
+      // server's own clock says are overdue, so extra calls are no-ops.
+      await handleScheduledSweep(databases, log);
+      return { status: 200, body: { ok: true } };
     default:
       return { status: 400, body: { ok: false, error: `Unknown action: ${payload.action}` } };
   }

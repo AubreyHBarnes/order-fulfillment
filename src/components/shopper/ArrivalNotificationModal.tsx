@@ -18,11 +18,15 @@
  * wrapper so a tap on it doesn't fall through to the backdrop.
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
 import { Text, Icon, Button } from 'react-native-paper';
 import { useAppTheme } from '../../theme';
 import type { ArrivalNotificationModalProps } from '../../types';
+
+// Mirrors ARRIVAL_TIMEOUT_MS in functions/auto-assignment/src/main.js.
+const ARRIVAL_TIMEOUT_MS = 60 * 1000;
+const RETRY_AFTER_EXPIRY_MS = 10 * 1000;
 
 const ArrivalNotificationModal: React.FC<ArrivalNotificationModalProps> = ({
   visible,
@@ -32,8 +36,36 @@ const ArrivalNotificationModal: React.FC<ArrivalNotificationModalProps> = ({
   declineLoading = false,
   unavailable = false,
   onDismissUnavailable,
+  onTimeout,
 }) => {
   const theme = useAppTheme();
+
+  // Seconds left until the server reassigns this hand-off (null = no live countdown).
+  const deadline = arrival ? new Date(arrival.notifiedShopperAt).getTime() + ARRIVAL_TIMEOUT_MS : null;
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const onTimeoutRef = useRef(onTimeout);
+  onTimeoutRef.current = onTimeout;
+
+  useEffect(() => {
+    if (!visible || unavailable || deadline === null || Number.isNaN(deadline)) {
+      setSecondsLeft(null);
+      return;
+    }
+    let lastCall = 0;
+    const tick = (): void => {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSecondsLeft(left);
+      // Cron is unavailable on this plan, so the countdown also drives the
+      // server sweep. Retry while still shown (device clock may run ahead).
+      if (left === 0 && Date.now() - lastCall >= RETRY_AFTER_EXPIRY_MS) {
+        lastCall = Date.now();
+        onTimeoutRef.current?.();
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [visible, unavailable, deadline]);
 
   const dynamicStyles = {
     modalOverlay: {
@@ -96,6 +128,14 @@ const ArrivalNotificationModal: React.FC<ArrivalNotificationModalProps> = ({
                 </Text>
               )}
             </View>
+          )}
+
+          {!unavailable && secondsLeft !== null && (
+            <Text variant="bodyMedium" style={[styles.countdown, dynamicStyles.detailText]}>
+              {secondsLeft > 0
+                ? `Respond within ${secondsLeft}s or this goes to another shopper`
+                : 'Time expired - reassigning...'}
+            </Text>
           )}
 
           {unavailable ? (
@@ -166,6 +206,10 @@ const styles = StyleSheet.create({
   },
   orderId: {
     fontWeight: '700',
+  },
+  countdown: {
+    textAlign: 'center',
+    marginBottom: 16,
   },
   // Stacked, not side by side: two flex:1 buttons in a 340px card left
   // "Hand Off Order" truncating on narrower screens

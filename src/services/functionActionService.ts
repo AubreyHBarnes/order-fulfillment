@@ -324,3 +324,13 @@ export const createOrder = async (
   const orderId = result.data?.orderId;
   return { ...result, orderId: typeof orderId === 'string' ? orderId : undefined };
 };
+
+/**
+ * Run the arrival-timeout sweep now. Stands in for the cron schedule the
+ * Appwrite plan doesn't allow: called when a hand-off countdown hits zero,
+ * and periodically by a waiting customer. Idempotent - the server only
+ * acts on arrivals its own clock says are overdue.
+ */
+export const sweepArrivals = async (): Promise<FunctionActionResponse> => {
+  return callFunctionAction('sweepArrivals');
+};

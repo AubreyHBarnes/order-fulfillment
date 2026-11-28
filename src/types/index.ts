@@ -929,6 +929,8 @@ export interface ArrivalNotificationData {
   shortOrderId: string;
   vehicleDescription?: string;
   notes?: string;
+  /** When this shopper was notified; the hand-off times out 60 s later. */
+  notifiedShopperAt: string;
 }
 
 /**
@@ -973,6 +975,8 @@ export interface ArrivalNotificationModalProps {
   /** The arrival was deleted, completed, or reassigned while the modal was up: show a notice instead of the actions. */
   unavailable?: boolean;
   onDismissUnavailable?: () => void;
+  /** Called once the countdown reaches zero, and every 10 s after while still shown. */
+  onTimeout?: () => void;
 }
 
 /**

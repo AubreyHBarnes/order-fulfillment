@@ -65,6 +65,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { sweepArrivals } from '../../services/functionActionService';
 import { StyleSheet, Alert } from 'react-native';
 import { Card, Text, Button, TextInput, ActivityIndicator } from 'react-native-paper';
 import { useAppTheme } from '../../theme';
@@ -193,6 +194,19 @@ const ArrivalNotificationCard: React.FC<ArrivalNotificationCardProps> = ({
       setStatus('not_arrived');
     }
   }, [orderId]);
+
+  // Backstop for the hand-off timeout (cron is unavailable on this plan): the
+  // customer's app is open while they wait, so nudge the server's sweep. It
+  // only acts on arrivals its own clock says are overdue, so this is cheap.
+  useEffect(() => {
+    if (status !== 'arrived') {
+      return;
+    }
+    const id = setInterval(() => {
+      sweepArrivals();
+    }, 30 * 1000);
+    return () => clearInterval(id);
+  }, [status]);
 
   useEffect(() => {
     checkExistingArrival();

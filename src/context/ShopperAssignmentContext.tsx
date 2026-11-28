@@ -86,6 +86,7 @@ import { getUserProfileById, getCustomerDisplayName } from '../services/userServ
 import {
   acceptArrivalHandoff,
   declineArrivalHandoff,
+  sweepArrivals,
   toggleAvailability,
 } from '../services/functionActionService';
 import {
@@ -558,6 +559,7 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         shortOrderId: generateShortOrderId(orderResult.data.$id),
         vehicleDescription: arrival.vehicleDescription,
         notes: arrival.notes,
+        notifiedShopperAt: arrival.notifiedShopperAt,
       });
     };
 
@@ -750,6 +752,9 @@ export const ShopperAssignmentProvider: React.FC<ShopperAssignmentProviderProps>
         declineLoading={declineArrivalLoading}
         unavailable={arrivalUnavailable}
         onDismissUnavailable={dismissArrivalUnavailable}
+        onTimeout={() => {
+          sweepArrivals();
+        }}
       />
     </ShopperAssignmentContext.Provider>
   );
